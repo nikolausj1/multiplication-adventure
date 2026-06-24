@@ -17,9 +17,11 @@ struct NumberPadView: View {
             }
             HStack(spacing: 12) {
                 key(systemImage: "delete.left.fill", tint: Theme.Color.inkSoft, action: onDelete)
+                    .accessibilityLabel("Delete")
                 digit(0)
                 key(systemImage: "checkmark", tint: Theme.Color.correct,
                     enabled: enterEnabled, action: onEnter)
+                    .accessibilityLabel("Enter")
             }
         }
         .frame(maxWidth: 420)
@@ -33,7 +35,7 @@ struct NumberPadView: View {
                 .background(Theme.Color.surface)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.cornerSmall, style: .continuous))
         }
-        .buttonStyle(KeyButtonStyle())
+        .buttonStyle(PopButtonStyle(scale: 0.94))
     }
 
     private func key(systemImage: String, tint: Color, enabled: Bool = true, action: @escaping () -> Void) -> some View {
@@ -44,15 +46,7 @@ struct NumberPadView: View {
                 .background(enabled ? tint.opacity(0.12) : Theme.Color.surface.opacity(0.5))
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.cornerSmall, style: .continuous))
         }
-        .buttonStyle(KeyButtonStyle())
+        .buttonStyle(PopButtonStyle(scale: 0.94))
         .disabled(!enabled)
-    }
-}
-
-private struct KeyButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(Theme.Motion.quick, value: configuration.isPressed)
     }
 }

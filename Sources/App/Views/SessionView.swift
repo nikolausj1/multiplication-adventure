@@ -58,8 +58,11 @@ struct SessionView: View {
             HStack {
                 Button { vm.stop() } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 28)).foregroundStyle(Theme.Color.inkSoft)
+                        .font(.system(size: 30)).foregroundStyle(Theme.Color.inkSoft)
+                        .frame(width: 48, height: 48)        // ≥44pt tap target (HIG)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel("End session")
                 Spacer()
                 Text(vm.movementLabel.uppercased())
                     .font(Theme.Font.label(13)).tracking(1.5)

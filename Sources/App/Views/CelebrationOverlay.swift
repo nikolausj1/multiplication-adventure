@@ -6,6 +6,7 @@ struct CelebrationOverlay: View {
     let celebration: Celebration
     let onDismiss: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
     var body: some View {
@@ -17,8 +18,8 @@ struct CelebrationOverlay: View {
                     .font(.system(size: tier == .t4 ? 120 : 84))
                     .foregroundStyle(Theme.Color.accent)
                     .symbolRenderingMode(.hierarchical)
-                    .scaleEffect(shown ? 1 : 0.3)
-                    .rotationEffect(.degrees(shown ? 0 : -20))
+                    .scaleEffect(reduceMotion ? 1 : (shown ? 1 : 0.3))
+                    .rotationEffect(.degrees(reduceMotion ? 0 : (shown ? 0 : -20)))
                 Text(celebration.headline)
                     .font(Theme.Font.display(tier == .t4 ? 40 : 30))
                     .foregroundStyle(.white).multilineTextAlignment(.center)
@@ -31,11 +32,11 @@ struct CelebrationOverlay: View {
                 }
             }
             .padding(40)
-            .scaleEffect(shown ? 1 : 0.8)
+            .scaleEffect(reduceMotion ? 1 : (shown ? 1 : 0.8))
             .opacity(shown ? 1 : 0)
         }
         .onAppear {
-            withAnimation(Theme.Motion.celebrate) { shown = true }
+            withAnimation(reduceMotion ? Theme.Motion.quick : Theme.Motion.celebrate) { shown = true }
             // Lower tiers auto-dismiss; major beats wait for a tap.
             if tier < .t3 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + Theme.Motion.duration(tier)) {

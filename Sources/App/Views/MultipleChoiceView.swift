@@ -23,9 +23,17 @@ struct MultipleChoiceView: View {
                             .foregroundStyle(foreground(option))
                             .background(background(option))
                             .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous)
+                                    .strokeBorder(Theme.Color.primary.opacity(showFeedback ? 0 : 0.12), lineWidth: 2)
+                            )
+                            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(PopButtonStyle())
                     .disabled(showFeedback)
                     .scaleEffect(showFeedback && option == answer ? 1.04 : 1)
+                    .accessibilityLabel("\(option)")
                 }
             }
         }

@@ -74,3 +74,15 @@ extension View {
             .shadow(color: .black.opacity(0.06), radius: 10, y: 4)
     }
 }
+
+/// Tactile press feedback for large kid-facing buttons (HIG: clear affordance +
+/// immediate response). Shrinks slightly on press; respects Reduced Motion.
+struct PopButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var scale: CGFloat = 0.95
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? scale : 1)
+            .animation(Theme.Motion.quick, value: configuration.isPressed)
+    }
+}
