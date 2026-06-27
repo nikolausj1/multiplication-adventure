@@ -285,8 +285,13 @@ explicit, gated parent **Reset**).
 four-movement session, XP, transparent dashboard with mastery map + trend, milestone tiers,
 neutral-soft feedback, kids-UX hardening. Runs on iPad simulator (home / session / dashboard verified).
 
-**Next build (this spec's 🔜 items):** per-profile data layer → world engine → rename +
-landscape → map home + per-world theming + placeholder art slots → parent area with gate.
+**Built 2026-06-27 (was the 🔜 list):** per-profile data layer (multi-profile), world
+engine (7 worlds, clear-at-fluency, world-scoped introduction), rename to Multiplication
+Adventure + landscape lock, world-map home with **real generated art**, per-world themed
+sessions (backdrop + scrim + skinned buttons), parent area with the 2×2 parent gate, and
+the profile-scoped dashboard. Compiles clean; 50 engine checks pass. ⚠️ Not yet
+runtime-screenshot-verified — a mid-session Xcode update left CoreSimulator stale; needs a
+Mac reboot, then boot an iPad sim and launch `com.levelup.adventure`.
 
 **Still deferred / fast-follow:** custom/generated art + avatar cosmetic unlocks, sound
 pack, completion certificate art, App Store packaging, notifications, other operations
