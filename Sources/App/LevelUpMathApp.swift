@@ -13,7 +13,11 @@ struct LevelUpMathApp: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
         // Seed the fact universe and profile on first launch.
-        LearningService(context: container.mainContext).bootstrap()
+        let service = LearningService(context: container.mainContext)
+        service.bootstrap()
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-demoComplete") { service.applyDemoProgress(complete: true) }
+        else if args.contains("-demoProgress") { service.applyDemoProgress(complete: false) }
     }
 
     var body: some Scene {

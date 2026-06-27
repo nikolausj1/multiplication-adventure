@@ -77,6 +77,30 @@ struct LearningService {
         try? context.save()
     }
 
+    /// Debug only (launch-arg gated): seed progress so map/speed/certificate states can be
+    /// previewed without playing through. `complete` masters everything.
+    func applyDemoProgress(complete: Bool) {
+        let p = activeProfile()
+        let now = Date()
+        for f in p.facts {
+            let w = WorldCatalog.worldIndex(ofFact: f.id)
+            if complete || w <= 2 {
+                f.introduced = true; f.stageRaw = MasteryStage.mastered.rawValue; f.box = 5
+                f.masteredDate = now; f.totalAttempts = 6; f.totalCorrect = 6
+                f.recentTimes = [1.2, 1.0, 1.1]; f.averageTime = 1.1
+                f.fluencyFastCount = 3; f.fluencyFastDays = [20240101, 20240102]
+            } else if w == 3 {
+                // Partial current world so a node stays "current".
+                let fluent = (f.a + f.b).isMultiple(of: 2)
+                f.introduced = true
+                f.stageRaw = (fluent ? MasteryStage.fluency : MasteryStage.recall).rawValue
+                f.box = 3; f.totalAttempts = 4; f.totalCorrect = 4
+                f.recentTimes = [1.6]; f.averageTime = 1.6
+            }
+        }
+        try? context.save()
+    }
+
     // MARK: Active-profile facts
 
     private func facts() -> [Fact] { activeProfile().facts }
@@ -93,6 +117,22 @@ struct LearningService {
     private func currentThreshold() -> Double {
         let times = facts().flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
         return FluencyThreshold.current(recentFluencyTimes: times)
+    }
+
+    /// Facts at Fluency or Mastered — gates the Speed Round (count-up + beat-your-best).
+    func fluentPlusCount() -> Int { facts().filter { $0.stage >= .fluency }.count }
+
+    /// A timed round drawn only from already-fluent facts, all open-response.
+    func buildSpeedSession(now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
+        let pool = facts().filter { $0.stage >= .fluency }.map(\.id)
+        guard !pool.isEmpty else { return [] }
+        var rng = SplitMix64(seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)))
+        var ids = pool; ids.shuffle(using: &rng)
+        return ids.prefix(20).map { id in
+            let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
+            return PlannedQuestion(prompt: prompt, format: .fluency, movement: .review,
+                                   options: nil, timed: true)
+        }
     }
 
     private func masteredCount() -> Int { facts().filter { $0.stage == .mastered }.count }
@@ -140,12 +180,27 @@ struct LearningService {
     @discardableResult
     func finishSession(questionCount: Int, correctCount: Int, xpEarned: Int,
                        responseTimes: [Double], factsTouched: Int,
-                       now: Date = .now) -> Celebration? {
+                       speed: Bool = false, now: Date = .now) -> Celebration? {
         let p = activeProfile()
         let beforeStreak = p.streakDays
         let newStreak = p.registerPractice(on: now)
 
         let median = Self.median(responseTimes)
+
+        // Speed Round: track beat-your-best on median response time.
+        if speed, median > 0 {
+            let isBest = p.bestSpeedAvg == 0 || median < p.bestSpeedAvg
+            if isBest { p.bestSpeedAvg = median }
+            let rec = SessionRecord(date: now, questionCount: questionCount, correctCount: correctCount,
+                                    xpEarned: xpEarned, medianResponseTime: median, factsTouched: factsTouched)
+            rec.profile = p
+            context.insert(rec)
+            p.registerPractice(on: now)
+            try? context.save()
+            return Celebration(tier: isBest ? .t2 : .t1,
+                               headline: isBest ? "New best time!" : "Speed Round complete!",
+                               lines: [String(format: "%.1fs average", median)])
+        }
         let rec = SessionRecord(date: now, questionCount: questionCount,
                                 correctCount: correctCount, xpEarned: xpEarned,
                                 medianResponseTime: median, factsTouched: factsTouched)

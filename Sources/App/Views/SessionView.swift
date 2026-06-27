@@ -31,7 +31,11 @@ struct SessionView: View {
         .animation(Theme.Motion.snappy, value: vm?.stage)
         .onAppear {
             if vm == nil {
-                vm = SessionViewModel(service: LearningService(context: context), speedRound: speedRound)
+                let args = ProcessInfo.processInfo.arguments
+                let mode: SessionViewModel.AutoMode = args.contains("-demoWrap") ? .wrap
+                    : (args.contains("-demoFeedback") ? .feedback : .off)
+                vm = SessionViewModel(service: LearningService(context: context),
+                                      speedRound: speedRound, auto: mode)
             }
         }
     }

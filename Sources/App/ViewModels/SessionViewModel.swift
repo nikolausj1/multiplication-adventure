@@ -30,15 +30,20 @@ final class SessionViewModel {
     var pendingCelebration: Celebration?
     private(set) var endCelebration: Celebration?
 
+    /// Debug autoplay (launch-arg gated) for screenshot verification.
+    enum AutoMode { case off, feedback, wrap }
+
     private let service: LearningService
     private let timed: Bool
+    private let auto: AutoMode
     private var questionStart = Date.now
     private let originalCount: Int
 
-    init(service: LearningService, speedRound: Bool = false) {
+    init(service: LearningService, speedRound: Bool = false, auto: AutoMode = .off) {
         self.service = service
         self.timed = speedRound
-        let built = service.buildSession()
+        self.auto = auto
+        let built = speedRound ? service.buildSpeedSession() : service.buildSession()
         self.queue = built
         self.originalCount = built.count
         questionStart = .now
@@ -61,7 +66,17 @@ final class SessionViewModel {
         }
     }
 
-    func beginQuestion() { questionStart = .now }
+    func beginQuestion() {
+        questionStart = .now
+        guard auto != .off else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self, self.stage == .asking, let q = self.current else { return }
+            self.answer(q.prompt.answer)
+            if self.auto == .wrap {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in self?.next() }
+            }
+        }
+    }
 
     func answer(_ value: Int) {
         guard stage == .asking, let q = current else { return }
@@ -110,7 +125,7 @@ final class SessionViewModel {
         stage = .finished
         endCelebration = service.finishSession(
             questionCount: totalAnswered, correctCount: correctCount, xpEarned: xpEarned,
-            responseTimes: responseTimes, factsTouched: touched.count)
+            responseTimes: responseTimes, factsTouched: touched.count, speed: timed)
     }
 
     var accuracy: Double { totalAnswered == 0 ? 0 : Double(correctCount) / Double(totalAnswered) }

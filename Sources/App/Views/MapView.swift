@@ -10,12 +10,15 @@ struct MapView: View {
 
     @State private var sessionWorld: WorldSelection?
     @State private var showParent = false
-    @State private var speedRound = false
+    @State private var showCertificate = false
 
     private var profile: Profile? { activeProfiles.first }
     private var snapshots: [FactSnapshot] { (profile?.facts ?? []).map(\.snapshot) }
     private var stats: [WorldStat] { WorldProgress.stats(snapshots: snapshots) }
     private var currentIndex: Int { WorldProgress.currentIndex(snapshots: snapshots) }
+    private var fluentPlus: Int { snapshots.filter { $0.stage >= .fluency }.count }
+    private var canSpeedRound: Bool { fluentPlus >= 10 || (profile?.speedRoundUnlocked ?? false) }
+    private var isComplete: Bool { (profile?.masteredCount ?? 0) == FactUniverse.count }
 
     /// Fractional positions of each world node, forming a left→right winding trail.
     private let pts: [CGPoint] = [
@@ -42,14 +45,17 @@ struct MapView: View {
             VStack { header; Spacer() }
         }
         .fullScreenCover(item: $sessionWorld) { sel in
-            SessionView(worldIndex: sel.id, speedRound: speedRound)
+            SessionView(worldIndex: sel.id, speedRound: sel.speed)
                 .environment(\.worldTheme, .forWorld(sel.id))
         }
         .sheet(isPresented: $showParent) { ParentAreaView() }
+        .sheet(isPresented: $showCertificate) { CertificateView(name: profile?.name ?? "Champion") }
         .onAppear {
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-autostartSession") { sessionWorld = WorldSelection(id: currentIndex) }
             if args.contains("-autostartParent") { showParent = true }
+            if args.contains("-autostartCertificate") { showCertificate = true }
+            if args.contains("-autostartSpeed") { sessionWorld = WorldSelection(id: currentIndex, speed: true) }
         }
     }
 
@@ -87,6 +93,21 @@ struct MapView: View {
                 .font(Theme.Font.display(20)).foregroundStyle(.white).shadow(radius: 3)
                 .padding(.top, 10)
             Spacer()
+            if isComplete {
+                Button { showCertificate = true } label: {
+                    Image(systemName: "trophy.fill").font(.system(size: 20))
+                        .foregroundStyle(Theme.Color.accent)
+                        .frame(width: 44, height: 44).background(.ultraThinMaterial, in: Circle())
+                }
+                .accessibilityLabel("Certificate")
+            }
+            if canSpeedRound {
+                Button { sessionWorld = WorldSelection(id: currentIndex, speed: true) } label: {
+                    Label("Speed", systemImage: "timer").font(Theme.Font.label(14))
+                        .foregroundStyle(Theme.Color.ink)
+                        .padding(.horizontal, 12).padding(.vertical, 10).scrimCard()
+                }
+            }
             if let p = profile, p.streakDays > 0 {
                 Label("\(p.streakDays)", systemImage: "flame.fill")
                     .font(Theme.Font.number(17)).foregroundStyle(Theme.Color.accent)
@@ -112,7 +133,6 @@ struct MapView: View {
         VStack(spacing: 5) {
             Button {
                 guard unlocked else { return }
-                speedRound = false
                 sessionWorld = WorldSelection(id: world.index)
             } label: {
                 ZStack {
@@ -190,5 +210,8 @@ private struct PulsingRing: View {
     }
 }
 
-/// Wrapper so `fullScreenCover(item:)` can carry a world index.
-struct WorldSelection: Identifiable { let id: Int }
+/// Wrapper so `fullScreenCover(item:)` can carry a world index + speed-round flag.
+struct WorldSelection: Identifiable {
+    let id: Int
+    var speed: Bool = false
+}

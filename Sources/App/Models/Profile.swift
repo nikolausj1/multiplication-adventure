@@ -20,6 +20,7 @@ final class Profile {
     var timingModeRaw: String      // "gentle" | "speed"
     var soundOn: Bool
     var speedRoundUnlocked: Bool
+    var bestSpeedAvg: Double = 0   // best (lowest) median response time in a Speed Round; 0 = none yet
 
     // Per-profile data (cascade so deleting a profile cleans everything up).
     @Relationship(deleteRule: .cascade, inverse: \Fact.profile) var facts: [Fact] = []
