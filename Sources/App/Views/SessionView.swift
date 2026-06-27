@@ -6,6 +6,7 @@ struct SessionView: View {
     @Environment(\.dismiss) private var dismiss
     var worldIndex: Int = 0
     var speedRound: Bool = false
+    var testFormat: MasteryStage? = nil
 
     @State private var vm: SessionViewModel?
     private var theme: WorldTheme { .forWorld(worldIndex) }
@@ -35,7 +36,8 @@ struct SessionView: View {
                 let mode: SessionViewModel.AutoMode = args.contains("-demoWrap") ? .wrap
                     : (args.contains("-demoFeedback") ? .feedback : .off)
                 vm = SessionViewModel(service: LearningService(context: context),
-                                      speedRound: speedRound, auto: mode)
+                                      speedRound: speedRound, auto: mode,
+                                      worldIndex: worldIndex, testFormat: testFormat)
             }
         }
     }

@@ -210,8 +210,10 @@ private struct PulsingRing: View {
     }
 }
 
-/// Wrapper so `fullScreenCover(item:)` can carry a world index + speed-round flag.
+/// Wrapper so `fullScreenCover(item:)` can carry a world index + how to start it.
+/// `testFormat` forces a specific question format (dev/testing); `speed` runs a Speed Round.
 struct WorldSelection: Identifiable {
     let id: Int
     var speed: Bool = false
+    var testFormat: MasteryStage? = nil
 }

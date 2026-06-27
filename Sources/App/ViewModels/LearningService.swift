@@ -122,6 +122,23 @@ struct LearningService {
     /// Facts at Fluency or Mastered — gates the Speed Round (count-up + beat-your-best).
     func fluentPlusCount() -> Int { facts().filter { $0.stage >= .fluency }.count }
 
+    /// Dev/testing: a session of a specific world's facts forced into one format,
+    /// ignoring progression gating so any world/round is reachable immediately.
+    func buildTestSession(worldIndex: Int, format: MasteryStage,
+                          now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
+        let ids = WorldCatalog.facts(inWorld: worldIndex)
+        guard !ids.isEmpty else { return [] }
+        let fmt: MasteryStage = (format == .mastered) ? .fluency : format
+        var rng = SplitMix64(seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)))
+        var pool = ids; pool.shuffle(using: &rng)
+        return pool.prefix(12).map { id in
+            let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
+            let options = fmt == .recognition ? DistractorGenerator.options(for: prompt, seed: rng.next()) : nil
+            return PlannedQuestion(prompt: prompt, format: fmt, movement: .core,
+                                   options: options, timed: fmt == .fluency)
+        }
+    }
+
     /// A timed round drawn only from already-fluent facts, all open-response.
     func buildSpeedSession(now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
         let pool = facts().filter { $0.stage >= .fluency }.map(\.id)

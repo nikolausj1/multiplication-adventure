@@ -21,6 +21,11 @@ struct ParentAreaView: View {
     @State private var deleteTarget: Profile?
     @State private var resetTarget: Profile?
 
+    // Developer / testing
+    @State private var testWorld = 0
+    @State private var testLaunch: WorldSelection?
+    @State private var showCert = false
+
     private let avatars = ["figure.hiking", "tortoise.fill", "hare.fill", "bird.fill",
                            "pawprint.fill", "star.fill"]
 
@@ -30,6 +35,7 @@ struct ParentAreaView: View {
                 VStack(spacing: Theme.Metric.gap) {
                     profilesCard
                     settingsCard
+                    developerCard
                     DashboardView()
                 }
                 .padding(Theme.Metric.pad)
@@ -42,6 +48,11 @@ struct ParentAreaView: View {
         .sheet(isPresented: $showGate) {
             ParentGateView(onPass: { showGate = false; pending?(); pending = nil },
                            onCancel: { showGate = false; pending = nil })
+        }
+        .sheet(isPresented: $showCert) { CertificateView(name: activeName) }
+        .fullScreenCover(item: $testLaunch) { sel in
+            SessionView(worldIndex: sel.id, speedRound: sel.speed, testFormat: sel.testFormat)
+                .environment(\.worldTheme, .forWorld(sel.id))
         }
         .alert("New profile", isPresented: $showAdd) {
             TextField("Name", text: $addName)
@@ -67,6 +78,53 @@ struct ParentAreaView: View {
     }
 
     private func gated(_ action: @escaping () -> Void) { pending = action; showGate = true }
+
+    private var activeName: String { profiles.first(where: { $0.isActive })?.name ?? "Champion" }
+
+    // MARK: Developer / testing
+
+    private var developerCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Developer / Testing").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+
+            Picker("World", selection: $testWorld) {
+                ForEach(WorldCatalog.worlds, id: \.index) { w in
+                    Text("World \(w.number): \(w.name)").tag(w.index)
+                }
+            }
+            .pickerStyle(.menu).tint(Theme.Color.primary)
+
+            Text("Jump into this world as:").font(Theme.Font.label(13)).foregroundStyle(Theme.Color.inkSoft)
+            HStack(spacing: 10) {
+                devBtn("Recognition", "rectangle.grid.2x2.fill") { testLaunch = WorldSelection(id: testWorld, testFormat: .recognition) }
+                devBtn("Recall", "square.and.pencil") { testLaunch = WorldSelection(id: testWorld, testFormat: .recall) }
+            }
+            HStack(spacing: 10) {
+                devBtn("Fluency (timed)", "bolt.fill") { testLaunch = WorldSelection(id: testWorld, testFormat: .fluency) }
+                devBtn("Speed Round", "timer") { testLaunch = WorldSelection(id: testWorld, speed: true) }
+            }
+
+            Divider().padding(.vertical, 2)
+            HStack(spacing: 10) {
+                devBtn("Preview certificate", "trophy.fill") { showCert = true }
+                devBtn("Unlock all worlds", "lock.open.fill") { gated { service.applyDemoProgress(complete: false) } }
+            }
+            devBtn("Master everything (100%)", "checkmark.seal.fill") { gated { service.applyDemoProgress(complete: true) } }
+
+            Text("Tip: make a separate \"Test\" profile (Profiles → Add) so testing doesn't change your child's real progress.")
+                .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft).padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Theme.Metric.pad).cardSurface()
+    }
+
+    private func devBtn(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon).font(Theme.Font.label(14))
+                .frame(maxWidth: .infinity).padding(.vertical, 10)
+        }
+        .buttonStyle(.bordered).tint(Theme.Color.primary)
+    }
 
     // MARK: Profiles
 

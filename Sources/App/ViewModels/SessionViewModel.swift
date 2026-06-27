@@ -35,18 +35,29 @@ final class SessionViewModel {
 
     private let service: LearningService
     private let timed: Bool
+    private let isSpeed: Bool
     private let auto: AutoMode
     private var questionStart = Date.now
     private let originalCount: Int
 
-    init(service: LearningService, speedRound: Bool = false, auto: AutoMode = .off) {
+    init(service: LearningService, speedRound: Bool = false, auto: AutoMode = .off,
+         worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
         self.service = service
-        self.timed = speedRound
+        self.timed = speedRound || testFormat == .fluency
+        self.isSpeed = speedRound
         self.auto = auto
-        let built = speedRound ? service.buildSpeedSession() : service.buildSession()
+        let built: [PlannedQuestion]
+        if let testFormat {
+            built = service.buildTestSession(worldIndex: worldIndex, format: testFormat)
+        } else if speedRound {
+            built = service.buildSpeedSession()
+        } else {
+            built = service.buildSession()
+        }
         self.queue = built
         self.originalCount = built.count
         questionStart = .now
+        if built.isEmpty { stage = .finished }   // e.g. Speed Round with no fluent facts yet
     }
 
     var current: PlannedQuestion? { index < queue.count ? queue[index] : nil }
@@ -125,7 +136,7 @@ final class SessionViewModel {
         stage = .finished
         endCelebration = service.finishSession(
             questionCount: totalAnswered, correctCount: correctCount, xpEarned: xpEarned,
-            responseTimes: responseTimes, factsTouched: touched.count, speed: timed)
+            responseTimes: responseTimes, factsTouched: touched.count, speed: isSpeed)
     }
 
     var accuracy: Double { totalAnswered == 0 ? 0 : Double(correctCount) / Double(totalAnswered) }
