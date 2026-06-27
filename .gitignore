@@ -7,3 +7,6 @@ DerivedData/
 
 # XcodeGen output (regenerate with: xcodegen generate)
 LevelUpMath.xcodeproj/
+
+# Inbox originals (kept in Dropbox, not the repo)
+_inbox/
