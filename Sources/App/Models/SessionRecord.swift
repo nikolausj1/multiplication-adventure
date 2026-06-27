@@ -5,6 +5,7 @@ import SwiftData
 /// backs the dashboard's accuracy/speed trend over time (the trend-data decision).
 @Model
 final class SessionRecord {
+    var profile: Profile?
     var date: Date
     var questionCount: Int
     var correctCount: Int

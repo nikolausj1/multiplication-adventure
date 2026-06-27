@@ -2,51 +2,43 @@ import SwiftUI
 import SwiftData
 import Charts
 
-/// The parent dashboard (§8): one screen, plain language, readable in under 30
-/// seconds, shared transparently with the child. Answers "is this working?"
+/// The parent dashboard (§8): plain language, readable in under 30 seconds,
+/// transparent/shared. Scoped to the active profile. Embeddable in the parent area.
 struct DashboardView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Query private var facts: [Fact]
-    @Query(sort: \SessionRecord.date) private var sessions: [SessionRecord]
-    @Query(sort: \MilestoneRecord.earnedDate, order: .reverse) private var milestones: [MilestoneRecord]
-    @Query private var profiles: [Profile]
+    @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
 
+    private var profile: Profile? { activeProfiles.first }
+    private var facts: [Fact] { profile?.facts ?? [] }
+    private var sessions: [SessionRecord] { (profile?.sessions ?? []).sorted { $0.date < $1.date } }
+    private var milestones: [MilestoneRecord] { (profile?.milestones ?? []).sorted { $0.earnedDate > $1.earnedDate } }
     private var masteredCount: Int { facts.filter { $0.stage == .mastered }.count }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: Theme.Metric.gap) {
-                    cadenceAndMastery
-                    card("Mastery map") {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            MasteryGridView(facts: facts).padding(4)
-                        }
-                        legend
-                    }
-                    if sessions.count >= 2 { card("Progress over time") { trend } }
-                    if !troubleSpots.isEmpty { card("Trouble spots") { trouble } }
-                    if !unfulfilled.isEmpty { card("Earned rewards") { rewards } }
-                }
-                .padding(Theme.Metric.pad)
-                .frame(maxWidth: 720)
-                .frame(maxWidth: .infinity)
+        VStack(spacing: Theme.Metric.gap) {
+            cadenceAndMastery
+            card("Adventure map") {
+                let cleared = WorldProgress.clearedCount(snapshots: facts.map(\.snapshot))
+                Text("\(cleared) of \(WorldCatalog.count) worlds cleared")
+                    .font(Theme.Font.number(22)).foregroundStyle(Theme.Color.primary)
+                worldBars
             }
-            .background(Theme.Color.bg)
-            .navigationTitle("Progress")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            card("Mastery map") {
+                ScrollView(.horizontal, showsIndicators: false) { MasteryGridView(facts: facts).padding(4) }
+                legend
+            }
+            if sessions.count >= 2 { card("Progress over time") { trend } }
+            if !troubleSpots.isEmpty { card("Trouble spots") { trouble } }
+            if !unfulfilled.isEmpty { card("Earned rewards") { rewards } }
         }
+        .frame(maxWidth: 720)
     }
-
-    // MARK: Cadence + overall mastery
 
     private var cadenceAndMastery: some View {
         HStack(spacing: Theme.Metric.gap) {
             card("This week") {
-                let days = daysPracticedThisWeek
-                Text("\(days)/7").font(Theme.Font.number(34)).foregroundStyle(Theme.Color.primary)
+                Text("\(daysPracticedThisWeek)/7").font(Theme.Font.number(34)).foregroundStyle(Theme.Color.primary)
                 Text("days practiced").font(Theme.Font.label(13)).foregroundStyle(Theme.Color.inkSoft)
-                if let p = profiles.first, p.streakDays > 0 {
+                if let p = profile, p.streakDays > 0 {
                     Label("\(p.streakDays)-day streak", systemImage: "flame.fill")
                         .font(Theme.Font.label()).foregroundStyle(Theme.Color.accent)
                 }
@@ -54,15 +46,27 @@ struct DashboardView: View {
             card("Mastered") {
                 let pct = Int(Double(masteredCount) / Double(FactUniverse.count) * 100)
                 Text("\(pct)%").font(Theme.Font.number(34)).foregroundStyle(Theme.Color.correct)
-                ProgressView(value: Double(masteredCount), total: Double(FactUniverse.count))
-                    .tint(Theme.Color.correct)
+                ProgressView(value: Double(masteredCount), total: Double(FactUniverse.count)).tint(Theme.Color.correct)
                 Text("\(masteredCount) of \(FactUniverse.count) facts")
                     .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.inkSoft)
             }
         }
     }
 
-    // MARK: Trend (the per-session snapshot backs this — trend-data decision)
+    private var worldBars: some View {
+        let stats = WorldProgress.stats(snapshots: facts.map(\.snapshot))
+        return VStack(spacing: 6) {
+            ForEach(WorldCatalog.worlds, id: \.index) { w in
+                let s = stats[w.index]
+                HStack(spacing: 8) {
+                    Text(w.name).font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
+                        .frame(width: 110, alignment: .leading)
+                    ProgressView(value: s.fluentFraction).tint(Color(hex: w.palette.primary))
+                    if s.cleared { Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.Color.correct).font(.system(size: 13)) }
+                }
+            }
+        }
+    }
 
     private var trend: some View {
         Chart(sessions) { s in
@@ -71,33 +75,26 @@ struct DashboardView: View {
             LineMark(x: .value("Date", s.date), y: .value("Speed", min(s.medianResponseTime, 6)))
                 .foregroundStyle(Theme.Color.primary).interpolationMethod(.catmullRom)
         }
-        .chartForegroundStyleScale([
-            "Accuracy %": Theme.Color.correct, "Median seconds": Theme.Color.primary,
-        ])
+        .chartForegroundStyleScale(["Accuracy %": Theme.Color.correct, "Median seconds": Theme.Color.primary])
         .frame(height: 180)
     }
 
-    // MARK: Trouble spots (§8)
-
     private var troubleSpots: [Fact] {
         facts.filter { $0.introduced && $0.stage != .mastered && $0.totalAttempts >= 2 }
-            .sorted { troubleScore($0) > troubleScore($1) }
-            .prefix(6).map { $0 }
+            .sorted { troubleScore($0) > troubleScore($1) }.prefix(6).map { $0 }
     }
     private func troubleScore(_ f: Fact) -> Double {
         (1 - f.snapshot.accuracy) * 5 + Double(f.lapseCount) * 3 + max(0, f.averageTime - 2)
     }
     private var trouble: some View {
-        FlowRow(troubleSpots) { f in
-            Text("\(f.a)×\(f.b)")
-                .font(Theme.Font.number(18)).foregroundStyle(Theme.Color.ink)
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(Theme.Color.accent.opacity(0.15))
-                .clipShape(Capsule())
+        HStack(spacing: 8) {
+            ForEach(troubleSpots) { f in
+                Text("\(f.a)×\(f.b)").font(Theme.Font.number(18)).foregroundStyle(Theme.Color.ink)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Theme.Color.accent.opacity(0.15)).clipShape(Capsule())
+            }
         }
     }
-
-    // MARK: Earned rewards (§9)
 
     private var unfulfilled: [MilestoneRecord] { milestones.filter { !$0.fulfilled } }
     private var rewards: some View {
@@ -116,13 +113,10 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: Helpers
-
     private var daysPracticedThisWeek: Int {
         let cal = Calendar.current
         let weekStart = cal.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
-        let days = sessions.filter { $0.date >= weekStart }.map { cal.startOfDay(for: $0.date) }
-        return Set(days).count
+        return Set(sessions.filter { $0.date >= weekStart }.map { cal.startOfDay(for: $0.date) }).count
     }
 
     private var legend: some View {
@@ -130,13 +124,11 @@ struct DashboardView: View {
             ForEach([(FactDisplayState.notStarted, "New"), (.learning, "Learning"),
                      (.fluent, "Fluent"), (.mastered, "Mastered")], id: \.1) { state, label in
                 HStack(spacing: 5) {
-                    RoundedRectangle(cornerRadius: 4).fill(Theme.Color.state(state))
-                        .frame(width: 14, height: 14)
+                    RoundedRectangle(cornerRadius: 4).fill(Theme.Color.state(state)).frame(width: 14, height: 14)
                     Text(label).font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
                 }
             }
-        }
-        .padding(.top, 8)
+        }.padding(.top, 8)
     }
 
     @ViewBuilder
@@ -146,19 +138,6 @@ struct DashboardView: View {
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Theme.Metric.pad)
-        .cardSurface()
-    }
-}
-
-/// Minimal wrapping row for trouble-spot chips.
-struct FlowRow<Data: RandomAccessCollection, Content: View>: View where Data.Element: Identifiable {
-    let data: Data
-    let content: (Data.Element) -> Content
-    init(_ data: Data, @ViewBuilder content: @escaping (Data.Element) -> Content) {
-        self.data = data; self.content = content
-    }
-    var body: some View {
-        HStack(spacing: 8) { ForEach(data) { content($0) } }
+        .padding(Theme.Metric.pad).cardSurface()
     }
 }

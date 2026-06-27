@@ -5,9 +5,10 @@ import SwiftData
 /// so all logic stays in the testable, Foundation-only engine.
 @Model
 final class Fact {
-    @Attribute(.unique) var key: String
+    var key: String          // "7x8" — unique per profile, not globally
     var a: Int
     var b: Int
+    var profile: Profile?
 
     var introduced: Bool
     var stageRaw: Int

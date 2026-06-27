@@ -1,56 +1,101 @@
 import Foundation
 import SwiftData
 
-/// Bridges SwiftData persistence to the pure engine: seeding, session planning,
-/// answer recording, milestone detection, and dashboard aggregation.
+/// Bridges SwiftData persistence to the pure engine, scoped to the active profile:
+/// seeding, profile management, session planning, answer recording, milestones.
 @MainActor
 struct LearningService {
     let context: ModelContext
 
-    // MARK: Seeding
+    // MARK: Bootstrap & profiles
 
-    /// Ensures the 91 facts and a single profile exist.
     func bootstrap() {
-        let factCount = (try? context.fetchCount(FetchDescriptor<Fact>())) ?? 0
-        if factCount == 0 {
-            for id in FactUniverse.allFacts { context.insert(Fact(id)) }
-        }
-        if (try? context.fetchCount(FetchDescriptor<Profile>())) ?? 0 == 0 {
-            context.insert(Profile())
+        let profiles = allProfiles()
+        if profiles.isEmpty {
+            let p = Profile(name: "Player 1", isActive: true)
+            context.insert(p)
+            seedFacts(for: p)
+        } else {
+            if !profiles.contains(where: { $0.isActive }) { profiles[0].isActive = true }
+            for p in profiles where p.facts.isEmpty { seedFacts(for: p) }
         }
         try? context.save()
     }
 
-    func profile() -> Profile {
-        if let p = try? context.fetch(FetchDescriptor<Profile>()).first { return p }
-        let p = Profile(); context.insert(p); return p
+    func allProfiles() -> [Profile] {
+        (try? context.fetch(FetchDescriptor<Profile>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []
     }
 
-    func allFacts() -> [Fact] {
-        (try? context.fetch(FetchDescriptor<Fact>())) ?? []
+    func activeProfile() -> Profile {
+        if let a = allProfiles().first(where: { $0.isActive }) { return a }
+        if let f = allProfiles().first { f.isActive = true; try? context.save(); return f }
+        let p = Profile(); context.insert(p); seedFacts(for: p); try? context.save(); return p
     }
 
-    func fact(_ id: FactID) -> Fact? {
-        let key = id.key
-        return try? context.fetch(FetchDescriptor<Fact>(predicate: #Predicate { $0.key == key })).first
+    func seedFacts(for profile: Profile) {
+        for id in FactUniverse.allFacts {
+            let f = Fact(id); f.profile = profile; context.insert(f)
+        }
     }
+
+    @discardableResult
+    func createProfile(name: String, avatar: String) -> Profile {
+        for p in allProfiles() { p.isActive = false }
+        let p = Profile(name: name.isEmpty ? "Player \(allProfiles().count + 1)" : name,
+                        avatarSymbol: avatar, isActive: true)
+        context.insert(p); seedFacts(for: p); try? context.save(); return p
+    }
+
+    func switchTo(_ profile: Profile) {
+        for p in allProfiles() { p.isActive = (p.id == profile.id) }
+        try? context.save()
+    }
+
+    func rename(_ profile: Profile, to name: String) {
+        profile.name = name; try? context.save()
+    }
+
+    /// Never deletes the last profile. Deleting the active one promotes another.
+    func delete(_ profile: Profile) {
+        guard allProfiles().count > 1 else { return }
+        let wasActive = profile.isActive
+        context.delete(profile)
+        if wasActive, let other = allProfiles().first { other.isActive = true }
+        try? context.save()
+    }
+
+    /// Wipes a profile back to brand-new (re-seeds its 91 facts).
+    func resetProgress(_ profile: Profile) {
+        for f in profile.facts { context.delete(f) }
+        for s in profile.sessions { context.delete(s) }
+        for m in profile.milestones { context.delete(m) }
+        profile.totalXP = 0
+        profile.streakDays = 0
+        profile.lastPracticeDate = nil
+        profile.speedRoundUnlocked = false
+        seedFacts(for: profile)
+        try? context.save()
+    }
+
+    // MARK: Active-profile facts
+
+    private func facts() -> [Fact] { activeProfile().facts }
+    func fact(_ id: FactID) -> Fact? { facts().first { $0.id == id } }
 
     // MARK: Planning
 
     func buildSession(now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
-        let snaps = allFacts().map(\.snapshot)
+        let snaps = facts().map(\.snapshot)
         let s = seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970))
         return SessionPlanner.plan(snapshots: snaps, now: now, seed: s)
     }
 
     private func currentThreshold() -> Double {
-        let times = allFacts().flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
+        let times = facts().flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
         return FluencyThreshold.current(recentFluencyTimes: times)
     }
 
-    private func masteredCount() -> Int {
-        allFacts().filter { $0.stage == .mastered }.count
-    }
+    private func masteredCount() -> Int { facts().filter { $0.stage == .mastered }.count }
 
     // MARK: Recording an answer
 
@@ -63,12 +108,12 @@ struct LearningService {
 
     func record(prompt: OrientedPrompt, format: MasteryStage, correct: Bool,
                 responseTime: Double, now: Date = .now) -> AnswerResult {
+        let p = activeProfile()
         guard let factRow = fact(prompt.fact) else {
             return AnswerResult(correct: correct, xp: 0, becameMastered: false, celebration: nil)
         }
         let threshold = currentThreshold()
-        let before = ProgressAggregate.from(snapshots: allFacts().map(\.snapshot),
-                                            streakDays: profile().streakDays)
+        let before = ProgressAggregate.from(snapshots: facts().map(\.snapshot), streakDays: p.streakDays)
 
         let outcome = PromotionEngine.apply(to: factRow.snapshot, correct: correct,
                                             responseTime: responseTime,
@@ -78,14 +123,11 @@ struct LearningService {
         let frac = Double(masteredCount()) / Double(FactUniverse.count)
         let xp = XPEngine.xp(correct: correct, responseTime: responseTime, stage: format,
                              fluencyThreshold: threshold, masteryFraction: frac)
-        let p = profile()
         p.totalXP += xp
 
-        let after = ProgressAggregate.from(snapshots: allFacts().map(\.snapshot),
-                                           streakDays: p.streakDays)
+        let after = ProgressAggregate.from(snapshots: facts().map(\.snapshot), streakDays: p.streakDays)
         let events = MilestoneEngine.events(before: before, after: after)
-        persistMilestones(events, now: now)
-        // Only T2+ interrupts the loop with the celebration overlay.
+        persistMilestones(events, for: p, now: now)
         let celebration = MilestoneEngine.merge(events, minTier: .t2)
 
         try? context.save()
@@ -95,47 +137,47 @@ struct LearningService {
 
     // MARK: Finishing a session
 
-    /// Writes the session record and updates the streak. Returns a streak celebration
-    /// if a threshold was crossed (or a light ack otherwise).
     @discardableResult
     func finishSession(questionCount: Int, correctCount: Int, xpEarned: Int,
                        responseTimes: [Double], factsTouched: Int,
                        now: Date = .now) -> Celebration? {
-        let p = profile()
+        let p = activeProfile()
         let beforeStreak = p.streakDays
         let newStreak = p.registerPractice(on: now)
 
         let median = Self.median(responseTimes)
-        context.insert(SessionRecord(date: now, questionCount: questionCount,
-                                     correctCount: correctCount, xpEarned: xpEarned,
-                                     medianResponseTime: median, factsTouched: factsTouched))
+        let rec = SessionRecord(date: now, questionCount: questionCount,
+                                correctCount: correctCount, xpEarned: xpEarned,
+                                medianResponseTime: median, factsTouched: factsTouched)
+        rec.profile = p
+        context.insert(rec)
 
-        // Streak milestone (other dimensions unchanged here).
         let m = masteredCount()
+        let cleared = WorldProgress.clearedCount(snapshots: facts().map(\.snapshot))
         let base = ProgressAggregate(masteredCount: m, completedFactors: [],
-                                     rankIndex: RankLadder.rank(forMasteredCount: m).index,
-                                     streakDays: beforeStreak)
+                                     clearedWorlds: cleared, streakDays: beforeStreak)
         var after = base; after.streakDays = newStreak
         let events = MilestoneEngine.events(before: base, after: after)
-        persistMilestones(events.filter { $0.tier >= .t2 }, now: now)
+        persistMilestones(events.filter { $0.tier >= .t2 }, for: p, now: now)
 
         try? context.save()
         return MilestoneEngine.merge(events, minTier: .t1)
     }
 
-    private func persistMilestones(_ events: [MilestoneEvent], now: Date) {
+    private func persistMilestones(_ events: [MilestoneEvent], for profile: Profile, now: Date) {
         for e in events where e.tier >= .t2 {
             let label: String
             switch e.kind {
-            case .rankUp(let n): label = "Rank: \(n)"
+            case .worldCleared(let n): label = "Cleared \(n)"
             case .tableComplete(let f): label = "Table ×\(f)"
             case .overallPercent(let p): label = "\(p)% mastered"
             case .streakThreshold(let d): label = "\(d)-day streak"
             case .completion: label = "Completed!"
             default: continue
             }
-            context.insert(MilestoneRecord(kindLabel: label, detail: e.message,
-                                           tier: e.tier, earnedDate: now))
+            let rec = MilestoneRecord(kindLabel: label, detail: e.message, tier: e.tier, earnedDate: now)
+            rec.profile = profile
+            context.insert(rec)
         }
     }
 

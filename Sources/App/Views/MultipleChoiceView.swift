@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Recognition stage (§4.2): four plausible options. Neutral-soft feedback — the
-/// correct option lifts, a wrong pick dims; never a red buzzer.
+/// Recognition stage (§4.2): four plausible options on the world's themed buttons.
+/// Neutral-soft feedback — the correct option lifts, a wrong pick dims; never a buzzer.
 struct MultipleChoiceView: View {
+    @Environment(\.worldTheme) private var theme
     let question: PlannedQuestion
     let showFeedback: Bool
     let selected: Int?
@@ -12,27 +13,29 @@ struct MultipleChoiceView: View {
     private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
 
     var body: some View {
-        VStack(spacing: 36) {
+        VStack(spacing: 32) {
             PromptText(question.prompt)
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(question.options ?? [], id: \.self) { option in
                     Button { if !showFeedback { onSelect(option) } } label: {
-                        Text("\(option)")
-                            .font(Theme.Font.number(40))
-                            .frame(maxWidth: .infinity).padding(.vertical, 28)
-                            .foregroundStyle(foreground(option))
-                            .background(background(option))
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous))
-                            .overlay(
+                        ZStack {
+                            if showFeedback {
                                 RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous)
-                                    .strokeBorder(Theme.Color.primary.opacity(showFeedback ? 0 : 0.12), lineWidth: 2)
-                            )
-                            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
-                            .contentShape(Rectangle())
+                                    .fill(feedbackFill(option))
+                            } else {
+                                WorldButtonBackground(theme: theme)
+                            }
+                            Text("\(option)")
+                                .font(Theme.Font.number(38))
+                                .foregroundStyle(textColor(option))
+                                .shadow(color: .black.opacity(showFeedback ? 0 : 0.4), radius: 2)
+                        }
+                        .frame(maxWidth: .infinity).frame(height: 88)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(PopButtonStyle())
                     .disabled(showFeedback)
-                    .scaleEffect(showFeedback && option == answer ? 1.04 : 1)
+                    .scaleEffect(showFeedback && option == answer ? 1.05 : 1)
                     .accessibilityLabel("\(option)")
                 }
             }
@@ -40,14 +43,13 @@ struct MultipleChoiceView: View {
         .animation(Theme.Motion.snappy, value: showFeedback)
     }
 
-    private func background(_ option: Int) -> Color {
-        guard showFeedback else { return Theme.Color.surface }
-        if option == answer { return Theme.Color.correct.opacity(0.18) }
-        if option == selected { return Theme.Color.gentle.opacity(0.18) }
-        return Theme.Color.surface.opacity(0.5)
+    private func feedbackFill(_ option: Int) -> Color {
+        if option == answer { return Theme.Color.correct.opacity(0.22) }
+        if option == selected { return Theme.Color.gentle.opacity(0.22) }
+        return Theme.Color.surface.opacity(0.6)
     }
-    private func foreground(_ option: Int) -> Color {
-        guard showFeedback else { return Theme.Color.ink }
+    private func textColor(_ option: Int) -> Color {
+        guard showFeedback else { return .white }
         if option == answer { return Theme.Color.correct }
         if option == selected { return Theme.Color.inkSoft }
         return Theme.Color.inkSoft.opacity(0.6)
@@ -60,7 +62,7 @@ struct PromptText: View {
     init(_ p: OrientedPrompt) { prompt = p }
     var body: some View {
         Text(prompt.text)
-            .font(Theme.Font.display(64))
+            .font(Theme.Font.display(60))
             .foregroundStyle(Theme.Color.ink)
             .minimumScaleFactor(0.6).lineLimit(1)
     }

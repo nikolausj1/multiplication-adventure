@@ -105,18 +105,41 @@ for i in 1..<interleaved.count where interleaved[i].fact.b == interleaved[i-1].f
 check(adjacentSameTable == 0, "no two adjacent questions share a table when avoidable")
 
 print("Milestones: coincident events merge to highest tier")
-let before = ProgressAggregate(masteredCount: 21, completedFactors: [], rankIndex: 1, streakDays: 2)
-let after = ProgressAggregate(masteredCount: 23, completedFactors: [7], rankIndex: 2, streakDays: 3)
+let before = ProgressAggregate(masteredCount: 21, completedFactors: [], clearedWorlds: 0, streakDays: 2)
+let after = ProgressAggregate(masteredCount: 23, completedFactors: [7], clearedWorlds: 1, streakDays: 3)
 let evs = MilestoneEngine.events(before: before, after: after)
 let celebration = MilestoneEngine.merge(evs)
-check(celebration?.tier == .t3, "25% crossing (T3) wins over rank-up/table/streak")
+check(celebration?.tier == .t3, "a T3 milestone (world cleared / 25%) wins the merge")
 check((celebration?.lines.count ?? 0) >= 2, "lower milestones fold into the lines")
+check(evs.contains { if case .worldCleared = $0.kind { return true }; return false }, "world-cleared event emitted")
 
 print("Milestones: completion supersedes all")
-let preDone = ProgressAggregate(masteredCount: 90, completedFactors: [], rankIndex: 4, streakDays: 6)
-let done = ProgressAggregate(masteredCount: 91, completedFactors: [], rankIndex: 5, streakDays: 7)
+let preDone = ProgressAggregate(masteredCount: 90, completedFactors: [], clearedWorlds: 6, streakDays: 6)
+let done = ProgressAggregate(masteredCount: 91, completedFactors: [], clearedWorlds: 7, streakDays: 7)
 let doneEvents = MilestoneEngine.events(before: preDone, after: done)
 check(doneEvents.count == 1 && doneEvents[0].tier == .t4, "100% is a single T4 finale")
+
+print("Worlds")
+check(WorldCatalog.count == 7, "7 worlds")
+check(WorldCatalog.worldIndex(ofFact: FactID(0,0)) == 0, "0×0 is in the first world")
+check(WorldCatalog.worldIndex(ofFact: FactID(12,12)) == 6, "12×12 is in the last world")
+check((0..<7).reduce(0) { $0 + WorldCatalog.facts(inWorld: $1).count } == 91, "every fact maps to a world")
+let freshW = FactUniverse.allFacts.map { FactSnapshot(id: $0) }
+check(WorldProgress.currentIndex(snapshots: freshW) == 0, "fresh start is on world 0")
+check(WorldProgress.clearedCount(snapshots: freshW) == 0, "nothing cleared at start")
+// All world-0 facts at fluency → world 0 clears, current advances.
+var w0 = freshW.map { s -> FactSnapshot in
+    var s = s
+    if WorldCatalog.worldIndex(ofFact: s.id) == 0 { s.introduced = true; s.stage = .fluency }
+    return s
+}
+check(WorldProgress.stats(snapshots: w0)[0].cleared, "world 0 clears when all its facts are fluent")
+check(WorldProgress.currentIndex(snapshots: w0) == 1, "current advances to world 1 after clearing world 0")
+
+print("Introduction is scoped to the current world")
+let planW = SessionPlanner.plan(snapshots: freshW, now: now, seed: 3)
+let newWorlds = Set(planW.filter { $0.format == .recognition }.map { WorldCatalog.worldIndex(ofFact: $0.fact) })
+check(newWorlds.isSubset(of: [0]), "fresh start only introduces world-0 facts (got \(newWorlds))")
 
 print(failures == 0 ? "\nALL ENGINE TESTS PASSED" : "\n\(failures) FAILURE(S)")
 exit(failures == 0 ? 0 : 1)

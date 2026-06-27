@@ -3,6 +3,7 @@ import SwiftUI
 /// Neutral-soft feedback row + Continue. No "wrong" framing; a miss simply notes the
 /// answer (already revealed) and moves on (§3, no punishment).
 struct FeedbackBar: View {
+    @Environment(\.worldTheme) private var theme
     let correct: Bool
     let correctAnswer: Int
     let xp: Int
@@ -29,11 +30,10 @@ struct FeedbackBar: View {
                 Text("Continue").font(Theme.Font.display(20))
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
             }
-            .buttonStyle(.borderedProminent).tint(Theme.Color.primary)
+            .buttonStyle(.borderedProminent).tint(theme.primary)
         }
-        .padding(Theme.Metric.pad)
+        .padding(.top, 8)
         .frame(maxWidth: 420)
-        .cardSurface()
     }
 
     private var message: String {

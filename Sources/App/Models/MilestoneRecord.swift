@@ -5,7 +5,8 @@ import SwiftData
 /// delivers the real-world reward offline and marks it fulfilled.
 @Model
 final class MilestoneRecord {
-    var kindLabel: String      // e.g. "Table ×7", "Rank: Builder", "50%", "7-day streak"
+    var profile: Profile?
+    var kindLabel: String      // e.g. "Table ×7", "Cleared Jungle Temple", "50%", "7-day streak"
     var detail: String
     var tierRaw: Int
     var earnedDate: Date

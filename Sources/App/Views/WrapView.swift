@@ -1,51 +1,49 @@
 import SwiftUI
 import SwiftData
 
-/// Session wrap (§6, movement 4): a clear, encouraging summary. He always leaves
-/// knowing he made progress — a short day still counts.
+/// Session wrap (§6, movement 4): a clear, encouraging summary on a scrim panel over
+/// the world backdrop. He always leaves knowing he made progress.
 struct WrapView: View {
+    @Environment(\.worldTheme) private var theme
+    @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
     let vm: SessionViewModel
     let onDone: () -> Void
 
-    @Query private var facts: [Fact]
-    private var masteredCount: Int { facts.filter { $0.stage == .mastered }.count }
+    private var snapshots: [FactSnapshot] { (activeProfiles.first?.facts ?? []).map(\.snapshot) }
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        VStack(spacing: 22) {
             Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 80)).foregroundStyle(Theme.Color.correct)
+                .font(.system(size: 72)).foregroundStyle(Theme.Color.correct)
                 .symbolRenderingMode(.hierarchical)
-            Text("Great work!").font(Theme.Font.display(36)).foregroundStyle(Theme.Color.ink)
+            Text("Great work!").font(Theme.Font.display(34)).foregroundStyle(Theme.Color.ink)
 
             HStack(spacing: 28) {
                 stat("\(vm.totalAnswered)", "questions")
                 stat("\(Int(vm.accuracy * 100))%", "accuracy")
                 stat("+\(vm.xpEarned)", "XP", tint: Theme.Color.accent)
             }
-            .padding(.vertical, 20).padding(.horizontal, 28).cardSurface()
 
-            if let next = RankLadder.next(afterMasteredCount: masteredCount) {
-                Text("\(next.remaining) more facts to \(next.rank.name)")
-                    .font(Theme.Font.body()).foregroundStyle(Theme.Color.inkSoft)
-            }
+            Text(goalText).font(Theme.Font.body()).foregroundStyle(Theme.Color.inkSoft)
+                .multilineTextAlignment(.center)
+
             if let c = vm.endCelebration, c.tier >= .t1 {
                 Label(c.headline, systemImage: "flame.fill")
                     .font(Theme.Font.label(17)).foregroundStyle(Theme.Color.accent)
             }
             Text(encouragement).font(Theme.Font.body()).foregroundStyle(Theme.Color.ink)
-                .multilineTextAlignment(.center).padding(.horizontal, 40)
+                .multilineTextAlignment(.center)
 
-            Spacer()
             Button(action: onDone) {
-                Text("Done").font(Theme.Font.display(22))
-                    .frame(maxWidth: .infinity).padding(.vertical, 18)
+                Text("Back to Map").font(Theme.Font.display(20))
+                    .frame(maxWidth: .infinity).padding(.vertical, 16)
             }
-            .buttonStyle(.borderedProminent).tint(Theme.Color.primary)
-            .frame(maxWidth: 420)
+            .buttonStyle(.borderedProminent).tint(theme.primary)
         }
         .padding(Theme.Metric.pad)
-        .frame(maxWidth: 560)
+        .frame(maxWidth: 480)
+        .scrimCard()
+        .padding(Theme.Metric.pad)
     }
 
     private func stat(_ value: String, _ label: String, tint: Color = Theme.Color.ink) -> some View {
@@ -53,6 +51,18 @@ struct WrapView: View {
             Text(value).font(Theme.Font.number(30)).foregroundStyle(tint)
             Text(label).font(Theme.Font.label(13)).foregroundStyle(Theme.Color.inkSoft)
         }
+    }
+
+    private var goalText: String {
+        let stats = WorldProgress.stats(snapshots: snapshots)
+        let idx = WorldProgress.currentIndex(snapshots: snapshots)
+        guard let s = stats[safe: idx] else { return "" }
+        if WorldProgress.clearedCount(snapshots: snapshots) == WorldCatalog.count {
+            return "Every world cleared — you're a Multiplication Master!"
+        }
+        let remaining = s.total - s.fluentPlus
+        let name = WorldCatalog.worlds[safe: idx]?.name ?? "this world"
+        return remaining > 0 ? "\(remaining) more facts to clear \(name)" : "Ready for the next world!"
     }
 
     private var encouragement: String {

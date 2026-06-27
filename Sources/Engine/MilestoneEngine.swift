@@ -15,7 +15,7 @@ public enum MilestoneKind: Equatable, Sendable {
     case factMastered
     case streakContinued(days: Int)
     case streakThreshold(days: Int)
-    case rankUp(name: String)
+    case worldCleared(name: String)
     case tableComplete(factor: Int)
     case overallPercent(Int)       // 25 / 50 / 75
     case completion
@@ -38,8 +38,15 @@ public struct Celebration: Equatable, Sendable {
 public struct ProgressAggregate: Equatable, Sendable {
     public var masteredCount: Int
     public var completedFactors: Set<Int>
-    public var rankIndex: Int
+    public var clearedWorlds: Int
     public var streakDays: Int
+
+    public init(masteredCount: Int, completedFactors: Set<Int>, clearedWorlds: Int, streakDays: Int) {
+        self.masteredCount = masteredCount
+        self.completedFactors = completedFactors
+        self.clearedWorlds = clearedWorlds
+        self.streakDays = streakDays
+    }
 
     public static func from(snapshots: [FactSnapshot], streakDays: Int) -> ProgressAggregate {
         let mastered = snapshots.filter { $0.stage == .mastered }
@@ -52,7 +59,7 @@ public struct ProgressAggregate: Equatable, Sendable {
         return ProgressAggregate(
             masteredCount: mastered.count,
             completedFactors: completed,
-            rankIndex: RankLadder.rank(forMasteredCount: mastered.count).index,
+            clearedWorlds: WorldProgress.clearedCount(snapshots: snapshots),
             streakDays: streakDays
         )
     }
@@ -80,10 +87,12 @@ public enum MilestoneEngine {
                                 message: "\(pct)% of all facts mastered"))
         }
 
-        if after.rankIndex > before.rankIndex {
-            let name = RankLadder.ranks[after.rankIndex].name
-            events.append(.init(kind: .rankUp(name: name), tier: .t2,
-                                message: "You reached \(name)!"))
+        if after.clearedWorlds > before.clearedWorlds {
+            for i in before.clearedWorlds..<after.clearedWorlds {
+                let name = WorldCatalog.worlds[safe: i]?.name ?? "World \(i + 1)"
+                events.append(.init(kind: .worldCleared(name: name), tier: .t3,
+                                    message: "You cleared \(name)!"))
+            }
         }
 
         for factor in after.completedFactors.subtracting(before.completedFactors).sorted() {

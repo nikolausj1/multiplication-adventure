@@ -50,8 +50,12 @@ public enum SessionPlanner {
         let introduced = snapshots.filter { $0.introduced }
         let mastered = introduced.filter { $0.stage == .mastered }
 
-        // 1. New facts (gated introduction, §5).
-        let newFacts = chooseNewFacts(snapshots: snapshots, config: config)
+        // 1. New facts (gated introduction, §5) — scoped to the current world so the
+        //    next world's facts never appear until it unlocks. Review stays cumulative.
+        let currentWorld = WorldProgress.currentIndex(snapshots: snapshots)
+        let allowedMaxSlot = WorldCatalog.maxSlot(forWorld: currentWorld)
+        let newFacts = chooseNewFacts(snapshots: snapshots, config: config,
+                                      allowedMaxSlot: allowedMaxSlot)
         let newIDs = Set(newFacts.map { $0.id })
 
         var used = Set<FactID>()
@@ -126,7 +130,8 @@ public enum SessionPlanner {
     /// Gated new-fact introduction (§5): keep a bounded number of facts in flight,
     /// open the next table only once earlier ones are fully introduced and ~80%
     /// fluent, but always keep a trickle so momentum never stalls.
-    static func chooseNewFacts(snapshots: [FactSnapshot], config: SessionConfig) -> [FactSnapshot] {
+    static func chooseNewFacts(snapshots: [FactSnapshot], config: SessionConfig,
+                               allowedMaxSlot: Int = Int.max) -> [FactSnapshot] {
         let byID = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.id, $0) })
         let introduced = snapshots.filter { $0.introduced }
         let inFlight = introduced.filter { $0.stage < .mastered }.count
@@ -142,7 +147,8 @@ public enum SessionPlanner {
         let slots = Curriculum.factsBySlot()
         var picks: [FactSnapshot] = []
         let cap = min(config.newFactsPerSession, config.targetInFlight - inFlight)
-        for slot in slots {
+        for (slotIndex, slot) in slots.enumerated() {
+            if slotIndex > allowedMaxSlot { break }   // don't introduce beyond the current world
             let notIntroduced = slot.filter { !(byID[$0]?.introduced ?? false) }
             for fact in notIntroduced where picks.count < cap {
                 if let snap = byID[fact] { picks.append(snap) }
