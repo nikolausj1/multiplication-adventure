@@ -289,13 +289,15 @@ neutral-soft feedback, kids-UX hardening. Runs on iPad simulator (home / session
 engine (7 worlds, clear-at-fluency, world-scoped introduction), rename to Multiplication
 Adventure + landscape lock, world-map home with **real generated art**, per-world themed
 sessions (backdrop + scrim + skinned buttons), parent area with the 2×2 parent gate, and
-the profile-scoped dashboard. Compiles clean; 50 engine checks pass; **runtime-verified on
-the iPad Pro 11 simulator** (map, themed session, and parent area all render in landscape).
-Verify anytime with `./scripts/run-sim.sh`.
+the profile-scoped dashboard, **Speed Round** (count-up + beat-your-best), the **completion
+certificate** (printable/shareable), and the **sound engine** (wired, no-op until audio
+files are added). Compiles clean; 50 engine checks pass; **runtime-verified on the iPad Pro
+11 simulator** (map, themed session, feedback, wrap, Speed Round, certificate, parent area
+all render in landscape). Verify anytime with `./scripts/run-sim.sh`.
 
-**Still deferred / fast-follow:** custom/generated art + avatar cosmetic unlocks, sound
-pack, completion certificate art, App Store packaging, notifications, other operations
-(division/addition), iCloud sync.
+**Still pending / fast-follow:** the **audio files** (`sfx_*.wav` — engine wired, drop into
+`Sources/App/Resources/Audio`; see the Assets guide), avatar cosmetic unlocks, App Store
+packaging, notifications, other operations (division/addition), iCloud sync.
 
 ---
 
