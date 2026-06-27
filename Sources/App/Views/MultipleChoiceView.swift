@@ -13,24 +13,31 @@ struct MultipleChoiceView: View {
     private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
 
     var body: some View {
-        VStack(spacing: 32) {
-            PromptText(question.prompt)
-            LazyVGrid(columns: columns, spacing: 16) {
+        VStack(spacing: 22) {
+            PromptText(question.prompt).frame(maxWidth: .infinity)
+            LazyVGrid(columns: columns, spacing: 14) {
                 ForEach(question.options ?? [], id: \.self) { option in
                     Button { if !showFeedback { onSelect(option) } } label: {
-                        ZStack {
+                        ZStack(alignment: .center) {
                             if showFeedback {
                                 RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous)
                                     .fill(feedbackFill(option))
+                            } else if Art.exists(theme.buttonImage) {
+                                Image(theme.buttonImage).resizable().scaledToFit()  // undistorted skin
                             } else {
-                                WorldButtonBackground(theme: theme)
+                                RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous)
+                                    .fill(LinearGradient(colors: [theme.primary, theme.deep],
+                                                         startPoint: .top, endPoint: .bottom))
+                                    .overlay(RoundedRectangle(cornerRadius: Theme.Metric.corner)
+                                        .strokeBorder(theme.accent.opacity(0.8), lineWidth: 3))
                             }
                             Text("\(option)")
-                                .font(Theme.Font.number(38))
+                                .font(Theme.Font.number(34))
                                 .foregroundStyle(textColor(option))
-                                .shadow(color: .black.opacity(showFeedback ? 0 : 0.4), radius: 2)
+                                .shadow(color: .black.opacity(showFeedback ? 0 : 0.55), radius: 3)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                        .frame(maxWidth: .infinity).frame(height: 88)
+                        .frame(height: 104)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(PopButtonStyle())

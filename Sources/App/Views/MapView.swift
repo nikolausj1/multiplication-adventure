@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// The adventure map — the home/hub. A serpentine path of 7 world nodes over the
-/// map art; locked worlds are fogged, the current world pulses. Tapping an unlocked
-/// node starts a themed session. The gear opens the parent area.
+/// The adventure map — the home/hub. A winding trail of 7 world nodes fitted to one
+/// landscape screen; locked worlds are fogged, the current world pulses. Tapping an
+/// unlocked node starts a themed session. The gear opens the parent area.
 struct MapView: View {
     @Environment(\.modelContext) private var context
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
@@ -17,17 +17,29 @@ struct MapView: View {
     private var stats: [WorldStat] { WorldProgress.stats(snapshots: snapshots) }
     private var currentIndex: Int { WorldProgress.currentIndex(snapshots: snapshots) }
 
+    /// Fractional positions of each world node, forming a left→right winding trail.
+    private let pts: [CGPoint] = [
+        CGPoint(x: 0.09, y: 0.74), CGPoint(x: 0.22, y: 0.44), CGPoint(x: 0.35, y: 0.70),
+        CGPoint(x: 0.49, y: 0.42), CGPoint(x: 0.63, y: 0.68), CGPoint(x: 0.78, y: 0.42),
+        CGPoint(x: 0.91, y: 0.66),
+    ]
+
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack {
             mapBackdrop
-            ScrollView {
-                VStack(spacing: 0) {
-                    Color.clear.frame(height: 96)            // room for the header
-                    path
-                    Color.clear.frame(height: 40)
+            GeometryReader { geo in
+                let scaled = pts.map { CGPoint(x: $0.x * geo.size.width, y: $0.y * geo.size.height) }
+                ZStack {
+                    TrailPath(points: scaled)
+                        .stroke(style: StrokeStyle(lineWidth: 5, lineCap: .round, dash: [2, 14]))
+                        .foregroundStyle(.white.opacity(0.55))
+                    ForEach(WorldCatalog.worlds, id: \.index) { world in
+                        nodeView(world)
+                            .position(scaled[world.index])
+                    }
                 }
             }
-            header
+            VStack { header; Spacer() }
         }
         .fullScreenCover(item: $sessionWorld) { sel in
             SessionView(worldIndex: sel.id, speedRound: speedRound)
@@ -51,7 +63,7 @@ struct MapView: View {
                 LinearGradient(colors: [Theme.Color.bg, Theme.Color.primary.opacity(0.25)],
                                startPoint: .top, endPoint: .bottom)
             }
-            Color.black.opacity(0.12)
+            Color.black.opacity(0.10)
         }
         .ignoresSafeArea()
     }
@@ -62,60 +74,42 @@ struct MapView: View {
         HStack(alignment: .top) {
             HStack(spacing: 12) {
                 Image(systemName: profile?.avatarSymbol ?? "figure.hiking")
-                    .font(.system(size: 26)).foregroundStyle(Theme.Color.primary)
-                    .frame(width: 46, height: 46).background(.ultraThinMaterial, in: Circle())
+                    .font(.system(size: 24)).foregroundStyle(Theme.Color.primary)
+                    .frame(width: 44, height: 44).background(.ultraThinMaterial, in: Circle())
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(profile?.name ?? "Player").font(Theme.Font.display(18))
-                        .foregroundStyle(Theme.Color.ink)
-                    Text("\(profile?.totalXP ?? 0) XP").font(Theme.Font.label(13))
-                        .foregroundStyle(Theme.Color.inkSoft)
+                    Text(profile?.name ?? "Player").font(Theme.Font.display(17)).foregroundStyle(Theme.Color.ink)
+                    Text("\(profile?.totalXP ?? 0) XP").font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
                 }
             }
             .padding(8).padding(.trailing, 8).scrimCard()
-
             Spacer()
-
+            Text("Multiplication Adventure")
+                .font(Theme.Font.display(20)).foregroundStyle(.white).shadow(radius: 3)
+                .padding(.top, 10)
+            Spacer()
             if let p = profile, p.streakDays > 0 {
                 Label("\(p.streakDays)", systemImage: "flame.fill")
-                    .font(Theme.Font.number(18)).foregroundStyle(Theme.Color.accent)
-                    .padding(.horizontal, 12).padding(.vertical, 10).scrimCard()
+                    .font(Theme.Font.number(17)).foregroundStyle(Theme.Color.accent)
+                    .padding(.horizontal, 12).padding(.vertical, 9).scrimCard()
             }
             Button { showParent = true } label: {
-                Image(systemName: "gearshape.fill").font(.system(size: 22))
+                Image(systemName: "gearshape.fill").font(.system(size: 20))
                     .foregroundStyle(Theme.Color.inkSoft)
-                    .frame(width: 46, height: 46).background(.ultraThinMaterial, in: Circle())
+                    .frame(width: 44, height: 44).background(.ultraThinMaterial, in: Circle())
             }
             .accessibilityLabel("Parent area")
         }
-        .padding(.horizontal, Theme.Metric.pad)
-        .padding(.top, 12)
+        .padding(.horizontal, Theme.Metric.pad).padding(.top, 10)
     }
 
-    // MARK: Serpentine path of nodes
-
-    private var path: some View {
-        VStack(spacing: 8) {
-            ForEach(WorldCatalog.worlds, id: \.index) { world in
-                nodeRow(world)
-            }
-            finishFlag
-        }
-        .padding(.horizontal, 40)
-    }
+    // MARK: Node
 
     @ViewBuilder
-    private func nodeRow(_ world: World) -> some View {
+    private func nodeView(_ world: World) -> some View {
         let unlocked = world.index <= currentIndex
         let cleared = stats[safe: world.index]?.cleared ?? false
         let isCurrent = world.index == currentIndex
-        HStack {
-            if world.index.isMultiple(of: 2) { node(world, unlocked: unlocked, cleared: cleared, isCurrent: isCurrent); Spacer() }
-            else { Spacer(); node(world, unlocked: unlocked, cleared: cleared, isCurrent: isCurrent) }
-        }
-    }
-
-    private func node(_ world: World, unlocked: Bool, cleared: Bool, isCurrent: Bool) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             Button {
                 guard unlocked else { return }
                 speedRound = false
@@ -124,61 +118,58 @@ struct MapView: View {
                 ZStack {
                     if unlocked {
                         WorldNodeBadge(theme: .forWorld(world.index))
-                            .frame(width: 132, height: 132)
-                            .clipShape(Circle())
-                            .overlay(Circle().strokeBorder(.white.opacity(0.85), lineWidth: 4))
-                            .shadow(color: .black.opacity(0.35), radius: 8, y: 4)
+                            .frame(width: 104, height: 104).clipShape(Circle())
+                            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 4))
+                            .shadow(color: .black.opacity(0.4), radius: 7, y: 3)
                     } else {
                         lockedNode
                     }
                     if isCurrent { PulsingRing() }
                     if cleared {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 30)).foregroundStyle(Theme.Color.correct)
-                            .background(Circle().fill(.white).frame(width: 30, height: 30))
-                            .offset(x: 48, y: -48)
+                        Image(systemName: "checkmark.seal.fill").font(.system(size: 26))
+                            .foregroundStyle(Theme.Color.correct)
+                            .background(Circle().fill(.white).frame(width: 24, height: 24))
+                            .offset(x: 38, y: -38)
                     }
                 }
             }
-            .buttonStyle(PopButtonStyle())
-            .disabled(!unlocked)
+            .buttonStyle(PopButtonStyle()).disabled(!unlocked)
 
             Text(unlocked ? world.name : "???")
-                .font(Theme.Font.label(15)).foregroundStyle(.white)
-                .padding(.horizontal, 12).padding(.vertical, 5)
-                .background(Capsule().fill(.black.opacity(0.45)))
+                .font(Theme.Font.label(13)).foregroundStyle(.white)
+                .padding(.horizontal, 10).padding(.vertical, 4)
+                .background(Capsule().fill(.black.opacity(0.5)))
             if isCurrent {
-                Text("TAP TO PLAY").font(Theme.Font.label(11)).tracking(1.2)
-                    .foregroundStyle(.white).padding(.horizontal, 10).padding(.vertical, 4)
+                Text("TAP TO PLAY").font(Theme.Font.label(10)).tracking(1)
+                    .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 3)
                     .background(Capsule().fill(Theme.Color.primary))
             }
         }
-        .frame(width: 180)
+        .frame(width: 150)
     }
 
     private var lockedNode: some View {
         ZStack {
             if Art.exists("node_locked") {
-                Image("node_locked").resizable().scaledToFit().frame(width: 132, height: 132)
+                Image("node_locked").resizable().scaledToFit().frame(width: 104, height: 104)
             } else {
-                Circle().fill(Color.gray.opacity(0.5)).frame(width: 120, height: 120)
+                Circle().fill(Color.gray.opacity(0.5)).frame(width: 96, height: 96)
             }
-            Image(systemName: "questionmark").font(.system(size: 40, weight: .heavy))
+            Image(systemName: "questionmark").font(.system(size: 32, weight: .heavy))
                 .foregroundStyle(.white.opacity(0.9))
         }
     }
+}
 
-    private var finishFlag: some View {
-        VStack(spacing: 6) {
-            Image(systemName: WorldProgress.clearedCount(snapshots: snapshots) == WorldCatalog.count
-                  ? "trophy.fill" : "flag.checkered")
-                .font(.system(size: 44)).foregroundStyle(Theme.Color.accent)
-                .padding(20).background(.ultraThinMaterial, in: Circle())
-            Text("The Summit").font(Theme.Font.label(14)).foregroundStyle(.white)
-                .padding(.horizontal, 12).padding(.vertical, 5)
-                .background(Capsule().fill(.black.opacity(0.45)))
-        }
-        .padding(.top, 8)
+/// A dashed trail connecting the node positions.
+private struct TrailPath: Shape {
+    let points: [CGPoint]
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        guard let first = points.first else { return p }
+        p.move(to: first)
+        for pt in points.dropFirst() { p.addLine(to: pt) }
+        return p
     }
 }
 
@@ -189,18 +180,15 @@ private struct PulsingRing: View {
     var body: some View {
         Circle()
             .strokeBorder(Theme.Color.accent, lineWidth: 5)
-            .frame(width: 150, height: 150)
-            .scaleEffect(animate && !reduceMotion ? 1.12 : 1.0)
+            .frame(width: 124, height: 124)
+            .scaleEffect(animate && !reduceMotion ? 1.14 : 1.0)
             .opacity(animate && !reduceMotion ? 0.2 : 0.9)
             .onAppear {
                 guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-                    animate = true
-                }
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { animate = true }
             }
     }
 }
 
-/// Wrapper so `fullScreenCover(item:)` can carry a world index without a retroactive
-/// Identifiable conformance on Int.
+/// Wrapper so `fullScreenCover(item:)` can carry a world index.
 struct WorldSelection: Identifiable { let id: Int }

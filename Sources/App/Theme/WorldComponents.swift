@@ -56,8 +56,9 @@ struct WorldButtonBackground: View {
         #if canImport(UIKit)
         guard let ui = UIImage(named: name) else { return nil }
         let s = ui.size
-        let insets = EdgeInsets(top: s.height * 0.34, leading: s.width * 0.16,
-                                bottom: s.height * 0.34, trailing: s.width * 0.16)
+        // Small caps so the framed button can render at modest heights without overflowing.
+        let insets = EdgeInsets(top: s.height * 0.12, leading: s.width * 0.10,
+                                bottom: s.height * 0.12, trailing: s.width * 0.10)
         return Image(uiImage: ui).resizable(capInsets: insets, resizingMode: .stretch)
         #else
         return nil
