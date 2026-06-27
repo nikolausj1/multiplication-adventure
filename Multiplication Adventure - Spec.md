@@ -289,9 +289,9 @@ neutral-soft feedback, kids-UX hardening. Runs on iPad simulator (home / session
 engine (7 worlds, clear-at-fluency, world-scoped introduction), rename to Multiplication
 Adventure + landscape lock, world-map home with **real generated art**, per-world themed
 sessions (backdrop + scrim + skinned buttons), parent area with the 2×2 parent gate, and
-the profile-scoped dashboard. Compiles clean; 50 engine checks pass. ⚠️ Not yet
-runtime-screenshot-verified — a mid-session Xcode update left CoreSimulator stale; needs a
-Mac reboot, then boot an iPad sim and launch `com.levelup.adventure`.
+the profile-scoped dashboard. Compiles clean; 50 engine checks pass; **runtime-verified on
+the iPad Pro 11 simulator** (map, themed session, and parent area all render in landscape).
+Verify anytime with `./scripts/run-sim.sh`.
 
 **Still deferred / fast-follow:** custom/generated art + avatar cosmetic unlocks, sound
 pack, completion certificate art, App Store packaging, notifications, other operations
