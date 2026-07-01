@@ -21,7 +21,7 @@ struct SessionView: View {
                     active(vm)
                 }
                 if let celebration = vm.pendingCelebration {
-                    CelebrationOverlay(celebration: celebration) { vm.pendingCelebration = nil }
+                    CelebrationOverlay(celebration: celebration) { vm.celebrationDismissed() }
                         .transition(.opacity).zIndex(10)
                 }
             } else {
@@ -98,8 +98,10 @@ private struct QuestionContainer: View {
                                  onSubmit: { vm.answer($0) })
             }
             if vm.stage == .feedback {
+                // Correct answers auto-advance; only a miss waits for Continue.
                 FeedbackBar(correct: vm.lastCorrect, correctAnswer: question.prompt.answer,
-                            xp: vm.lastXP, mastered: vm.justMastered) { vm.next() }
+                            xp: vm.lastXP, mastered: vm.justMastered,
+                            showsContinue: !vm.lastCorrect) { vm.next() }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }

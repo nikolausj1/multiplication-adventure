@@ -11,17 +11,19 @@ struct OpenResponseView: View {
 
     @State private var entry = ""
     @State private var start = Date.now
+    @State private var frozenElapsed: Double?   // stops the clock at the moment of answer
 
     private var answer: Int { question.prompt.answer }
 
     var body: some View {
         VStack(spacing: 28) {
             if timed {
-                TimelineView(.periodic(from: start, by: 0.1)) { ctx in
-                    let elapsed = ctx.date.timeIntervalSince(start)
-                    Text(String(format: "%.1fs", max(0, elapsed)))
-                        .font(Theme.Font.number(20)).foregroundStyle(Theme.Color.accent)
-                        .monospacedDigit()
+                if let frozenElapsed {
+                    timerText(frozenElapsed)
+                } else {
+                    TimelineView(.periodic(from: start, by: 0.1)) { ctx in
+                        timerText(ctx.date.timeIntervalSince(start))
+                    }
                 }
             }
 
@@ -60,8 +62,15 @@ struct OpenResponseView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous))
     }
 
+    private func timerText(_ elapsed: Double) -> some View {
+        Text(String(format: "%.1fs", max(0, elapsed)))
+            .font(Theme.Font.number(20)).foregroundStyle(Theme.Color.accent)
+            .monospacedDigit()
+    }
+
     private func submit() {
         guard !entry.isEmpty, let value = Int(entry), !showFeedback else { return }
+        frozenElapsed = Date.now.timeIntervalSince(start)
         onSubmit(value)
     }
 }

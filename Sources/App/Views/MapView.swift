@@ -6,11 +6,19 @@ import SwiftData
 /// unlocked node starts a themed session. The gear opens the parent area.
 struct MapView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
 
     @State private var sessionWorld: WorldSelection?
     @State private var showParent = false
     @State private var showCertificate = false
+
+    // Locked-node tap response + the fog-lift reveal when a new world opens.
+    @State private var shakeTarget: Int?
+    @State private var shakePhase: CGFloat = 0
+    @State private var hintNode: Int?
+    @State private var revealWorld: Int?
+    @State private var baselineCurrent = 0
 
     private var profile: Profile? { activeProfiles.first }
     private var snapshots: [FactSnapshot] { (profile?.facts ?? []).map(\.snapshot) }
@@ -44,13 +52,14 @@ struct MapView: View {
             }
             VStack { header; Spacer() }
         }
-        .fullScreenCover(item: $sessionWorld) { sel in
+        .fullScreenCover(item: $sessionWorld, onDismiss: checkUnlockReveal) { sel in
             SessionView(worldIndex: sel.id, speedRound: sel.speed)
                 .environment(\.worldTheme, .forWorld(sel.id))
         }
-        .sheet(isPresented: $showParent) { ParentAreaView() }
+        .sheet(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
         .sheet(isPresented: $showCertificate) { CertificateView(name: profile?.name ?? "Champion") }
         .onAppear {
+            baselineCurrent = currentIndex
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-autostartSession") { sessionWorld = WorldSelection(id: currentIndex) }
             if args.contains("-autostartParent") { showParent = true }
@@ -130,21 +139,31 @@ struct MapView: View {
         let unlocked = world.index <= currentIndex
         let cleared = stats[safe: world.index]?.cleared ?? false
         let isCurrent = world.index == currentIndex
+        let stat = stats[safe: world.index]
         VStack(spacing: 5) {
             Button {
-                guard unlocked else { return }
-                sessionWorld = WorldSelection(id: world.index)
+                if unlocked { sessionWorld = WorldSelection(id: world.index) }
+                else { nudgeLocked(world.index) }
             } label: {
                 ZStack {
                     if unlocked {
-                        WorldNodeBadge(theme: .forWorld(world.index))
-                            .frame(width: 104, height: 104).clipShape(Circle())
-                            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 4))
-                            .shadow(color: .black.opacity(0.4), radius: 7, y: 3)
+                        if world.index == revealWorld {
+                            UnlockRevealNode(index: world.index) { revealWorld = nil }
+                        } else {
+                            UnlockedBadge(index: world.index)
+                        }
                     } else {
-                        lockedNode
+                        LockedNodeView()
                     }
                     if isCurrent { PulsingRing() }
+                    // Progress toward clearing the current world — the "almost there" cue.
+                    if isCurrent, !cleared, let s = stat, s.total > 0, s.fluentPlus > 0 {
+                        Circle().trim(from: 0, to: CGFloat(s.fluentPlus) / CGFloat(s.total))
+                            .stroke(Theme.Color.correct, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: 104, height: 104)
+                            .shadow(color: .black.opacity(0.35), radius: 2)
+                    }
                     if cleared {
                         Image(systemName: "checkmark.seal.fill").font(.system(size: 26))
                             .foregroundStyle(Theme.Color.correct)
@@ -153,22 +172,72 @@ struct MapView: View {
                     }
                 }
             }
-            .buttonStyle(PopButtonStyle()).disabled(!unlocked)
+            .buttonStyle(PopButtonStyle())
+            .modifier(Shake(animatableData: world.index == shakeTarget ? shakePhase : 0))
 
             Text(unlocked ? world.name : "???")
                 .font(Theme.Font.label(13)).foregroundStyle(.white)
                 .padding(.horizontal, 10).padding(.vertical, 4)
                 .background(Capsule().fill(.black.opacity(0.5)))
-            if isCurrent {
-                Text("TAP TO PLAY").font(Theme.Font.label(10)).tracking(1)
+            if isCurrent, !cleared {
+                let remaining = stat.map { $0.total - $0.fluentPlus } ?? 0
+                let started = (stat?.fluentPlus ?? 0) > 0
+                Text(started && remaining > 0 ? "\(remaining) TO GO!" : "TAP TO PLAY")
+                    .font(Theme.Font.label(10)).tracking(1)
                     .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 3)
                     .background(Capsule().fill(Theme.Color.primary))
             }
+            if hintNode == world.index {
+                Text("Clear \(WorldCatalog.worlds[safe: currentIndex]?.name ?? "the current world") first!")
+                    .font(Theme.Font.label(11)).foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 9).padding(.vertical, 3)
+                    .background(Capsule().fill(Theme.Color.primary))
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            }
         }
         .frame(width: 150)
+        .animation(Theme.Motion.snappy, value: hintNode)
     }
 
-    private var lockedNode: some View {
+    /// A tap on a fogged node shouldn't feel broken: wiggle it and say what unlocks it.
+    private func nudgeLocked(_ index: Int) {
+        Feedback.fire(.keyTap)
+        hintNode = index
+        if !reduceMotion {
+            shakeTarget = index
+            withAnimation(.easeInOut(duration: 0.45)) { shakePhase += 1 }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+            if hintNode == index { hintNode = nil }
+        }
+    }
+
+    /// Called when a session cover closes: if the trail advanced, run the fog-lift
+    /// reveal on the newly reachable world.
+    private func checkUnlockReveal() {
+        let now = currentIndex
+        if now > baselineCurrent, !(stats[safe: now]?.cleared ?? false) {
+            revealWorld = now
+        }
+        baselineCurrent = now
+    }
+}
+
+/// The standard unlocked world badge on the map.
+private struct UnlockedBadge: View {
+    let index: Int
+    var body: some View {
+        WorldNodeBadge(theme: .forWorld(index))
+            .frame(width: 104, height: 104).clipShape(Circle())
+            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 4))
+            .shadow(color: .black.opacity(0.4), radius: 7, y: 3)
+    }
+}
+
+/// Fogged, unknown world node.
+private struct LockedNodeView: View {
+    var body: some View {
         ZStack {
             if Art.exists("node_locked") {
                 Image("node_locked").resizable().scaledToFit().frame(width: 104, height: 104)
@@ -178,6 +247,45 @@ struct MapView: View {
             Image(systemName: "questionmark").font(.system(size: 32, weight: .heavy))
                 .foregroundStyle(.white.opacity(0.9))
         }
+    }
+}
+
+/// The fog-lift moment: the locked node swells and dissolves while the world badge
+/// springs in underneath. Plays the unlock sound; respects Reduced Motion.
+private struct UnlockRevealNode: View {
+    let index: Int
+    let onDone: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var revealed = false
+
+    var body: some View {
+        ZStack {
+            UnlockedBadge(index: index)
+                .opacity(revealed ? 1 : 0)
+                .scaleEffect(reduceMotion ? 1 : (revealed ? 1 : 0.35))
+            LockedNodeView()
+                .opacity(revealed ? 0 : 1)
+                .scaleEffect(reduceMotion || !revealed ? 1 : 1.4)
+        }
+        .onAppear {
+            Feedback.fire(.levelUp)
+            withAnimation(reduceMotion ? Theme.Motion.quick
+                          : .spring(response: 0.7, dampingFraction: 0.55).delay(0.45)) {
+                revealed = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { onDone() }
+        }
+    }
+}
+
+/// Horizontal shake for "not yet" taps; integer phases land at zero offset.
+private struct Shake: GeometryEffect {
+    var travel: CGFloat = 7
+    var shakesPerUnit: CGFloat = 3
+    var animatableData: CGFloat
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(
+            translationX: travel * sin(animatableData * .pi * shakesPerUnit * 2), y: 0))
     }
 }
 

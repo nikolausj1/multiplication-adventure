@@ -39,11 +39,15 @@ final class SessionViewModel {
     private let auto: AutoMode
     private var questionStart = Date.now
     private let originalCount: Int
+    private var feedbackGen = 0
 
     init(service: LearningService, speedRound: Bool = false, auto: AutoMode = .off,
          worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
         self.service = service
+        // Speed Round and dev fluency always show the timer; regular practice only
+        // when the profile opts into "speed" timing (gentle default hides it).
         self.timed = speedRound || testFormat == .fluency
+            || service.activeProfile().timingMode == .speed
         self.isSpeed = speedRound
         self.auto = auto
         let built: [PlannedQuestion]
@@ -119,6 +123,26 @@ final class SessionViewModel {
             queue.insert(q, at: insertAt)
         }
         stage = .feedback
+        feedbackGen += 1
+
+        // Correct answers keep the flow: advance automatically after a beat.
+        // Misses wait for an explicit Continue so the reveal actually lands.
+        if correct, auto == .off {
+            let gen = feedbackGen
+            let delay = justMastered ? 1.5 : 0.9
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.stage == .feedback, self.feedbackGen == gen,
+                      self.pendingCelebration == nil else { return }   // overlay up → wait for its dismissal
+                self.next()
+            }
+        }
+    }
+
+    /// Celebration overlay dismissed; if it was holding up a correct-answer
+    /// auto-advance, move on now.
+    func celebrationDismissed() {
+        pendingCelebration = nil
+        if stage == .feedback, lastCorrect, auto == .off { next() }
     }
 
     /// Advance after the neutral-soft reveal.

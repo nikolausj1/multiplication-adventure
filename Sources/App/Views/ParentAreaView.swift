@@ -22,6 +22,7 @@ struct ParentAreaView: View {
     @State private var resetTarget: Profile?
 
     // Developer / testing
+    @State private var devUnlocked = false   // gate per sheet-presentation; spoils world names otherwise
     @State private var testWorld = 0
     @State private var testLaunch: WorldSelection?
     @State private var showCert = false
@@ -83,7 +84,29 @@ struct ParentAreaView: View {
 
     // MARK: Developer / testing
 
+    @ViewBuilder
     private var developerCard: some View {
+        if devUnlocked { devCardOpen } else { devCardLocked }
+    }
+
+    /// Collapsed state: the section exists but its contents (world names, session
+    /// jumps) stay behind the gate so the child can't spoil or skip progression.
+    private var devCardLocked: some View {
+        Button { gated { devUnlocked = true } } label: {
+            HStack {
+                Label("Developer / Testing", systemImage: "lock.fill")
+                    .font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(Theme.Color.inkSoft)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(Theme.Metric.pad)
+        }
+        .buttonStyle(.plain)
+        .cardSurface()
+    }
+
+    private var devCardOpen: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Developer / Testing").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
 
@@ -107,9 +130,9 @@ struct ParentAreaView: View {
             Divider().padding(.vertical, 2)
             HStack(spacing: 10) {
                 devBtn("Preview certificate", "trophy.fill") { showCert = true }
-                devBtn("Unlock all worlds", "lock.open.fill") { gated { service.applyDemoProgress(complete: false) } }
+                devBtn("Unlock all worlds", "lock.open.fill") { service.applyDemoProgress(complete: false) }
             }
-            devBtn("Master everything (100%)", "checkmark.seal.fill") { gated { service.applyDemoProgress(complete: true) } }
+            devBtn("Master everything (100%)", "checkmark.seal.fill") { service.applyDemoProgress(complete: true) }
 
             Text("Tip: make a separate \"Test\" profile (Profiles → Add) so testing doesn't change your child's real progress.")
                 .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft).padding(.top, 2)
@@ -181,6 +204,10 @@ struct ParentAreaView: View {
             if let a = active {
                 Toggle("Sound effects", isOn: Binding(get: { a.soundOn }, set: { a.soundOn = $0; Feedback.soundEnabled = $0 }))
                 Toggle("Speed Round unlocked", isOn: Binding(get: { a.speedRoundUnlocked }, set: { a.speedRoundUnlocked = $0 }))
+                Toggle("Show timer during practice", isOn: Binding(get: { a.timingMode == .speed },
+                                                                   set: { a.timingMode = $0 ? .speed : .gentle }))
+                Text("Off keeps practice pressure-free (times are still tracked). The Speed Round always shows its timer.")
+                    .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

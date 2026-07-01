@@ -254,7 +254,7 @@ Fun but clean. Everything routes through a single **theme/token layer**
 - **Motion:** calm in-loop (≤200ms snappy springs), lavish at milestones; **Reduced Motion honored**.
 - **Number pad:** calculator layout (7-8-9 top), large keys.
 - **Sound:** ~6–8 curated, App-Store-cleared clips, each tied 1:1 to a motion event; no
-  background music. (Currently haptics wired; audio is a stubbed fast-follow.)
+  background music. ✅ (6 Kenney CC0 clips shipped in `Resources/Audio`; see §14.)
 - **Avatar:** static SF Symbol per profile in v1; cosmetic unlocks are a fast-follow.
 
 ### Kids-UX / iPad HIG hardening ✅
@@ -295,8 +295,27 @@ files are added). Compiles clean; 50 engine checks pass; **runtime-verified on t
 11 simulator** (map, themed session, feedback, wrap, Speed Round, certificate, parent area
 all render in landscape). Verify anytime with `./scripts/run-sim.sh`.
 
-**Still pending / fast-follow:** the **audio files** (`sfx_*.wav` — engine wired, drop into
-`Sources/App/Resources/Audio`; see the Assets guide), avatar cosmetic unlocks, App Store
+**Built 2026-07-01 (UX polish pass):**
+- **Auto-advance on correct answers** — no Continue tap in the flow; only a miss pauses
+  for an explicit Continue (celebration overlays hold the advance until dismissed).
+- **Sound effects shipped** — 6 CC0 clips from Kenney.nl (Interface Sounds / Digital
+  Audio / Music Jingles packs) converted to mono WAV in `Sources/App/Resources/Audio`
+  (license copy alongside). correct=confirmation blip, wrong=soft error, key=short click
+  (attenuated), world_unlock=rising power-up, milestone=short power-up, complete=orchestral
+  hit. Swap freely — same filenames.
+- **Map progress ring + "N TO GO!"** — the current node wears a green fluent-progress ring
+  and its capsule counts down facts remaining (shows TAP TO PLAY until first progress).
+- **World-unlock reveal** — when a session clears a world, returning to the map plays a
+  fog-lift: the locked node swells & dissolves, the world badge springs in, unlock sound.
+- **Locked-node nudge** — tapping a fogged node wiggles it and shows
+  "Clear <current world> first!" (reduce-motion aware).
+- **Timer polish** — the count-up timer freezes at the moment of answer; new per-profile
+  setting **Show timer during practice** (wires the previously dormant `timingMode`;
+  default off = gentle. Speed Round and dev Fluency jumps always show the timer).
+- **Developer/Testing card now gated** — collapsed lock row until the parent gate is
+  passed (was leaking world names + ungated session jumps to the child).
+
+**Still pending / fast-follow:** avatar cosmetic unlocks, App Store
 packaging, notifications, other operations (division/addition), iCloud sync.
 
 ---

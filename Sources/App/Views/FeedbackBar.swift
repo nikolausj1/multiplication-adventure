@@ -8,6 +8,7 @@ struct FeedbackBar: View {
     let correctAnswer: Int
     let xp: Int
     let mastered: Bool
+    var showsContinue: Bool = true
     let onContinue: () -> Void
 
     var body: some View {
@@ -26,11 +27,13 @@ struct FeedbackBar: View {
                 Label("Fact mastered!", systemImage: "star.fill")
                     .font(Theme.Font.label()).foregroundStyle(Theme.Color.correct)
             }
-            Button(action: onContinue) {
-                Text("Continue").font(Theme.Font.display(20))
-                    .frame(maxWidth: .infinity).padding(.vertical, 16)
+            if showsContinue {
+                Button(action: onContinue) {
+                    Text("Continue").font(Theme.Font.display(20))
+                        .frame(maxWidth: .infinity).padding(.vertical, 16)
+                }
+                .buttonStyle(.borderedProminent).tint(theme.primary)
             }
-            .buttonStyle(.borderedProminent).tint(theme.primary)
         }
         .padding(.top, 8)
         .frame(maxWidth: 420)
