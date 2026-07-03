@@ -66,6 +66,8 @@ struct MapView: View {
             if args.contains("-autostartParent") { showParent = true }
             if args.contains("-autostartCertificate") { showCertificate = true }
             if args.contains("-autostartSpeed") { sessionWorld = WorldSelection(id: currentIndex, speed: true) }
+            // Demo: play the fog-lift reveal on the current node (pair with -demoProgress).
+            if args.contains("-demoReveal") { revealWorld = currentIndex }
         }
     }
 
