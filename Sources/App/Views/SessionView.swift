@@ -102,22 +102,27 @@ private struct QuestionContainer: View {
     let question: PlannedQuestion
 
     var body: some View {
-        VStack(spacing: 28) {
+        let inFeedback = vm.stage == .feedback
+        VStack(spacing: 24) {
             if question.format == .recognition {
-                MultipleChoiceView(question: question, showFeedback: vm.stage == .feedback,
+                MultipleChoiceView(question: question, showFeedback: inFeedback,
                                    selected: vm.lastSelected, onSelect: { vm.answer($0) })
             } else {
                 OpenResponseView(question: question, timed: vm.showTimer && question.timed,
-                                 showFeedback: vm.stage == .feedback, lastCorrect: vm.lastCorrect,
+                                 showFeedback: inFeedback, lastCorrect: vm.lastCorrect,
                                  onSubmit: { vm.answer($0) })
             }
-            if vm.stage == .feedback {
-                // Correct answers auto-advance; only a miss waits for Continue.
-                FeedbackBar(correct: vm.lastCorrect, correctAnswer: question.prompt.answer,
-                            xp: vm.lastXP, mastered: vm.justMastered,
-                            showsContinue: !vm.lastCorrect) { vm.next() }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            // The feedback slot is ALWAYS reserved so revealing an answer never
+            // shifts the question or buttons; the pill just fades in place.
+            // Correct answers auto-advance; only a miss waits for Continue.
+            FeedbackBar(correct: vm.lastCorrect,
+                        equation: "\(question.prompt.text) = \(question.prompt.answer)",
+                        xp: vm.lastXP, mastered: vm.justMastered,
+                        showsContinue: inFeedback && !vm.lastCorrect) { vm.next() }
+                .opacity(inFeedback ? 1 : 0)
+                .scaleEffect(inFeedback ? 1 : 0.85)
+                .allowsHitTesting(inFeedback)
+                .frame(height: 74)
         }
         .onAppear { vm.beginQuestion() }
         .animation(Theme.Motion.snappy, value: vm.stage)

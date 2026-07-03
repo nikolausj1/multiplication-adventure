@@ -1,53 +1,54 @@
 import SwiftUI
 
-/// Neutral-soft feedback row on a dark plate over the world art. No "wrong" framing;
-/// a miss simply notes the answer (already revealed) and moves on (§3, no punishment).
+/// Answer feedback as one compact pill that fades into a permanently reserved slot,
+/// so the question and buttons never move. Neutral-soft: a miss shows the true
+/// equation and a Continue key — never a buzzer or red (§3).
 struct FeedbackBar: View {
     @Environment(\.worldTheme) private var theme
     let correct: Bool
-    let correctAnswer: Int
+    let equation: String           // e.g. "7 × 8 = 56", shown on a miss
     let xp: Int
     let mastered: Bool
     var showsContinue: Bool = true
     let onContinue: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: correct ? "checkmark.circle.fill" : "lightbulb.fill")
-                    .foregroundStyle(correct ? Theme.Color.correct : Theme.Color.accent)
-                    .font(.system(size: 22))
-                    .background {
-                        if correct {
-                            ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 8)
-                                .frame(width: 110, height: 110)
-                        }
+        HStack(spacing: 14) {
+            Image(systemName: correct ? "checkmark.circle.fill" : "lightbulb.fill")
+                .foregroundStyle(correct ? Theme.Color.correct : Theme.Color.accent)
+                .font(.system(size: 26))
+                .background {
+                    if correct {
+                        ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 8)
+                            .frame(width: 120, height: 120)
                     }
-                Text(correct ? message : "Now you know it")
-                    .font(Theme.Font.body()).foregroundStyle(.white)
-                if xp > 0 {
-                    Text("+\(xp)").font(Theme.Font.number(18)).foregroundStyle(Theme.Color.accent)
+                }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(correct ? message : equation)
+                    .font(correct ? Theme.Font.body(19) : Theme.Font.number(24))
+                    .foregroundStyle(.white)
+                if mastered {
+                    Label("Fact mastered!", systemImage: "star.fill")
+                        .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
                 }
             }
-            .padding(.horizontal, 20).padding(.vertical, 10)
-            .darkPlate(corner: 18)
-            if mastered {
-                Label("Fact mastered!", systemImage: "star.fill")
-                    .font(Theme.Font.label()).foregroundStyle(Theme.Color.correct)
-                    .padding(.horizontal, 14).padding(.vertical, 6)
-                    .darkPlate(corner: 16)
+            if correct && xp > 0 {
+                Text("+\(xp)").font(Theme.Font.number(20)).foregroundStyle(Theme.Color.accent)
             }
             if showsContinue {
                 Button(action: onContinue) {
-                    Text("Continue").font(Theme.Font.display(20))
-                        .frame(maxWidth: .infinity).padding(.vertical, 15)
+                    Text("Continue").font(Theme.Font.label(17))
+                        .padding(.horizontal, 22).padding(.vertical, 11)
                 }
-                .buttonStyle(ChunkyKeyStyle(base: theme.primary, deep: theme.deep,
-                                            corner: Theme.Metric.corner))
+                .buttonStyle(ChunkyKeyStyle(base: theme.primary, deep: theme.deep, corner: 14))
+                .padding(.leading, 6)
             }
         }
-        .padding(.top, 6)
-        .frame(maxWidth: 420)
+        .padding(.horizontal, 22).padding(.vertical, 13)
+        .darkPlate(corner: 26)
+        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
+            .strokeBorder((correct ? Theme.Color.correct : Theme.Color.accent).opacity(0.55),
+                          lineWidth: 1.5))
     }
 
     private var message: String {

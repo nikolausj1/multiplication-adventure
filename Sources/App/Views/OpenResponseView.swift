@@ -45,21 +45,17 @@ struct OpenResponseView: View {
         .onAppear { start = .now }
     }
 
+    /// Fixed-size entry plate: feedback recolors the digits in place (the true
+    /// equation appears in the feedback pill), so nothing on screen moves.
     private var entryField: some View {
-        HStack(spacing: 12) {
-            Text(entry.isEmpty ? " " : entry)
-                .font(Theme.Font.number(48))
-                .foregroundStyle(showFeedback ? (lastCorrect ? Theme.Color.correct : .white.opacity(0.55))
-                                              : .white)
-            if showFeedback && !lastCorrect {
-                Image(systemName: "arrow.right").foregroundStyle(.white.opacity(0.55))
-                Text("\(answer)").font(Theme.Font.number(48)).foregroundStyle(Theme.Color.correct)
-            }
-        }
-        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
-        .frame(minWidth: 170, minHeight: 70)
-        .padding(.horizontal, 24)
-        .darkPlate()
+        Text(entry.isEmpty ? " " : entry)
+            .font(Theme.Font.number(48))
+            .foregroundStyle(showFeedback ? (lastCorrect ? Theme.Color.correct : .white.opacity(0.45))
+                                          : .white)
+            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+            .frame(minWidth: 170, minHeight: 70)
+            .padding(.horizontal, 24)
+            .darkPlate()
     }
 
     private func timerText(_ elapsed: Double) -> some View {
