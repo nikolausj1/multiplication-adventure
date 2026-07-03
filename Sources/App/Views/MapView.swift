@@ -29,10 +29,11 @@ struct MapView: View {
     private var isComplete: Bool { (profile?.masteredCount ?? 0) == FactUniverse.count }
 
     /// Fractional positions of each world node, forming a left→right winding trail.
+    /// The top row sits low enough to clear the full-bleed title banner.
     private let pts: [CGPoint] = [
-        CGPoint(x: 0.09, y: 0.74), CGPoint(x: 0.22, y: 0.44), CGPoint(x: 0.35, y: 0.70),
-        CGPoint(x: 0.49, y: 0.42), CGPoint(x: 0.63, y: 0.68), CGPoint(x: 0.78, y: 0.42),
-        CGPoint(x: 0.91, y: 0.66),
+        CGPoint(x: 0.09, y: 0.74), CGPoint(x: 0.22, y: 0.48), CGPoint(x: 0.35, y: 0.72),
+        CGPoint(x: 0.49, y: 0.47), CGPoint(x: 0.63, y: 0.70), CGPoint(x: 0.78, y: 0.47),
+        CGPoint(x: 0.91, y: 0.68),
     ]
 
     var body: some View {
@@ -51,6 +52,15 @@ struct MapView: View {
                 }
             }
             DriftingMist().ignoresSafeArea()
+            // Full-bleed title banner: painted sky fades into the map's fog.
+            if Art.exists("map_banner") {
+                VStack(spacing: 0) {
+                    Image("map_banner").resizable().scaledToFit()
+                    Spacer(minLength: 0)
+                }
+                .ignoresSafeArea(edges: [.top, .horizontal])
+                .allowsHitTesting(false)
+            }
             VStack { header; Spacer() }
         }
         .fullScreenCover(item: $sessionWorld, onDismiss: checkUnlockReveal) { sel in
@@ -113,17 +123,20 @@ struct MapView: View {
             .padding(.vertical, 7).padding(.horizontal, 9).padding(.trailing, 7)
             .darkPlate(corner: 27)
             Spacer()
-            // The title art (logo emblem) or the text fallback before art exists.
-            if Art.exists("map_header") {
-                Image("map_header").resizable().scaledToFit()
-                    .frame(height: 118)
-                    .shadow(color: .black.opacity(0.45), radius: 10, y: 5)
-            } else {
-                Text("Multiplication Adventure")
-                    .font(Theme.Font.display(20)).foregroundStyle(.white).shadow(radius: 3)
-                    .padding(.top, 10)
+            // Title lives in the full-bleed banner; fall back to the floating
+            // logo or text when banner art is absent.
+            if !Art.exists("map_banner") {
+                if Art.exists("map_header") {
+                    Image("map_header").resizable().scaledToFit()
+                        .frame(height: 118)
+                        .shadow(color: .black.opacity(0.45), radius: 10, y: 5)
+                } else {
+                    Text("Multiplication Adventure")
+                        .font(Theme.Font.display(20)).foregroundStyle(.white).shadow(radius: 3)
+                        .padding(.top, 10)
+                }
+                Spacer()
             }
-            Spacer()
             if isComplete {
                 Button { showCertificate = true } label: {
                     Image(systemName: "trophy.fill").font(.system(size: 19))
