@@ -28,12 +28,12 @@ struct MapView: View {
     private var canSpeedRound: Bool { fluentPlus >= 10 || (profile?.speedRoundUnlocked ?? false) }
     private var isComplete: Bool { (profile?.masteredCount ?? 0) == FactUniverse.count }
 
-    /// Fractional positions of each world node, forming a left→right winding trail.
-    /// The top row sits low enough to clear the full-bleed title banner.
+    /// Fractional positions of each world node, forming a left→right winding trail,
+    /// vertically centered in the space between the title banner and screen bottom.
     private let pts: [CGPoint] = [
-        CGPoint(x: 0.09, y: 0.74), CGPoint(x: 0.22, y: 0.48), CGPoint(x: 0.35, y: 0.72),
-        CGPoint(x: 0.49, y: 0.47), CGPoint(x: 0.63, y: 0.70), CGPoint(x: 0.78, y: 0.47),
-        CGPoint(x: 0.91, y: 0.68),
+        CGPoint(x: 0.09, y: 0.82), CGPoint(x: 0.22, y: 0.56), CGPoint(x: 0.35, y: 0.80),
+        CGPoint(x: 0.49, y: 0.55), CGPoint(x: 0.63, y: 0.78), CGPoint(x: 0.78, y: 0.55),
+        CGPoint(x: 0.91, y: 0.76),
     ]
 
     var body: some View {
