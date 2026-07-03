@@ -272,18 +272,21 @@ private struct UnlockedBadge: View {
     }
 }
 
-/// Fogged, unknown world node.
+/// Fogged, unknown world node. The smoke art deliberately billows beyond the
+/// 104pt node footprint, so it renders larger without shifting the node's center.
 private struct LockedNodeView: View {
     var body: some View {
         ZStack {
             if Art.exists("node_locked") {
-                Image("node_locked").resizable().scaledToFit().frame(width: 104, height: 104)
+                Image("node_locked").resizable().scaledToFit().frame(width: 138, height: 138)
             } else {
                 Circle().fill(Color.gray.opacity(0.5)).frame(width: 96, height: 96)
             }
             Image(systemName: "questionmark").font(.system(size: 32, weight: .heavy))
                 .foregroundStyle(.white.opacity(0.9))
+                .shadow(color: .black.opacity(0.6), radius: 3)
         }
+        .frame(width: 104, height: 104)   // layout footprint stays the node size
     }
 }
 
