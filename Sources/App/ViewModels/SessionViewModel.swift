@@ -42,6 +42,9 @@ final class SessionViewModel {
     private let originalCount: Int
     private var feedbackGen = 0
 
+    /// Current-world fluency at session start, so the wrap can show today's gains.
+    let worldStatBefore: (index: Int, fluent: Int, total: Int)
+
     init(service: LearningService, speedRound: Bool = false, auto: AutoMode = .off,
          worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
         self.service = service
@@ -51,6 +54,7 @@ final class SessionViewModel {
             || service.activeProfile().timingMode == .speed
         self.isSpeed = speedRound
         self.auto = auto
+        self.worldStatBefore = service.currentWorldStat()
         let built: [PlannedQuestion]
         if let testFormat {
             built = service.buildTestSession(worldIndex: worldIndex, format: testFormat)

@@ -28,8 +28,7 @@ struct WrapView: View {
                 stat("+\(vm.xpEarned)", "XP", tint: Theme.Color.accent)
             }
 
-            Text(goalText).font(Theme.Font.body()).foregroundStyle(.white.opacity(0.75))
-                .multilineTextAlignment(.center)
+            worldProgressCard
 
             if let c = vm.endCelebration, c.tier >= .t1 {
                 Label(c.headline, systemImage: "flame.fill")
@@ -58,16 +57,48 @@ struct WrapView: View {
         }
     }
 
-    private var goalText: String {
+    /// The "why am I replaying this world" answer: a visible bar, today's gains, and
+    /// one line that explains the loop (facts drip in daily; fluent-all clears it).
+    @ViewBuilder
+    private var worldProgressCard: some View {
         let stats = WorldProgress.stats(snapshots: snapshots)
         let idx = WorldProgress.currentIndex(snapshots: snapshots)
-        guard let s = stats[safe: idx] else { return "" }
-        if WorldProgress.clearedCount(snapshots: snapshots) == WorldCatalog.count {
-            return "Every world cleared — you're a Multiplication Master!"
-        }
-        let remaining = s.total - s.fluentPlus
+        let s = stats[safe: idx]
+        let fluent = s?.fluentPlus ?? 0
+        let total = max(s?.total ?? 1, 1)
         let name = WorldCatalog.worlds[safe: idx]?.name ?? "this world"
-        return remaining > 0 ? "\(remaining) more facts to clear \(name)" : "Ready for the next world!"
+        let gained = max(0, fluent - (vm.worldStatBefore.index == idx ? vm.worldStatBefore.fluent : 0))
+        let allCleared = WorldProgress.clearedCount(snapshots: snapshots) == WorldCatalog.count
+
+        VStack(spacing: 8) {
+            if allCleared {
+                Text("Every world cleared — you're a Multiplication Master!")
+                    .font(Theme.Font.body()).foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+            } else {
+                HStack {
+                    Text(name).font(Theme.Font.label(15)).foregroundStyle(.white)
+                    Spacer()
+                    Text("\(fluent)/\(total) facts fluent")
+                        .font(Theme.Font.label(14)).foregroundStyle(.white.opacity(0.8))
+                }
+                ProgressView(value: Double(fluent), total: Double(total))
+                    .tint(Theme.Color.correct)
+                    .scaleEffect(y: 1.6)
+                if gained > 0 {
+                    Text("+\(gained) new fluent fact\(gained == 1 ? "" : "s") today!")
+                        .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
+                }
+                Text(fluent == total
+                     ? "World cleared — the next world is open on the map!"
+                     : "New facts join a few at a time. When all \(total) are fluent, \(name) is cleared and the next world unlocks.")
+                    .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.08),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var encouragement: String {

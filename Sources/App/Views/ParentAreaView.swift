@@ -36,6 +36,7 @@ struct ParentAreaView: View {
                 VStack(spacing: Theme.Metric.gap) {
                     profilesCard
                     settingsCard
+                    howItWorksCard
                     developerCard
                     DashboardView()
                 }
@@ -81,6 +82,33 @@ struct ParentAreaView: View {
     private func gated(_ action: @escaping () -> Void) { pending = action; showGate = true }
 
     private var activeName: String { profiles.first(where: { $0.isActive })?.name ?? "Champion" }
+
+    // MARK: How progress works (parent explainer)
+
+    private var howItWorksCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("How progress works").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+            explainRow("rectangle.grid.2x2.fill",
+                       "Each fact climbs a ladder: 2 correct as multiple choice, then 3 correct typed → fluent. A fact appears once per session, so reaching fluent takes about 5 sessions of correct answers — that spacing is what makes facts stick.")
+            explainRow("map.fill",
+                       "Worlds grow along the trail: Highland Trail has just 6 facts (quick first win); later worlds have 10–23. Clearing one world usually takes several short sessions.")
+            explainRow("checkmark.seal.fill",
+                       "When every fact in a world is fluent, it clears and the next world unlocks. Facts keep going to mastered (fast answers on 2 different days); 100% mastered earns the certificate.")
+            explainRow("bolt.fill",
+                       "Playing more than once a day speeds up everything except the final mastery step, which needs separate days.")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Theme.Metric.pad).cardSurface()
+    }
+
+    private func explainRow(_ icon: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon).font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Theme.Color.primary).frame(width: 22)
+            Text(text).font(Theme.Font.label(13)).foregroundStyle(Theme.Color.ink)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
     // MARK: Developer / testing
 

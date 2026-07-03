@@ -122,6 +122,14 @@ struct LearningService {
     /// Facts at Fluency or Mastered — gates the Speed Round (count-up + beat-your-best).
     func fluentPlusCount() -> Int { facts().filter { $0.stage >= .fluency }.count }
 
+    /// Fluent-progress of the current world (for wrap-screen "how close am I" UI).
+    func currentWorldStat() -> (index: Int, fluent: Int, total: Int) {
+        let snaps = facts().map(\.snapshot)
+        let idx = WorldProgress.currentIndex(snapshots: snaps)
+        let stat = WorldProgress.stats(snapshots: snaps)[safe: idx]
+        return (idx, stat?.fluentPlus ?? 0, stat?.total ?? 0)
+    }
+
     /// Dev/testing: a session of a specific world's facts forced into one format,
     /// ignoring progression gating so any world/round is reachable immediately.
     func buildTestSession(worldIndex: Int, format: MasteryStage,
