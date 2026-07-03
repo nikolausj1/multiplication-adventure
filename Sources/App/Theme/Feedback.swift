@@ -14,15 +14,22 @@ enum Feedback {
         case correct, wrong, keyTap, levelUp, milestone, complete
     }
 
-    static func fire(_ event: Event) {
+    static func fire(_ event: Event, combo: Int = 0) {
         haptic(event)
-        guard soundEnabled, let name = soundName(event) else { return }
+        guard soundEnabled, let name = soundName(event, combo: combo) else { return }
         play(name)
     }
 
-    private static func soundName(_ e: Event) -> String? {
+    private static func soundName(_ e: Event, combo: Int) -> String? {
         switch e {
-        case .correct:   return "sfx_correct"
+        case .correct:
+            // Streaks climb a major chord (coin pitched +4/+7/+12 semitones).
+            switch combo {
+            case ..<3:  return "sfx_correct"
+            case 3...4: return "sfx_correct2"
+            case 5...7: return "sfx_correct3"
+            default:    return "sfx_correct4"
+            }
         case .wrong:     return "sfx_wrong"
         case .keyTap:    return "sfx_key"
         case .levelUp:   return "sfx_world_unlock"

@@ -106,7 +106,8 @@ public enum MilestoneEngine {
                                     message: "\(after.streakDays)-day streak!"))
             } else {
                 events.append(.init(kind: .streakContinued(days: after.streakDays), tier: .t1,
-                                    message: "\(after.streakDays) days in a row"))
+                                    message: after.streakDays == 1 ? "Practiced today!"
+                                                                   : "\(after.streakDays) days in a row"))
             }
         }
 

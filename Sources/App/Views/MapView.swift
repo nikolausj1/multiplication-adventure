@@ -50,6 +50,7 @@ struct MapView: View {
                     }
                 }
             }
+            DriftingMist().ignoresSafeArea()
             VStack { header; Spacer() }
         }
         .fullScreenCover(item: $sessionWorld, onDismiss: checkUnlockReveal) { sel in
@@ -265,7 +266,12 @@ private struct UnlockRevealNode: View {
                 .scaleEffect(reduceMotion ? 1 : (revealed ? 1 : 0.35))
             LockedNodeView()
                 .opacity(revealed ? 0 : 1)
-                .scaleEffect(reduceMotion || !revealed ? 1 : 1.4)
+                .scaleEffect(reduceMotion || !revealed ? 1 : 1.5)
+                .blur(radius: reduceMotion || !revealed ? 0 : 14)
+            // The fog physically billows away as the world appears underneath.
+            ParticleBurst(kind: .smoke, colors: [.white, Color(white: 0.82)],
+                          seed: UInt64(index) &* 7919 &+ 5)
+                .frame(width: 260, height: 260)
         }
         .onAppear {
             Feedback.fire(.levelUp)
@@ -273,7 +279,7 @@ private struct UnlockRevealNode: View {
                           : .spring(response: 0.7, dampingFraction: 0.55).delay(0.45)) {
                 revealed = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { onDone() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { onDone() }
         }
     }
 }

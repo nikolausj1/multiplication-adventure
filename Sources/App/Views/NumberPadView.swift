@@ -1,8 +1,10 @@
 import SwiftUI
 
 /// Calculator-style number pad (7-8-9 top), large kid-friendly keys, positioned low
-/// for two-handed iPad reach (§12).
+/// for two-handed iPad reach (§12). Keys are chunky world-tinted 3D buttons that
+/// physically depress, so they read as game pieces over the environment art.
 struct NumberPadView: View {
+    @Environment(\.worldTheme) private var theme
     let enterEnabled: Bool
     let onDigit: (Int) -> Void
     let onDelete: () -> Void
@@ -11,42 +13,41 @@ struct NumberPadView: View {
     private let rows = [[7, 8, 9], [4, 5, 6], [1, 2, 3]]
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             ForEach(rows, id: \.self) { row in
-                HStack(spacing: 12) { ForEach(row, id: \.self) { digit(_: $0) } }
+                HStack(spacing: 14) { ForEach(row, id: \.self) { digit(_: $0) } }
             }
-            HStack(spacing: 12) {
-                key(systemImage: "delete.left.fill", tint: Theme.Color.inkSoft, action: onDelete)
+            HStack(spacing: 14) {
+                key(systemImage: "delete.left.fill",
+                    base: Color(white: 0.42), deep: Color(white: 0.25), action: onDelete)
                     .accessibilityLabel("Delete")
                 digit(0)
-                key(systemImage: "checkmark", tint: Theme.Color.correct,
+                key(systemImage: "checkmark",
+                    base: Theme.Color.correct, deep: Theme.Color.correct.shaded(by: -0.35),
                     enabled: enterEnabled, action: onEnter)
                     .accessibilityLabel("Enter")
             }
         }
-        .frame(maxWidth: 420)
+        .frame(maxWidth: 430)
     }
 
     private func digit(_ n: Int) -> some View {
         Button { onDigit(n) } label: {
-            Text("\(n)").font(Theme.Font.number(34))
-                .frame(maxWidth: .infinity, minHeight: 64)
-                .foregroundStyle(Theme.Color.ink)
-                .background(Theme.Color.surface)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.cornerSmall, style: .continuous))
+            Text("\(n)").font(Theme.Font.number(32))
+                .frame(maxWidth: .infinity, minHeight: 62)
         }
-        .buttonStyle(PopButtonStyle(scale: 0.94))
+        .buttonStyle(ChunkyKeyStyle(base: theme.primary, deep: theme.deep))
     }
 
-    private func key(systemImage: String, tint: Color, enabled: Bool = true, action: @escaping () -> Void) -> some View {
+    private func key(systemImage: String, base: Color, deep: Color,
+                     enabled: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: systemImage).font(.system(size: 26, weight: .bold))
-                .frame(maxWidth: .infinity, minHeight: 64)
-                .foregroundStyle(enabled ? tint : Theme.Color.inkSoft.opacity(0.4))
-                .background(enabled ? tint.opacity(0.12) : Theme.Color.surface.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.cornerSmall, style: .continuous))
+            Image(systemName: systemImage).font(.system(size: 25, weight: .bold))
+                .frame(maxWidth: .infinity, minHeight: 62)
         }
-        .buttonStyle(PopButtonStyle(scale: 0.94))
+        .buttonStyle(ChunkyKeyStyle(base: base, deep: deep))
         .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.45)
+        .saturation(enabled ? 1 : 0.4)
     }
 }

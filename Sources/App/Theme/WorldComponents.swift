@@ -35,6 +35,94 @@ struct ScrimCard: ViewModifier {
 }
 extension View {
     func scrimCard() -> some View { modifier(ScrimCard()) }
+
+    /// Dark glass plate: keeps white text readable over any world art without
+    /// covering the environment in a big light card. Use per element, not per screen.
+    func darkPlate(corner: CGFloat = Theme.Metric.corner) -> some View {
+        self
+            .background(.ultraThinMaterial.opacity(0.9))
+            .environment(\.colorScheme, .dark)   // keep the material glass, not milk
+            .background(Color.black.opacity(0.42))
+            .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1))
+            .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+    }
+}
+
+/// Chunky 3D game key: lit face on a darker base that physically depresses on touch.
+/// Tinted per world; subtle noise texture so flat colour reads as material.
+struct ChunkyKeyStyle: ButtonStyle {
+    var base: Color
+    var deep: Color
+    var corner: CGFloat = Theme.Metric.cornerSmall
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed && !reduceMotion
+        let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
+        return configuration.label
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.45), radius: 1, y: 1)
+            .background(
+                ZStack {
+                    shape.fill(LinearGradient(colors: [base.shaded(by: 0.28), base, base.shaded(by: -0.15)],
+                                              startPoint: .top, endPoint: .bottom))
+                    Textures.noise
+                        .opacity(0.10)
+                        .blendMode(.overlay)
+                        .clipShape(shape)
+                    shape.strokeBorder(
+                        LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0.05)],
+                                       startPoint: .top, endPoint: .bottom),
+                        lineWidth: 1.5)
+                }
+            )
+            .offset(y: pressed ? 3 : 0)
+            .background(
+                shape.fill(deep.shaded(by: -0.3))
+                    .offset(y: pressed ? 3.5 : 5)
+            )
+            .animation(Theme.Motion.quick, value: configuration.isPressed)
+    }
+}
+
+/// Tiny tiled monochrome noise so solid fills feel like a material, not a vector.
+enum Textures {
+    static let noise: Image = {
+        #if canImport(UIKit)
+        let side = 64
+        var rng = SplitMix64(seed: 0xA11CE)
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side))
+        let ui = renderer.image { ctx in
+            for y in 0..<side {
+                for x in 0..<side {
+                    let v = CGFloat(rng.next() % 256) / 255
+                    ctx.cgContext.setFillColor(UIColor(white: v, alpha: 1).cgColor)
+                    ctx.cgContext.fill(CGRect(x: x, y: y, width: 1, height: 1))
+                }
+            }
+        }
+        return Image(uiImage: ui).resizable(resizingMode: .tile)
+        #else
+        return Image(systemName: "square")
+        #endif
+    }()
+}
+
+extension Color {
+    /// Lighten (positive) or darken (negative) toward white/black in RGB space.
+    func shaded(by amount: Double) -> Color {
+        #if canImport(UIKit)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a) else { return self }
+        let t = CGFloat(min(max(amount, -1), 1))
+        func mix(_ c: CGFloat) -> CGFloat { t >= 0 ? c + (1 - c) * t : c * (1 + t) }
+        return Color(red: mix(r), green: mix(g), blue: mix(b)).opacity(a)
+        #else
+        return self
+        #endif
+    }
 }
 
 /// The world's 9-slice button skin (falls back to a palette-filled capsule).

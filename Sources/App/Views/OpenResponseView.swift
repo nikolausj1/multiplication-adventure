@@ -49,23 +49,25 @@ struct OpenResponseView: View {
         HStack(spacing: 12) {
             Text(entry.isEmpty ? " " : entry)
                 .font(Theme.Font.number(48))
-                .foregroundStyle(showFeedback ? (lastCorrect ? Theme.Color.correct : Theme.Color.inkSoft)
-                                              : Theme.Color.ink)
+                .foregroundStyle(showFeedback ? (lastCorrect ? Theme.Color.correct : .white.opacity(0.55))
+                                              : .white)
             if showFeedback && !lastCorrect {
-                Image(systemName: "arrow.right").foregroundStyle(Theme.Color.inkSoft)
+                Image(systemName: "arrow.right").foregroundStyle(.white.opacity(0.55))
                 Text("\(answer)").font(Theme.Font.number(48)).foregroundStyle(Theme.Color.correct)
             }
         }
-        .frame(minWidth: 160, minHeight: 70)
+        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+        .frame(minWidth: 170, minHeight: 70)
         .padding(.horizontal, 24)
-        .background(Theme.Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous))
+        .darkPlate()
     }
 
     private func timerText(_ elapsed: Double) -> some View {
-        Text(String(format: "%.1fs", max(0, elapsed)))
-            .font(Theme.Font.number(20)).foregroundStyle(Theme.Color.accent)
+        Label(String(format: "%.1fs", max(0, elapsed)), systemImage: "stopwatch.fill")
+            .font(Theme.Font.number(18)).foregroundStyle(Theme.Color.accent)
             .monospacedDigit()
+            .padding(.horizontal, 14).padding(.vertical, 7)
+            .darkPlate(corner: 20)
     }
 
     private func submit() {

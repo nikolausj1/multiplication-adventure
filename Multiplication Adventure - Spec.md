@@ -315,8 +315,43 @@ all render in landscape). Verify anytime with `./scripts/run-sim.sh`.
 - **Developer/Testing card now gated** — collapsed lock row until the parent gate is
   passed (was leaking world names + ungated session jumps to the child).
 
+**Built 2026-07-02 (fun & juice pass):**
+- **Adventure sound set** replacing the generic UI clips: coin clink on correct
+  (pitched +4/+7/+12 semitones as the in-session combo climbs — a rising major chord),
+  soft cloth on a miss, metal click keys, door-creak + magic riser on world unlock,
+  magic shimmer on milestones, fanfare on completion. Sources: Kenney RPG Audio,
+  artisticdude RPG Sound Pack, WobbleBoxx SoundPack01 — all CC0, credited in
+  `Resources/Audio/LICENSE`.
+- **Particle system** (`Theme/Particles.swift`): Canvas one-shot emitters — smoke puffs,
+  confetti, star pops — every particle a pure function of time; Reduced Motion renders none.
+- **Smoke-clearing reveal**: unlocking a world now billows fog away (blur + particle burst)
+  as the badge springs in. Drifting mist wisps make the map feel alive.
+- **Session screens redesigned**: the monolithic white scrim card is gone. The world art
+  fills the screen; the prompt, entry field, timer, and feedback each sit on their own
+  dark-glass plates (`darkPlate()`, forced dark material). Wrap panel matches.
+- **Chunky 3D keys** (`ChunkyKeyStyle`): world-tinted gradient faces on a darker base that
+  physically depress on touch, with a tiled procedural noise texture (`Textures.noise`).
+  Number pad, Continue, and Back to Map all use it.
+- **MC buttons**: numbers ride a dark chip over the ornate art skins (readable on any
+  frame); feedback keeps the art — correct lifts with a green glow ring + star burst,
+  others desaturate.
+- **Combo streak**: 🔥×N chip appears at 3 in a row with the rising coin pitch;
+  confetti bursts on T3/T4 celebrations, star pops on T2/correct/wrap.
+
 **Still pending / fast-follow:** avatar cosmetic unlocks, App Store
 packaging, notifications, other operations (division/addition), iCloud sync.
+
+### Asset wishlist (optional upgrades the code already supports or can adopt cheaply)
+1. **Question banner** (per world or one shared, transparent PNG ~1400×500): ornate
+   plank/stone banner to replace the dark-glass prompt plate.
+2. **Number-key face** (per world, square ~400×400, blank center): stone/wood/ice key
+   texture to replace the procedural gradient keys.
+3. **Smoke puff sprite** (2–3 painterly transparent puffs ~512px): would upgrade the
+   procedural radial-gradient smoke to match the map's painted clouds.
+4. **Map ambience sprites**: soft wispy cloud PNGs (drift layer), tiny animated flourishes
+   (birds, ship on water) for future parallax.
+5. **Per-world music stingers / ambient loops** (premium buy or commission; CC0 quality
+   for music is thin).
 
 ---
 

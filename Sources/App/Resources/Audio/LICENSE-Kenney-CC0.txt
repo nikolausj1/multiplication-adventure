@@ -1,22 +1,11 @@
-	
+All sound effects in this folder are CC0 (public domain). Sources:
 
-	Interface Sounds (1.0)
+- Kenney.nl "RPG Audio" pack (metalClick → sfx_key)  https://kenney.nl/assets/rpg-audio
+- artisticdude "RPG Sound Pack" on OpenGameArt (coin3 → sfx_correct + pitched combo
+  variants sfx_correct2-4; cloth → sfx_wrong; door → sfx_world_unlock layer;
+  magic1 → sfx_milestone)  https://opengameart.org/content/rpg-sound-pack
+- WobbleBoxx "Level up, power up, Coin get" SoundPack01 on OpenGameArt
+  (Rise03 → sfx_world_unlock layer; Upper01 → sfx_complete)
+  https://opengameart.org/content/level-up-power-up-coin-get-13-sounds
 
-	Created/distributed by Kenney (www.kenney.nl)
-	Creation date: 11-02-2020
-
-			------------------------------
-
-	License: (Creative Commons Zero, CC0)
-	http://creativecommons.org/publicdomain/zero/1.0/
-
-	This content is free to use in personal, educational and commercial projects.
-	Support us by crediting Kenney or www.kenney.nl (this is not mandatory)
-
-			------------------------------
-
-	Donate:   http://support.kenney.nl
-	Patreon:  http://patreon.com/kenney/
-
-	Follow on Twitter for updates:
-	http://twitter.com/KenneyNL
+No attribution required (CC0), credits kept here out of courtesy.

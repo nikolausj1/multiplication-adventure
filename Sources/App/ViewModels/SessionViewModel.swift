@@ -21,6 +21,7 @@ final class SessionViewModel {
     private(set) var justMastered = false
 
     // Running session stats.
+    private(set) var combo = 0            // consecutive correct (in-session streak)
     private(set) var correctCount = 0
     private(set) var totalAnswered = 0
     private(set) var xpEarned = 0
@@ -103,6 +104,7 @@ final class SessionViewModel {
         touched.insert(q.fact)
         totalAnswered += 1
         if correct { correctCount += 1 }
+        combo = correct ? combo + 1 : 0
         responseTimes.append(rt)
         xpEarned += result.xp
 
@@ -111,7 +113,7 @@ final class SessionViewModel {
         lastCorrectAnswer = q.prompt.answer
         lastXP = result.xp
         justMastered = result.becameMastered
-        Feedback.fire(correct ? .correct : .wrong)
+        Feedback.fire(correct ? .correct : .wrong, combo: combo)
         if let c = result.celebration {
             pendingCelebration = c
             Feedback.fire(c.tier >= .t3 ? .milestone : .levelUp)

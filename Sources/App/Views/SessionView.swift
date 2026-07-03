@@ -48,11 +48,11 @@ struct SessionView: View {
             topBar(vm)
             Spacer(minLength: 0)
             if let q = vm.current {
+                // No monolithic card: each element carries its own dark plate so the
+                // world art stays the star of the screen.
                 QuestionContainer(vm: vm, question: q)
                     .id(vm.index)
-                    .padding(Theme.Metric.pad)
-                    .frame(maxWidth: 660)
-                    .scrimCard()
+                    .frame(maxWidth: 680)
                     .padding(Theme.Metric.pad)
             }
             Spacer(minLength: 0)
@@ -73,9 +73,23 @@ struct SessionView: View {
                 Text(vm.movementLabel.uppercased())
                     .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white).shadow(radius: 2)
                 Spacer()
+                if vm.combo >= 3 {
+                    Label("×\(vm.combo)", systemImage: "flame.fill")
+                        .font(Theme.Font.number(16)).foregroundStyle(.white)
+                        .padding(.horizontal, 11).padding(.vertical, 6)
+                        .background(Capsule().fill(
+                            LinearGradient(colors: [Color(red: 1, green: 0.55, blue: 0.15),
+                                                    Color(red: 0.95, green: 0.3, blue: 0.1)],
+                                           startPoint: .top, endPoint: .bottom)))
+                        .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
+                        .transition(.scale(scale: 0.4).combined(with: .opacity))
+                        .contentTransition(.numericText(value: Double(vm.combo)))
+                }
                 Label("\(vm.xpEarned)", systemImage: "star.fill")
                     .font(Theme.Font.number(17)).foregroundStyle(Theme.Color.accent).shadow(radius: 2)
+                    .contentTransition(.numericText(value: Double(vm.xpEarned)))
             }
+            .animation(Theme.Motion.celebrate, value: vm.combo)
             ProgressView(value: vm.progress).tint(.white)
         }
         .padding(.horizontal, Theme.Metric.pad).padding(.top, 12)

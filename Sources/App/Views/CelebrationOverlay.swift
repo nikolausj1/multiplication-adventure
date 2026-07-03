@@ -7,12 +7,26 @@ struct CelebrationOverlay: View {
     let onDismiss: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.worldTheme) private var worldTheme
     @State private var shown = false
 
     var body: some View {
         ZStack {
             Color.black.opacity(shown ? 0.45 : 0).ignoresSafeArea()
                 .onTapGesture { onDismiss() }
+            if tier >= .t3 {
+                ParticleBurst(kind: .confetti,
+                              colors: [Theme.Color.accent, Theme.Color.correct,
+                                       worldTheme.primary, .white, worldTheme.accent],
+                              origin: UnitPoint(x: 0.5, y: 0.42),
+                              count: tier == .t4 ? 150 : 90)
+                    .ignoresSafeArea()
+            } else if tier == .t2 {
+                ParticleBurst(kind: .stars,
+                              colors: [Theme.Color.accent, .white],
+                              count: 16)
+                    .frame(width: 380, height: 380)
+            }
             VStack(spacing: 16) {
                 Image(systemName: symbol)
                     .font(.system(size: tier == .t4 ? 120 : 84))
