@@ -212,10 +212,12 @@ struct MapView: View {
             .buttonStyle(PopButtonStyle())
             .modifier(Shake(animatableData: world.index == shakeTarget ? shakePhase : 0))
 
-            Text(unlocked ? world.name : "???")
-                .font(Theme.Font.label(13)).foregroundStyle(.white)
-                .padding(.horizontal, 10).padding(.vertical, 4)
-                .background(Capsule().fill(.black.opacity(0.5)))
+            if unlocked {
+                Text(world.name)
+                    .font(Theme.Font.label(13)).foregroundStyle(.white)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Capsule().fill(.black.opacity(0.5)))
+            }
             if isCurrent, !cleared {
                 let remaining = stat.map { $0.total - $0.fluentPlus } ?? 0
                 let started = (stat?.fluentPlus ?? 0) > 0
