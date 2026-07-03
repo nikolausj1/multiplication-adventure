@@ -90,45 +90,66 @@ struct MapView: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            HStack(spacing: 12) {
+            // Player chip: dark glass to match the session plates.
+            HStack(spacing: 10) {
                 Image(systemName: profile?.avatarSymbol ?? "figure.hiking")
-                    .font(.system(size: 24)).foregroundStyle(Theme.Color.primary)
-                    .frame(width: 44, height: 44).background(.ultraThinMaterial, in: Circle())
+                    .font(.system(size: 20, weight: .semibold)).foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Circle().fill(LinearGradient(colors: [Theme.Color.primary.shaded(by: 0.2),
+                                                              Theme.Color.primary.shaded(by: -0.2)],
+                                                     startPoint: .top, endPoint: .bottom)))
+                    .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1.5))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(profile?.name ?? "Player").font(Theme.Font.display(17)).foregroundStyle(Theme.Color.ink)
-                    Text("\(profile?.totalXP ?? 0) XP").font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
+                    Text(profile?.name ?? "Player").font(Theme.Font.display(16)).foregroundStyle(.white)
+                    HStack(spacing: 3) {
+                        Image(systemName: "star.fill").font(.system(size: 10))
+                            .foregroundStyle(Theme.Color.accent)
+                        Text("\(profile?.totalXP ?? 0) XP")
+                            .font(Theme.Font.label(12)).foregroundStyle(.white.opacity(0.8))
+                    }
                 }
             }
-            .padding(8).padding(.trailing, 8).scrimCard()
+            .padding(.vertical, 7).padding(.horizontal, 9).padding(.trailing, 7)
+            .darkPlate(corner: 27)
             Spacer()
-            Text("Multiplication Adventure")
-                .font(Theme.Font.display(20)).foregroundStyle(.white).shadow(radius: 3)
-                .padding(.top, 10)
+            // The title art (logo emblem) or the text fallback before art exists.
+            if Art.exists("map_header") {
+                Image("map_header").resizable().scaledToFit()
+                    .frame(height: 118)
+                    .shadow(color: .black.opacity(0.45), radius: 10, y: 5)
+            } else {
+                Text("Multiplication Adventure")
+                    .font(Theme.Font.display(20)).foregroundStyle(.white).shadow(radius: 3)
+                    .padding(.top, 10)
+            }
             Spacer()
             if isComplete {
                 Button { showCertificate = true } label: {
-                    Image(systemName: "trophy.fill").font(.system(size: 20))
+                    Image(systemName: "trophy.fill").font(.system(size: 19))
                         .foregroundStyle(Theme.Color.accent)
-                        .frame(width: 44, height: 44).background(.ultraThinMaterial, in: Circle())
+                        .frame(width: 44, height: 44).darkPlate(corner: 22)
                 }
                 .accessibilityLabel("Certificate")
             }
             if canSpeedRound {
                 Button { sessionWorld = WorldSelection(id: currentIndex, speed: true) } label: {
                     Label("Speed", systemImage: "timer").font(Theme.Font.label(14))
-                        .foregroundStyle(Theme.Color.ink)
-                        .padding(.horizontal, 12).padding(.vertical, 10).scrimCard()
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
                 }
             }
             if let p = profile, p.streakDays > 0 {
-                Label("\(p.streakDays)", systemImage: "flame.fill")
-                    .font(Theme.Font.number(17)).foregroundStyle(Theme.Color.accent)
-                    .padding(.horizontal, 12).padding(.vertical, 9).scrimCard()
+                HStack(spacing: 5) {
+                    Image(systemName: "flame.fill").foregroundStyle(Theme.Color.accent)
+                    Text("\(p.streakDays)").font(Theme.Font.number(16)).foregroundStyle(.white)
+                }
+                .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
             }
             Button { showParent = true } label: {
-                Image(systemName: "gearshape.fill").font(.system(size: 20))
-                    .foregroundStyle(Theme.Color.inkSoft)
-                    .frame(width: 44, height: 44).background(.ultraThinMaterial, in: Circle())
+                Image(systemName: "gearshape.fill").font(.system(size: 19))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(width: 44, height: 44).darkPlate(corner: 22)
             }
             .accessibilityLabel("Parent area")
         }
