@@ -130,6 +130,13 @@ struct LearningService {
         return (idx, stat?.fluentPlus ?? 0, stat?.total ?? 0)
     }
 
+    /// Fluent-progress of a specific world (the in-session ring pins the world the
+    /// session started in, even if it clears mid-session).
+    func worldStat(at index: Int) -> (fluent: Int, total: Int) {
+        let stat = WorldProgress.stats(snapshots: facts().map(\.snapshot))[safe: index]
+        return (stat?.fluentPlus ?? 0, stat?.total ?? 0)
+    }
+
     /// Dev/testing: a session of a specific world's facts forced into one format,
     /// ignoring progression gating so any world/round is reachable immediately.
     func buildTestSession(worldIndex: Int, format: MasteryStage,
@@ -167,6 +174,7 @@ struct LearningService {
     struct AnswerResult {
         var correct: Bool
         var xp: Int
+        var becameFluent: Bool     // reached Fluency — fills the world ring
         var becameMastered: Bool
         var celebration: Celebration?
     }
@@ -175,7 +183,8 @@ struct LearningService {
                 responseTime: Double, now: Date = .now) -> AnswerResult {
         let p = activeProfile()
         guard let factRow = fact(prompt.fact) else {
-            return AnswerResult(correct: correct, xp: 0, becameMastered: false, celebration: nil)
+            return AnswerResult(correct: correct, xp: 0, becameFluent: false,
+                                becameMastered: false, celebration: nil)
         }
         let threshold = currentThreshold()
         let before = ProgressAggregate.from(snapshots: facts().map(\.snapshot), streakDays: p.streakDays)
@@ -197,6 +206,7 @@ struct LearningService {
 
         try? context.save()
         return AnswerResult(correct: correct, xp: xp,
+                            becameFluent: outcome.promotedStage && outcome.snapshot.stage == .fluency,
                             becameMastered: outcome.becameMastered, celebration: celebration)
     }
 

@@ -11,16 +11,30 @@ struct WrapView: View {
 
     private var snapshots: [FactSnapshot] { (activeProfiles.first?.facts ?? []).map(\.snapshot) }
 
+    /// This session took the world it started in from not-cleared to cleared.
+    private var clearedThisSession: Bool {
+        let before = vm.worldStatBefore
+        guard before.total > 0, before.fluent < before.total else { return false }
+        return WorldProgress.stats(snapshots: snapshots)[safe: before.index]?.cleared ?? false
+    }
+
+    private var clearedName: String {
+        WorldCatalog.worlds[safe: vm.worldStatBefore.index]?.name ?? "World"
+    }
+
     var body: some View {
         VStack(spacing: 22) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 72)).foregroundStyle(Theme.Color.correct)
+            Image(systemName: clearedThisSession ? "trophy.fill" : "checkmark.seal.fill")
+                .font(.system(size: 72))
+                .foregroundStyle(clearedThisSession ? Theme.Color.accent : Theme.Color.correct)
                 .symbolRenderingMode(.hierarchical)
                 .background {
                     ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 14)
                         .frame(width: 260, height: 260)
                 }
-            Text("Great work!").font(Theme.Font.display(34)).foregroundStyle(.white)
+            Text(clearedThisSession ? "\(clearedName) cleared!" : "Great work!")
+                .font(Theme.Font.display(34)).foregroundStyle(.white)
+                .multilineTextAlignment(.center)
 
             HStack(spacing: 28) {
                 stat("\(vm.totalAnswered)", "questions")
@@ -48,6 +62,15 @@ struct WrapView: View {
         .frame(maxWidth: 500)
         .darkPlate()
         .padding(Theme.Metric.pad)
+        .background {
+            if clearedThisSession {
+                ParticleBurst(kind: .confetti,
+                              colors: [Theme.Color.accent, Theme.Color.correct,
+                                       theme.primary, .white, theme.accent],
+                              origin: UnitPoint(x: 0.5, y: 0.3), count: 120)
+                    .frame(width: 900, height: 800)
+            }
+        }
     }
 
     private func stat(_ value: String, _ label: String, tint: Color = .white) -> some View {
@@ -65,6 +88,7 @@ struct WrapView: View {
         let idx = WorldProgress.currentIndex(snapshots: snapshots)
         let s = stats[safe: idx]
         let fluent = s?.fluentPlus ?? 0
+        let inTraining = max(0, (s?.introduced ?? 0) - fluent)
         let total = max(s?.total ?? 1, 1)
         let name = WorldCatalog.worlds[safe: idx]?.name ?? "this world"
         let gained = max(0, fluent - (vm.worldStatBefore.index == idx ? vm.worldStatBefore.fluent : 0))
@@ -82,12 +106,25 @@ struct WrapView: View {
                     Text("\(fluent)/\(total) facts fluent")
                         .font(Theme.Font.label(14)).foregroundStyle(.white.opacity(0.8))
                 }
-                ProgressView(value: Double(fluent), total: Double(total))
-                    .tint(Theme.Color.correct)
-                    .scaleEffect(y: 1.6)
+                // Two segments: green = fluent, soft gold = introduced & in training,
+                // so day-one effort shows even before anything turns fluent.
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.white.opacity(0.14))
+                        Capsule().fill(Theme.Color.accent.opacity(0.45))
+                            .frame(width: geo.size.width * CGFloat(fluent + inTraining) / CGFloat(total))
+                        Capsule().fill(Theme.Color.correct)
+                            .frame(width: geo.size.width * CGFloat(fluent) / CGFloat(total))
+                    }
+                }
+                .frame(height: 8)
                 if gained > 0 {
                     Text("+\(gained) new fluent fact\(gained == 1 ? "" : "s") today!")
                         .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
+                } else if inTraining > 0 {
+                    Text("\(inTraining) fact\(inTraining == 1 ? "" : "s") in training — every correct answer moves them toward fluent.")
+                        .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
+                        .multilineTextAlignment(.center)
                 }
                 Text(fluent == total
                      ? "World cleared — the next world is open on the map!"

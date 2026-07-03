@@ -73,6 +73,9 @@ struct SessionView: View {
                 Text(vm.movementLabel.uppercased())
                     .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white).shadow(radius: 2)
                 Spacer()
+                if vm.showsWorldRing {
+                    worldRingChip(vm)
+                }
                 if vm.combo >= 3 {
                     Label("×\(vm.combo)", systemImage: "flame.fill")
                         .font(Theme.Font.number(16)).foregroundStyle(.white)
@@ -93,6 +96,28 @@ struct SessionView: View {
             ProgressView(value: vm.progress).tint(.white)
         }
         .padding(.horizontal, Theme.Metric.pad).padding(.top, 12)
+    }
+
+    /// Live world progress: the same green ring as the map node, ticking up the
+    /// moment a fact turns fluent so "how close am I" is always on screen.
+    private func worldRingChip(_ vm: SessionViewModel) -> some View {
+        HStack(spacing: 7) {
+            ZStack {
+                Circle().stroke(.white.opacity(0.3), lineWidth: 3.5)
+                Circle()
+                    .trim(from: 0, to: vm.worldTotal == 0 ? 0 : CGFloat(vm.worldFluent) / CGFloat(vm.worldTotal))
+                    .stroke(Theme.Color.correct, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .frame(width: 22, height: 22)
+            Text("\(vm.worldFluent)/\(vm.worldTotal)")
+                .font(Theme.Font.number(15)).foregroundStyle(.white)
+                .contentTransition(.numericText(value: Double(vm.worldFluent)))
+        }
+        .padding(.horizontal, 11).padding(.vertical, 7)
+        .background(Capsule().fill(.black.opacity(0.32)))
+        .animation(Theme.Motion.celebrate, value: vm.worldFluent)
+        .accessibilityLabel("\(vm.worldFluent) of \(vm.worldTotal) facts fluent in this world")
     }
 }
 
@@ -117,7 +142,7 @@ private struct QuestionContainer: View {
             // Correct answers auto-advance; only a miss waits for Continue.
             FeedbackBar(correct: vm.lastCorrect,
                         equation: "\(question.prompt.text) = \(question.prompt.answer)",
-                        xp: vm.lastXP, mastered: vm.justMastered,
+                        xp: vm.lastXP, fluent: vm.justFluent, mastered: vm.justMastered,
                         showsContinue: inFeedback && !vm.lastCorrect) { vm.next() }
                 .opacity(inFeedback ? 1 : 0)
                 .scaleEffect(inFeedback ? 1 : 0.85)

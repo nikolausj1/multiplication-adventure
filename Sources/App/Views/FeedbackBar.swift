@@ -8,6 +8,7 @@ struct FeedbackBar: View {
     let correct: Bool
     let equation: String           // e.g. "7 × 8 = 56", shown on a miss
     let xp: Int
+    var fluent: Bool = false       // this answer made the fact fluent (ring +1)
     let mastered: Bool
     var showsContinue: Bool = true
     let onContinue: () -> Void
@@ -30,6 +31,9 @@ struct FeedbackBar: View {
                 if mastered {
                     Label("Fact mastered!", systemImage: "star.fill")
                         .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
+                } else if fluent {
+                    Label("New fluent fact — ring +1!", systemImage: "star.circle.fill")
+                        .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.correct)
                 }
             }
             if correct && xp > 0 {

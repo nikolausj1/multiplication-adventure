@@ -18,6 +18,7 @@ final class SessionViewModel {
     private(set) var lastCorrectAnswer = 0
     private(set) var lastSelected: Int?
     private(set) var lastXP = 0
+    private(set) var justFluent = false
     private(set) var justMastered = false
 
     // Running session stats.
@@ -44,6 +45,11 @@ final class SessionViewModel {
 
     /// Current-world fluency at session start, so the wrap can show today's gains.
     let worldStatBefore: (index: Int, fluent: Int, total: Int)
+    /// Live ring: fluent count of the session's world, updated after every answer.
+    private(set) var worldFluent = 0
+    var worldTotal: Int { worldStatBefore.total }
+    /// The ring only makes sense in a regular progression session.
+    let showsWorldRing: Bool
 
     init(service: LearningService, speedRound: Bool = false, auto: AutoMode = .off,
          worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
@@ -55,6 +61,8 @@ final class SessionViewModel {
         self.isSpeed = speedRound
         self.auto = auto
         self.worldStatBefore = service.currentWorldStat()
+        self.worldFluent = worldStatBefore.fluent
+        self.showsWorldRing = !speedRound && testFormat == nil && worldStatBefore.total > 0
         let built: [PlannedQuestion]
         if let testFormat {
             built = service.buildTestSession(worldIndex: worldIndex, format: testFormat)
@@ -116,8 +124,13 @@ final class SessionViewModel {
         lastSelected = value
         lastCorrectAnswer = q.prompt.answer
         lastXP = result.xp
+        justFluent = result.becameFluent
         justMastered = result.becameMastered
         Feedback.fire(correct ? .correct : .wrong, combo: combo)
+        if result.becameFluent {
+            worldFluent = service.worldStat(at: worldStatBefore.index).fluent
+            Feedback.fire(.milestone)   // magic shimmer layered over the coin
+        }
         if let c = result.celebration {
             pendingCelebration = c
             Feedback.fire(c.tier >= .t3 ? .milestone : .levelUp)
@@ -135,7 +148,7 @@ final class SessionViewModel {
         // Misses wait for an explicit Continue so the reveal actually lands.
         if correct, auto == .off {
             let gen = feedbackGen
-            let delay = justMastered ? 1.5 : 0.9
+            let delay = (justMastered || justFluent) ? 1.6 : 0.9   // let the ring moment land
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.stage == .feedback, self.feedbackGen == gen,
                       self.pendingCelebration == nil else { return }   // overlay up → wait for its dismissal

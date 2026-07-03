@@ -92,8 +92,15 @@ let plan0 = SessionPlanner.plan(snapshots: fresh, now: now, seed: 1)
 check(!plan0.isEmpty, "cold start produces a session")
 check(plan0.allSatisfy { $0.movement != .warmup } || plan0.first?.movement == .warmup,
       "no mastered facts → warm-up gracefully empty or leads")
+// New facts are capped at 4 distinct per session; each is served twice (intro +
+// end-of-session second rep) so recognition completes on day one.
+let newFactIDs = Set(plan0.filter { $0.format == .recognition }.map { $0.fact })
 let newCount = plan0.filter { $0.format == .recognition }.count
-check(newCount > 0 && newCount <= 4, "introduces a capped trickle of new facts (\(newCount))")
+check(newFactIDs.count > 0 && newFactIDs.count <= 4,
+      "introduces a capped trickle of distinct new facts (\(newFactIDs.count))")
+check(newCount == newFactIDs.count * 2, "each new fact is served twice (\(newCount))")
+let lastQs = plan0.suffix(newFactIDs.count).map { $0.fact }
+check(Set(lastQs) == newFactIDs, "second reps come at the session's end")
 check(plan0.first?.fact == FactID(0, 0) || plan0.contains { $0.fact == FactID(0, 0) },
       "earliest curriculum fact appears first")
 

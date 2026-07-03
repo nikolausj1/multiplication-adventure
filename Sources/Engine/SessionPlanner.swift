@@ -124,7 +124,12 @@ public enum SessionPlanner {
         let reviewQs = review.map { makeQuestion($0, movement: .review) }
         let interleaved = interleaveByTable(coreQs + reviewQs)
 
-        return warmupQs + interleaved
+        // Brand-new facts get a second rep at the session's end: two correct
+        // multiple-choice answers promote them to Recall on day one, so the first
+        // unlock arrives fast while the recall reps stay spaced across sessions.
+        let secondReps = newFacts.map { makeQuestion($0.id, movement: .review) }
+
+        return warmupQs + interleaved + secondReps
     }
 
     /// Gated new-fact introduction (§5): keep a bounded number of facts in flight,

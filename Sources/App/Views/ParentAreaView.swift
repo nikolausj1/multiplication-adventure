@@ -89,7 +89,7 @@ struct ParentAreaView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("How progress works").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
             explainRow("rectangle.grid.2x2.fill",
-                       "Each fact climbs a ladder: 2 correct as multiple choice, then 3 correct typed → fluent. A fact appears once per session, so reaching fluent takes about 5 sessions of correct answers — that spacing is what makes facts stick.")
+                       "Each fact climbs a ladder: 2 correct as multiple choice (both on its first day), then 3 correct typed across later sessions → fluent. That spacing is what makes facts stick — about 4 sessions per fact.")
             explainRow("map.fill",
                        "Worlds grow along the trail: Highland Trail has just 6 facts (quick first win); later worlds have 10–23. Clearing one world usually takes several short sessions.")
             explainRow("checkmark.seal.fill",
