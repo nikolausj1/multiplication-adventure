@@ -1,4 +1,9 @@
-All sound effects in this folder are CC0 (public domain). Sources:
+Sound sources:
+
+- sfx_correct (+ pitched variants sfx_correct2-4), sfx_key, sfx_wrong: supplied
+  by the app owner (replaced 2026-07-03; sourced/licensed by them).
+
+Remaining CC0 (public domain) sounds:
 
 - Kenney.nl "RPG Audio" pack (metalClick → sfx_key)  https://kenney.nl/assets/rpg-audio
 - artisticdude "RPG Sound Pack" on OpenGameArt (coin3 → sfx_correct + pitched combo
