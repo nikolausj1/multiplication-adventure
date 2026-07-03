@@ -51,20 +51,27 @@ final class SessionViewModel {
     /// The ring only makes sense in a regular progression session.
     let showsWorldRing: Bool
 
-    init(service: LearningService, speedRound: Bool = false, auto: AutoMode = .off,
-         worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
+    /// Set for a world-boss challenge run; the wrap uses `bossPassed` for its verdict.
+    let bossWorldIndex: Int?
+    private(set) var bossPassed = false
+
+    init(service: LearningService, speedRound: Bool = false, boss: Bool = false,
+         auto: AutoMode = .off, worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
         self.service = service
-        // Speed Round and dev fluency always show the timer; regular practice only
-        // when the profile opts into "speed" timing (gentle default hides it).
-        self.timed = speedRound || testFormat == .fluency
+        // Speed Round, boss challenges, and dev fluency always show the timer;
+        // regular practice only when the profile opts into "speed" timing.
+        self.timed = speedRound || boss || testFormat == .fluency
             || service.activeProfile().timingMode == .speed
         self.isSpeed = speedRound
+        self.bossWorldIndex = boss ? worldIndex : nil
         self.auto = auto
         self.worldStatBefore = service.currentWorldStat()
         self.worldFluent = worldStatBefore.fluent
-        self.showsWorldRing = !speedRound && testFormat == nil && worldStatBefore.total > 0
+        self.showsWorldRing = !speedRound && !boss && testFormat == nil && worldStatBefore.total > 0
         let built: [PlannedQuestion]
-        if let testFormat {
+        if boss {
+            built = service.buildBossSession(worldIndex: worldIndex)
+        } else if let testFormat {
             built = service.buildTestSession(worldIndex: worldIndex, format: testFormat)
         } else if speedRound {
             built = service.buildSpeedSession()
@@ -179,7 +186,12 @@ final class SessionViewModel {
         stage = .finished
         endCelebration = service.finishSession(
             questionCount: totalAnswered, correctCount: correctCount, xpEarned: xpEarned,
-            responseTimes: responseTimes, factsTouched: touched.count, speed: isSpeed)
+            responseTimes: responseTimes, factsTouched: touched.count,
+            speed: isSpeed, bossWorld: bossWorldIndex)
+        if let bossWorldIndex {
+            bossPassed = service.activeProfile().clearedWorlds.contains(bossWorldIndex)
+            Feedback.fire(bossPassed ? .levelUp : .wrong)
+        }
     }
 
     var accuracy: Double { totalAnswered == 0 ? 0 : Double(correctCount) / Double(totalAnswered) }

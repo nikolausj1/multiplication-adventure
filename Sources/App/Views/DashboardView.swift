@@ -17,7 +17,7 @@ struct DashboardView: View {
         VStack(spacing: Theme.Metric.gap) {
             cadenceAndMastery
             card("Adventure map") {
-                let cleared = WorldProgress.clearedCount(snapshots: facts.map(\.snapshot))
+                let cleared = profile?.clearedWorlds.count ?? 0
                 Text("\(cleared) of \(WorldCatalog.count) worlds cleared")
                     .font(Theme.Font.number(22)).foregroundStyle(Theme.Color.primary)
                 worldBars
@@ -62,7 +62,12 @@ struct DashboardView: View {
                     Text(w.name).font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
                         .frame(width: 110, alignment: .leading)
                     ProgressView(value: s.fluentFraction).tint(Color(hex: w.palette.primary))
-                    if s.cleared { Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.Color.correct).font(.system(size: 13)) }
+                    if profile?.clearedWorlds.contains(w.index) == true {
+                        Image(systemName: "checkmark.seal.fill").foregroundStyle(Theme.Color.correct).font(.system(size: 13))
+                    } else if s.cleared {
+                        // All facts fluent, boss not yet beaten.
+                        Image(systemName: "flag.checkered").foregroundStyle(Theme.Color.accent).font(.system(size: 13))
+                    }
                 }
             }
         }

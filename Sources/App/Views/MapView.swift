@@ -23,9 +23,11 @@ struct MapView: View {
     private var profile: Profile? { activeProfiles.first }
     private var snapshots: [FactSnapshot] { (profile?.facts ?? []).map(\.snapshot) }
     private var stats: [WorldStat] { WorldProgress.stats(snapshots: snapshots) }
-    private var currentIndex: Int { WorldProgress.currentIndex(snapshots: snapshots) }
-    private var fluentPlus: Int { snapshots.filter { $0.stage >= .fluency }.count }
-    private var canSpeedRound: Bool { fluentPlus >= 10 || (profile?.speedRoundUnlocked ?? false) }
+    private var clearedSet: Set<Int> { profile?.clearedWorlds ?? [] }
+    private var currentIndex: Int { WorldProgress.currentIndex(snapshots: snapshots, cleared: clearedSet) }
+    /// The anytime Speed Round is a parent-enabled extra; the boss challenge is
+    /// the built-in timed moment.
+    private var canSpeedRound: Bool { profile?.speedRoundUnlocked ?? false }
     private var isComplete: Bool { (profile?.masteredCount ?? 0) == FactUniverse.count }
 
     /// Fractional positions of each world node, forming a left→right winding trail,
@@ -64,7 +66,7 @@ struct MapView: View {
             VStack { header; Spacer() }
         }
         .fullScreenCover(item: $sessionWorld, onDismiss: checkUnlockReveal) { sel in
-            SessionView(worldIndex: sel.id, speedRound: sel.speed)
+            SessionView(worldIndex: sel.id, speedRound: sel.speed, boss: sel.boss)
                 .environment(\.worldTheme, .forWorld(sel.id))
         }
         .sheet(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
@@ -76,6 +78,7 @@ struct MapView: View {
             if args.contains("-autostartParent") { showParent = true }
             if args.contains("-autostartCertificate") { showCertificate = true }
             if args.contains("-autostartSpeed") { sessionWorld = WorldSelection(id: currentIndex, speed: true) }
+            if args.contains("-autostartBoss") { sessionWorld = WorldSelection(id: currentIndex, boss: true) }
             // Demo: play the fog-lift reveal on the current node (pair with -demoProgress).
             if args.contains("-demoReveal") { revealWorld = currentIndex }
         }
@@ -174,12 +177,15 @@ struct MapView: View {
     @ViewBuilder
     private func nodeView(_ world: World) -> some View {
         let unlocked = world.index <= currentIndex
-        let cleared = stats[safe: world.index]?.cleared ?? false
+        let cleared = clearedSet.contains(world.index)
         let isCurrent = world.index == currentIndex
         let stat = stats[safe: world.index]
+        // All facts fluent but boss unbeaten → the node IS the boss fight.
+        let bossReady = isCurrent && !cleared && (stat.map { $0.total > 0 && $0.fluentPlus == $0.total } ?? false)
         VStack(spacing: 5) {
             Button {
-                if unlocked { sessionWorld = WorldSelection(id: world.index) }
+                if bossReady { sessionWorld = WorldSelection(id: world.index, boss: true) }
+                else if unlocked { sessionWorld = WorldSelection(id: world.index) }
                 else { nudgeLocked(world.index) }
             } label: {
                 ZStack {
@@ -218,7 +224,16 @@ struct MapView: View {
                     .padding(.horizontal, 10).padding(.vertical, 4)
                     .background(Capsule().fill(.black.opacity(0.5)))
             }
-            if isCurrent, !cleared {
+            if bossReady {
+                Label("BOSS CHALLENGE!", systemImage: "flag.checkered")
+                    .font(Theme.Font.label(10)).tracking(1)
+                    .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 4)
+                    .background(Capsule().fill(
+                        LinearGradient(colors: [Color(red: 0.85, green: 0.25, blue: 0.2),
+                                                Color(red: 0.6, green: 0.1, blue: 0.15)],
+                                       startPoint: .top, endPoint: .bottom)))
+                    .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
+            } else if isCurrent, !cleared {
                 let remaining = stat.map { $0.total - $0.fluentPlus } ?? 0
                 let started = (stat?.fluentPlus ?? 0) > 0
                 Text(started && remaining > 0 ? "\(remaining) TO GO!" : "TAP TO PLAY")
@@ -366,9 +381,11 @@ private struct PulsingRing: View {
 }
 
 /// Wrapper so `fullScreenCover(item:)` can carry a world index + how to start it.
-/// `testFormat` forces a specific question format (dev/testing); `speed` runs a Speed Round.
+/// `boss` runs the world's boss challenge; `speed` a Speed Round; `testFormat`
+/// forces a question format (dev/testing).
 struct WorldSelection: Identifiable {
     let id: Int
     var speed: Bool = false
+    var boss: Bool = false
     var testFormat: MasteryStage? = nil
 }

@@ -22,6 +22,10 @@ final class Profile {
     var speedRoundUnlocked: Bool
     var bestSpeedAvg: Double = 0   // best (lowest) median response time in a Speed Round; 0 = none yet
 
+    /// Bitmask of worlds whose boss challenge has been beaten. A world *clears* by
+    /// beating its boss (not merely by reaching full fluency), so this is explicit state.
+    var clearedWorldsMask: Int = 0
+
     // Per-profile data (cascade so deleting a profile cleans everything up).
     @Relationship(deleteRule: .cascade, inverse: \Fact.profile) var facts: [Fact] = []
     @Relationship(deleteRule: .cascade, inverse: \SessionRecord.profile) var sessions: [SessionRecord] = []
@@ -47,6 +51,12 @@ final class Profile {
     }
 
     var masteredCount: Int { facts.filter { $0.stage == .mastered }.count }
+
+    var clearedWorlds: Set<Int> {
+        Set((0..<WorldCatalog.count).filter { clearedWorldsMask & (1 << $0) != 0 })
+    }
+
+    func markWorldCleared(_ index: Int) { clearedWorldsMask |= (1 << index) }
 
     /// Records practice on `date` and returns the new streak length. Missing a day
     /// resets the streak to 1 but never destroys progress (§3, no punishment).

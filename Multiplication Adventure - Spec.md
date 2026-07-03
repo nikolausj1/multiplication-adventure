@@ -338,6 +338,21 @@ all render in landscape). Verify anytime with `./scripts/run-sim.sh`.
 - **Combo streak**: 🔥×N chip appears at 3 in a row with the rising coin pitch;
   confetti bursts on T3/T4 celebrations, star pops on T2/correct/wrap.
 
+**Built 2026-07-03 (World Boss):** 🔁 **Clearing a world now requires beating its
+BOSS CHALLENGE** — when every fact in the current world is fluent, the map node turns
+into a red "⚔️ BOSS CHALLENGE!" and tapping it runs a timed round over that world's own
+facts (10–16 questions; small worlds repeat facts in fresh orientations). Pass = ≥85%
+accuracy (forgiving by design; a miss costs nothing — "warm up and challenge again").
+Winning marks the world cleared (explicit per-profile state, `clearedWorldsMask` —
+clears are no longer derived from fluency), plays the trophy wrap + confetti, and the
+next world reveals on return to the map. The anytime **Speed Round is demoted** to a
+parent-override extra (Settings toggle); the boss is the built-in timed moment.
+Introduction of the next world's facts is gated on the boss win, so the trail truly
+pauses at the boss. Dev card gains a Boss Challenge jump; `-autostartBoss` launch arg.
+Engine: WorldProgress/SessionPlanner accept an explicit cleared-worlds set (nil = legacy
+fluency-derived, keeps tests meaningful). Runtime-verified end to end (boss run → pass →
+cleared → next world revealed).
+
 **Still pending / fast-follow:** avatar cosmetic unlocks, App Store
 packaging, notifications, other operations (division/addition), iCloud sync.
 

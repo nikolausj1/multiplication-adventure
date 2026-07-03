@@ -11,28 +11,35 @@ struct WrapView: View {
 
     private var snapshots: [FactSnapshot] { (activeProfiles.first?.facts ?? []).map(\.snapshot) }
 
-    /// This session took the world it started in from not-cleared to cleared.
-    private var clearedThisSession: Bool {
-        let before = vm.worldStatBefore
-        guard before.total > 0, before.fluent < before.total else { return false }
-        return WorldProgress.stats(snapshots: snapshots)[safe: before.index]?.cleared ?? false
-    }
+    /// Boss victory this session (worlds clear only by beating their boss).
+    private var clearedThisSession: Bool { vm.bossWorldIndex != nil && vm.bossPassed }
+    private var bossFailed: Bool { vm.bossWorldIndex != nil && !vm.bossPassed }
 
     private var clearedName: String {
-        WorldCatalog.worlds[safe: vm.worldStatBefore.index]?.name ?? "World"
+        WorldCatalog.worlds[safe: vm.bossWorldIndex ?? vm.worldStatBefore.index]?.name ?? "World"
+    }
+
+    private var headline: String {
+        if clearedThisSession { return "\(clearedName) cleared!" }
+        if bossFailed { return "So close!" }
+        return "Great work!"
     }
 
     var body: some View {
         VStack(spacing: 22) {
-            Image(systemName: clearedThisSession ? "trophy.fill" : "checkmark.seal.fill")
+            Image(systemName: clearedThisSession ? "trophy.fill"
+                              : (bossFailed ? "flag.checkered" : "checkmark.seal.fill"))
                 .font(.system(size: 72))
-                .foregroundStyle(clearedThisSession ? Theme.Color.accent : Theme.Color.correct)
+                .foregroundStyle(clearedThisSession ? Theme.Color.accent
+                                 : (bossFailed ? .white : Theme.Color.correct))
                 .symbolRenderingMode(.hierarchical)
                 .background {
-                    ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 14)
-                        .frame(width: 260, height: 260)
+                    if !bossFailed {
+                        ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 14)
+                            .frame(width: 260, height: 260)
+                    }
                 }
-            Text(clearedThisSession ? "\(clearedName) cleared!" : "Great work!")
+            Text(headline)
                 .font(Theme.Font.display(34)).foregroundStyle(.white)
                 .multilineTextAlignment(.center)
 
@@ -44,7 +51,7 @@ struct WrapView: View {
 
             worldProgressCard
 
-            if let c = vm.endCelebration, c.tier >= .t1 {
+            if vm.bossWorldIndex == nil, let c = vm.endCelebration, c.tier >= .t1 {
                 Label(c.headline, systemImage: "flame.fill")
                     .font(Theme.Font.label(17)).foregroundStyle(Theme.Color.accent)
             }
@@ -84,18 +91,30 @@ struct WrapView: View {
     /// one line that explains the loop (facts drip in daily; fluent-all clears it).
     @ViewBuilder
     private var worldProgressCard: some View {
+        let cleared = activeProfiles.first?.clearedWorlds ?? []
         let stats = WorldProgress.stats(snapshots: snapshots)
-        let idx = WorldProgress.currentIndex(snapshots: snapshots)
+        let idx = WorldProgress.currentIndex(snapshots: snapshots, cleared: cleared)
         let s = stats[safe: idx]
         let fluent = s?.fluentPlus ?? 0
         let inTraining = max(0, (s?.introduced ?? 0) - fluent)
         let total = max(s?.total ?? 1, 1)
         let name = WorldCatalog.worlds[safe: idx]?.name ?? "this world"
         let gained = max(0, fluent - (vm.worldStatBefore.index == idx ? vm.worldStatBefore.fluent : 0))
-        let allCleared = WorldProgress.clearedCount(snapshots: snapshots) == WorldCatalog.count
+        let allCleared = cleared.count == WorldCatalog.count
 
         VStack(spacing: 8) {
-            if allCleared {
+            if let bossWorld = vm.bossWorldIndex {
+                let bossName = WorldCatalog.worlds[safe: bossWorld]?.name ?? "World"
+                if vm.bossPassed {
+                    Text("You beat the \(bossName) boss — the next world is revealed on the map!")
+                        .font(Theme.Font.body()).foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text("\(vm.correctCount) of \(vm.totalAnswered) — you need \(Int(LearningService.bossPassAccuracy * 100))%. Warm up and challenge the boss again — it costs nothing to retry!")
+                        .font(Theme.Font.body()).foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                }
+            } else if allCleared {
                 Text("Every world cleared — you're a Multiplication Master!")
                     .font(Theme.Font.body()).foregroundStyle(.white)
                     .multilineTextAlignment(.center)
@@ -127,8 +146,8 @@ struct WrapView: View {
                         .multilineTextAlignment(.center)
                 }
                 Text(fluent == total
-                     ? "World cleared — the next world is open on the map!"
-                     : "New facts join a few at a time. When all \(total) are fluent, \(name) is cleared and the next world unlocks.")
+                     ? "All facts fluent — the BOSS CHALLENGE is waiting on the map. Beat it to clear \(name)!"
+                     : "New facts join a few at a time. Make all \(total) fluent to unlock the \(name) boss challenge.")
                     .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
             }

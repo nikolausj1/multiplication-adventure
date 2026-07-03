@@ -53,7 +53,7 @@ struct ParentAreaView: View {
         }
         .sheet(isPresented: $showCert) { CertificateView(name: activeName) }
         .fullScreenCover(item: $testLaunch) { sel in
-            SessionView(worldIndex: sel.id, speedRound: sel.speed, testFormat: sel.testFormat)
+            SessionView(worldIndex: sel.id, speedRound: sel.speed, boss: sel.boss, testFormat: sel.testFormat)
                 .environment(\.worldTheme, .forWorld(sel.id))
         }
         .alert("New profile", isPresented: $showAdd) {
@@ -154,6 +154,7 @@ struct ParentAreaView: View {
                 devBtn("Fluency (timed)", "bolt.fill") { testLaunch = WorldSelection(id: testWorld, testFormat: .fluency) }
                 devBtn("Speed Round", "timer") { testLaunch = WorldSelection(id: testWorld, speed: true) }
             }
+            devBtn("Boss Challenge", "flag.checkered") { testLaunch = WorldSelection(id: testWorld, boss: true) }
 
             Divider().padding(.vertical, 2)
             HStack(spacing: 10) {

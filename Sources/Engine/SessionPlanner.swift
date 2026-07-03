@@ -37,7 +37,8 @@ public enum SessionPlanner {
         snapshots: [FactSnapshot],
         now: Date,
         seed: UInt64,
-        config: SessionConfig = SessionConfig()
+        config: SessionConfig = SessionConfig(),
+        clearedWorlds: Set<Int>? = nil
     ) -> [PlannedQuestion] {
         let byID = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.id, $0) })
         let fluencyTimes = snapshots.flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
@@ -52,7 +53,7 @@ public enum SessionPlanner {
 
         // 1. New facts (gated introduction, §5) — scoped to the current world so the
         //    next world's facts never appear until it unlocks. Review stays cumulative.
-        let currentWorld = WorldProgress.currentIndex(snapshots: snapshots)
+        let currentWorld = WorldProgress.currentIndex(snapshots: snapshots, cleared: clearedWorlds)
         let allowedMaxSlot = WorldCatalog.maxSlot(forWorld: currentWorld)
         let newFacts = chooseNewFacts(snapshots: snapshots, config: config,
                                       allowedMaxSlot: allowedMaxSlot)

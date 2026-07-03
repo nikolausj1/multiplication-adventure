@@ -6,6 +6,7 @@ struct SessionView: View {
     @Environment(\.dismiss) private var dismiss
     var worldIndex: Int = 0
     var speedRound: Bool = false
+    var boss: Bool = false
     var testFormat: MasteryStage? = nil
 
     @State private var vm: SessionViewModel?
@@ -36,7 +37,7 @@ struct SessionView: View {
                 let mode: SessionViewModel.AutoMode = args.contains("-demoWrap") ? .wrap
                     : (args.contains("-demoFeedback") ? .feedback : .off)
                 vm = SessionViewModel(service: LearningService(context: context),
-                                      speedRound: speedRound, auto: mode,
+                                      speedRound: speedRound, boss: boss, auto: mode,
                                       worldIndex: worldIndex, testFormat: testFormat)
             }
         }
@@ -70,8 +71,19 @@ struct SessionView: View {
                 }
                 .accessibilityLabel("End session")
                 Spacer()
-                Text(vm.movementLabel.uppercased())
-                    .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white).shadow(radius: 2)
+                if vm.bossWorldIndex != nil {
+                    Label("BOSS CHALLENGE", systemImage: "flag.checkered")
+                        .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(Capsule().fill(
+                            LinearGradient(colors: [Color(red: 0.85, green: 0.25, blue: 0.2),
+                                                    Color(red: 0.6, green: 0.1, blue: 0.15)],
+                                           startPoint: .top, endPoint: .bottom)))
+                        .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
+                } else {
+                    Text(vm.movementLabel.uppercased())
+                        .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white).shadow(radius: 2)
+                }
                 Spacer()
                 if vm.showsWorldRing {
                     worldRingChip(vm)

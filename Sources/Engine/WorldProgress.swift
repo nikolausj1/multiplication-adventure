@@ -32,18 +32,27 @@ public enum WorldProgress {
 
     /// The world the player is currently on: the first not-yet-cleared world (or the
     /// last world once everything is cleared).
-    public static func currentIndex(snapshots: [FactSnapshot]) -> Int {
+    ///
+    /// `cleared` is the explicit set of boss-beaten worlds. Pass `nil` to fall back
+    /// to the fluency-derived definition (all facts fluent ⇒ cleared) — used by
+    /// tests and any context without profile state.
+    public static func currentIndex(snapshots: [FactSnapshot], cleared: Set<Int>? = nil) -> Int {
+        if let cleared {
+            return (0..<WorldCatalog.count).first(where: { !cleared.contains($0) })
+                ?? (WorldCatalog.count - 1)
+        }
         let s = stats(snapshots: snapshots)
         return s.first(where: { !$0.cleared })?.index ?? (WorldCatalog.count - 1)
     }
 
-    /// Number of fully cleared worlds (for milestone diffing).
-    public static func clearedCount(snapshots: [FactSnapshot]) -> Int {
-        stats(snapshots: snapshots).filter { $0.cleared }.count
+    /// Number of cleared worlds (for milestone diffing).
+    public static func clearedCount(snapshots: [FactSnapshot], cleared: Set<Int>? = nil) -> Int {
+        if let cleared { return cleared.count }
+        return stats(snapshots: snapshots).filter { $0.cleared }.count
     }
 
     /// A world is unlocked (visible/playable) if it's the current world or earlier.
-    public static func isUnlocked(_ index: Int, snapshots: [FactSnapshot]) -> Bool {
-        index <= currentIndex(snapshots: snapshots)
+    public static func isUnlocked(_ index: Int, snapshots: [FactSnapshot], cleared: Set<Int>? = nil) -> Bool {
+        index <= currentIndex(snapshots: snapshots, cleared: cleared)
     }
 }

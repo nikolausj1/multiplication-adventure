@@ -73,6 +73,8 @@ struct LearningService {
         profile.streakDays = 0
         profile.lastPracticeDate = nil
         profile.speedRoundUnlocked = false
+        profile.clearedWorldsMask = 0
+        profile.bestSpeedAvg = 0
         seedFacts(for: profile)
         try? context.save()
     }
@@ -82,6 +84,8 @@ struct LearningService {
     func applyDemoProgress(complete: Bool) {
         let p = activeProfile()
         let now = Date()
+        // Bosses count as beaten for the demo-cleared worlds.
+        for w in 0..<WorldCatalog.count where complete || w <= 2 { p.markWorldCleared(w) }
         for f in p.facts {
             let w = WorldCatalog.worldIndex(ofFact: f.id)
             if complete || w <= 2 {
@@ -111,7 +115,8 @@ struct LearningService {
     func buildSession(now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
         let snaps = facts().map(\.snapshot)
         let s = seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970))
-        return SessionPlanner.plan(snapshots: snaps, now: now, seed: s)
+        return SessionPlanner.plan(snapshots: snaps, now: now, seed: s,
+                                   clearedWorlds: activeProfile().clearedWorlds)
     }
 
     private func currentThreshold() -> Double {
@@ -125,7 +130,7 @@ struct LearningService {
     /// Fluent-progress of the current world (for wrap-screen "how close am I" UI).
     func currentWorldStat() -> (index: Int, fluent: Int, total: Int) {
         let snaps = facts().map(\.snapshot)
-        let idx = WorldProgress.currentIndex(snapshots: snaps)
+        let idx = WorldProgress.currentIndex(snapshots: snaps, cleared: activeProfile().clearedWorlds)
         let stat = WorldProgress.stats(snapshots: snaps)[safe: idx]
         return (idx, stat?.fluentPlus ?? 0, stat?.total ?? 0)
     }
@@ -151,6 +156,26 @@ struct LearningService {
             let options = fmt == .recognition ? DistractorGenerator.options(for: prompt, seed: rng.next()) : nil
             return PlannedQuestion(prompt: prompt, format: fmt, movement: .core,
                                    options: options, timed: fmt == .fluency)
+        }
+    }
+
+    /// The world's boss challenge: a timed round over that world's own facts.
+    /// 10–16 questions (small worlds repeat facts in fresh orientations).
+    func buildBossSession(worldIndex: Int, now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
+        let ids = WorldCatalog.facts(inWorld: worldIndex)
+        guard !ids.isEmpty else { return [] }
+        var rng = SplitMix64(seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)))
+        let target = min(max(ids.count, 10), 16)
+        var picks: [FactID] = []
+        while picks.count < target {
+            var round = ids
+            round.shuffle(using: &rng)
+            picks.append(contentsOf: round.prefix(target - picks.count))
+        }
+        return picks.map { id in
+            let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
+            return PlannedQuestion(prompt: prompt, format: .fluency, movement: .core,
+                                   options: nil, timed: true)
         }
     }
 
@@ -187,7 +212,8 @@ struct LearningService {
                                 becameMastered: false, celebration: nil)
         }
         let threshold = currentThreshold()
-        let before = ProgressAggregate.from(snapshots: facts().map(\.snapshot), streakDays: p.streakDays)
+        var before = ProgressAggregate.from(snapshots: facts().map(\.snapshot), streakDays: p.streakDays)
+        before.clearedWorlds = p.clearedWorlds.count   // clears come from boss wins, not fluency
 
         let outcome = PromotionEngine.apply(to: factRow.snapshot, correct: correct,
                                             responseTime: responseTime,
@@ -199,7 +225,8 @@ struct LearningService {
                              fluencyThreshold: threshold, masteryFraction: frac)
         p.totalXP += xp
 
-        let after = ProgressAggregate.from(snapshots: facts().map(\.snapshot), streakDays: p.streakDays)
+        var after = ProgressAggregate.from(snapshots: facts().map(\.snapshot), streakDays: p.streakDays)
+        after.clearedWorlds = p.clearedWorlds.count
         let events = MilestoneEngine.events(before: before, after: after)
         persistMilestones(events, for: p, now: now)
         let celebration = MilestoneEngine.merge(events, minTier: .t2)
@@ -212,15 +239,41 @@ struct LearningService {
 
     // MARK: Finishing a session
 
+    /// Accuracy required to beat a world's boss challenge. Forgiving on purpose:
+    /// the boss is a climax, not a wall — misses just mean "train and retry".
+    static let bossPassAccuracy = 0.85
+
     @discardableResult
     func finishSession(questionCount: Int, correctCount: Int, xpEarned: Int,
                        responseTimes: [Double], factsTouched: Int,
-                       speed: Bool = false, now: Date = .now) -> Celebration? {
+                       speed: Bool = false, bossWorld: Int? = nil, now: Date = .now) -> Celebration? {
         let p = activeProfile()
         let beforeStreak = p.streakDays
         let newStreak = p.registerPractice(on: now)
 
         let median = Self.median(responseTimes)
+
+        // Boss challenge: pass ⇒ the world clears (T3 moment); fail costs nothing.
+        if let bossWorld {
+            let rec = SessionRecord(date: now, questionCount: questionCount, correctCount: correctCount,
+                                    xpEarned: xpEarned, medianResponseTime: median, factsTouched: factsTouched)
+            rec.profile = p
+            context.insert(rec)
+            let accuracy = questionCount == 0 ? 0 : Double(correctCount) / Double(questionCount)
+            let name = WorldCatalog.worlds[safe: bossWorld]?.name ?? "World \(bossWorld + 1)"
+            if accuracy >= Self.bossPassAccuracy, !p.clearedWorlds.contains(bossWorld) {
+                p.markWorldCleared(bossWorld)
+                let milestone = MilestoneRecord(kindLabel: "Cleared \(name)",
+                                                detail: "Boss challenge won", tier: .t3, earnedDate: now)
+                milestone.profile = p
+                context.insert(milestone)
+                try? context.save()
+                return Celebration(tier: .t3, headline: "\(name) cleared!",
+                                   lines: ["Boss challenge won — the trail continues!"])
+            }
+            try? context.save()
+            return nil   // wrap shows the encouraging retry state
+        }
 
         // Speed Round: track beat-your-best on median response time.
         if speed, median > 0 {
@@ -243,9 +296,8 @@ struct LearningService {
         context.insert(rec)
 
         let m = masteredCount()
-        let cleared = WorldProgress.clearedCount(snapshots: facts().map(\.snapshot))
         let base = ProgressAggregate(masteredCount: m, completedFactors: [],
-                                     clearedWorlds: cleared, streakDays: beforeStreak)
+                                     clearedWorlds: p.clearedWorlds.count, streakDays: beforeStreak)
         var after = base; after.streakDays = newStreak
         let events = MilestoneEngine.events(before: base, after: after)
         persistMilestones(events.filter { $0.tier >= .t2 }, for: p, now: now)
