@@ -54,6 +54,11 @@ struct MapView: View {
                 }
             }
             DriftingMist().ignoresSafeArea()
+            // The endgame reveals itself only after the Storm Titan falls: master
+            // every fact to claim the trophy certificate.
+            if clearedSet.count == WorldCatalog.count, !isComplete {
+                VStack { Spacer(); masterQuestBar }
+            }
             // Full-bleed title banner: painted sky fades into the map's fog.
             if Art.exists("map_banner") {
                 VStack(spacing: 0) {
@@ -259,6 +264,42 @@ struct MapView: View {
         }
         .frame(width: 150)
         .animation(Theme.Motion.snappy, value: hintNode)
+    }
+
+    private var masterQuestBar: some View {
+        let mastered = profile?.masteredCount ?? 0
+        let total = FactUniverse.count
+        return HStack(spacing: 12) {
+            Image(systemName: "trophy.fill").font(.system(size: 22))
+                .foregroundStyle(Theme.Color.accent)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text("MASTER QUEST").font(Theme.Font.label(13)).tracking(2)
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Text("\(mastered)/\(total)").font(Theme.Font.number(15))
+                        .foregroundStyle(Theme.Color.accent)
+                        .contentTransition(.numericText(value: Double(mastered)))
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.black.opacity(0.4))
+                        Capsule()
+                            .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.35),
+                                                          Color(red: 0.95, green: 0.6, blue: 0.1)],
+                                                 startPoint: .top, endPoint: .bottom))
+                            .frame(width: geo.size.width * CGFloat(mastered) / CGFloat(total))
+                        Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                    }
+                }
+                .frame(height: 10)
+            }
+        }
+        .padding(.horizontal, 18).padding(.vertical, 12)
+        .frame(maxWidth: 500)
+        .darkPlate()
+        .padding(.bottom, 16)
+        .accessibilityLabel("Master Quest: \(mastered) of \(total) facts mastered")
     }
 
     /// A tap on a fogged node shouldn't feel broken: wiggle it and say what unlocks it.

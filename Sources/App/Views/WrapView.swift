@@ -116,9 +116,29 @@ struct WrapView: View {
                         .multilineTextAlignment(.center)
                 }
             } else if allCleared {
-                Text("Every world cleared — you're a Multiplication Master!")
-                    .font(Theme.Font.body()).foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
+                let mastered = snapshots.filter { $0.stage == .mastered }.count
+                if mastered >= FactUniverse.count {
+                    Text("Every fact mastered — you're a Multiplication Master!")
+                        .font(Theme.Font.body()).foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                } else {
+                    let gainedMastery = max(0, mastered - vm.masteredBefore)
+                    HStack {
+                        Label("MASTER QUEST", systemImage: "trophy.fill")
+                            .font(Theme.Font.label(14)).tracking(1.5)
+                            .foregroundStyle(Theme.Color.accent)
+                        Spacer()
+                        Text("\(mastered)/\(FactUniverse.count) mastered")
+                            .font(Theme.Font.label(14)).foregroundStyle(.white.opacity(0.8))
+                    }
+                    if gainedMastery > 0 {
+                        Text("+\(gainedMastery) mastered today!")
+                            .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
+                    }
+                    Text("Master every fact — fast answers on different days — to claim the trophy certificate!")
+                        .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                }
             } else {
                 HStack {
                     Text(name).font(Theme.Font.label(15)).foregroundStyle(.white)

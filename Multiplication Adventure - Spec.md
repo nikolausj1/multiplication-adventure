@@ -353,8 +353,32 @@ Engine: WorldProgress/SessionPlanner accept an explicit cleared-worlds set (nil 
 fluency-derived, keeps tests meaningful). Runtime-verified end to end (boss run → pass →
 cleared → next world revealed).
 
-**Still pending / fast-follow:** avatar cosmetic unlocks, App Store
-packaging, notifications, other operations (division/addition), iCloud sync.
+**Built 2026-07-04 (Star Quest era — the shipped loop):**
+- 🔁 **Daily loop = Star Quest.** One quest/day drills the next star's facts up the
+  full ladder (2 MC + 3 typed) woven with cumulative review, in three input-stable
+  phases: WARM-UP (typed review) → MEET (MC) → TRAIN (typed). Ends when the star
+  slams in (full-screen socket animation); hard days roll over ("star 80% charged");
+  extra same-day sessions target the next star. Kid model: *"Every day I earn a
+  star. Five stars, I fight the boss."*
+- **Quest Meter:** chunky gold header bar; every answer moves it (30% review floor,
+  70% star charge, high-water monotonic), star at the end ignites at 100%. Hidden in
+  boss fights (guardian HP bar owns progress there).
+- **Named boss guardians** with portraits, HP bar that drops per hit, flinch + spark,
+  CRITICAL! on faster-than-threshold answers, defeat slump + rumble: Granite Giant,
+  Tidal Kraken, Jade Jaguar, Sandstorm Scorpion, FrostFang Dragon, Magma Fist,
+  Storm Titan. Boss soundscape (hit/defeat) owner-supplied via Kling.
+- **Question plaques** from world button art; **missing-factor review** ("3 × ? = 12",
+  1-in-6, mastered facts only, ≥15 mastered, times excluded from speed baseline) in
+  quests AND post-completion review.
+- **Strict flame + grace:** streak registers only for real work; one missed day
+  forgiven, two resets. Map flame lit = practiced today, dim = not yet.
+- **Master Quest endgame:** hidden until all 7 bosses fall, then a gold trophy bar
+  (mastered/91) appears on the map; wraps show "+N mastered today"; T4 certificate
+  at 91/91 unchanged. Runtime-verified end-to-end (full trail cleared by autoplay).
+
+**Still pending / fast-follow:** True/False lightning round, avatar cosmetic
+unlocks, per-world ambience loops / music, App Store packaging, notifications,
+other operations (division/addition), iCloud sync.
 
 ### Asset wishlist (optional upgrades the code already supports or can adopt cheaply)
 1. **Question banner** (per world or one shared, transparent PNG ~1400×500): ornate

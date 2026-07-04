@@ -137,11 +137,24 @@ struct LearningService {
         let fluentCount = worldFacts.filter { (byID[$0]?.stage ?? .recognition) >= .fluency }.count
         let total = worldFacts.count
 
-        // Boss-pending (or catalog edge): review-only session, no batch.
+        // Boss-pending (or all worlds cleared): review-only session, no batch.
+        // Mastered facts still get the occasional inverse form here — this is the
+        // Master Quest era's main diet.
         guard total > 0, fluentCount < total else {
-            return (SessionPlanner.plan(snapshots: snaps, now: now,
-                                        seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)),
-                                        clearedWorlds: p.clearedWorlds), [])
+            var qs = SessionPlanner.plan(snapshots: snaps, now: now,
+                                         seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)),
+                                         clearedWorlds: p.clearedWorlds)
+            let mastered = Set(snaps.filter { $0.stage == .mastered }.map(\.id))
+            if mastered.count >= Self.missingFactorMinMastered {
+                var mfRng = SplitMix64(seed: (seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970))) &+ 7)
+                qs = qs.map { q in
+                    guard q.movement != .warmup, mastered.contains(q.fact),
+                          mfRng.next() % Self.missingFactorDenominator == 0 else { return q }
+                    return PlannedQuestion(prompt: q.prompt, format: .recall, movement: q.movement,
+                                           options: nil, timed: false, missingFactor: true)
+                }
+            }
+            return (qs, [])
         }
 
         let filledStars = WorldStars.filled(fluent: fluentCount, total: total)

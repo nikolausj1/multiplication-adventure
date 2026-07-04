@@ -128,11 +128,55 @@ struct SessionView: View {
                 }
             }
             .animation(Theme.Motion.celebrate, value: vm.combo)
-            ProgressView(value: vm.progress).tint(.white)
+            // Boss fights: the guardian's HP bar is the progress — no second meter.
+            if vm.bossWorldIndex == nil {
+                QuestMeter(progress: vm.isQuest ? vm.questMeter : vm.progress,
+                           complete: vm.questComplete)
+            }
         }
         .padding(.horizontal, Theme.Metric.pad).padding(.top, 12)
     }
 
+}
+
+/// The Quest Meter: a chunky gold bar that fills toward today's star. Every answer
+/// moves it — review nudges, star-ladder work jumps — and the star at the end
+/// ignites when the quest is complete.
+private struct QuestMeter: View {
+    let progress: Double
+    let complete: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.black.opacity(0.38))
+                    Capsule()
+                        .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.35),
+                                                      Color(red: 0.95, green: 0.6, blue: 0.1)],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(width: progress <= 0.005 ? 0
+                               : max(14, geo.size.width * min(progress, 1)))
+                    Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1.5)
+                }
+            }
+            .frame(height: 13)
+            .animation(Theme.Motion.snappy, value: progress)
+
+            StarGlyph(filled: true, size: 26)
+                .saturation(complete ? 1 : 0.15)
+                .opacity(complete ? 1 : 0.5)
+                .scaleEffect(complete ? 1.2 : 1)
+                .overlay {
+                    if complete {
+                        ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 10)
+                            .frame(width: 130, height: 130)
+                    }
+                }
+                .animation(Theme.Motion.celebrate, value: complete)
+        }
+        .accessibilityLabel("Quest progress \(Int(min(progress, 1) * 100)) percent")
+    }
 }
 
 /// Live world stars in the session header. When fluency crosses a star threshold

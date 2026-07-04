@@ -75,6 +75,28 @@ final class SessionViewModel {
     var isQuest: Bool { !questBatch.isEmpty }
     private let questFloor = 15        // never fewer answers than this (when review exists)
     private let questCeiling = 80      // hard stop; the star rolls over to tomorrow
+    private var floorTarget: Int { min(questFloor, originalCount) }
+
+    /// The Quest Meter: EVERY answer moves it — review answers nudge (30% weight),
+    /// star-ladder answers jump (70% weight). Monotonic via high-water mark, and it
+    /// reaches 1.0 exactly when the quest completes (star landed + review floor met).
+    private(set) var questMeter: Double = 0
+    private var meterHighWater: Double = 0
+    var questComplete: Bool {
+        isQuest ? (starEarnedThisSession && totalAnswered >= floorTarget)
+                : stage == .finished
+    }
+
+    private func updateMeter() {
+        guard isQuest else { return }
+        let starC = starEarnedThisSession ? 1.0 : questCharge
+        let floorC = floorTarget == 0 ? 1.0 : min(1.0, Double(totalAnswered) / Double(floorTarget))
+        meterHighWater = max(meterHighWater, 0.7 * starC + 0.3 * floorC)
+        questMeter = meterHighWater
+    }
+
+    /// Mastered count at session start (the wrap's Master Quest delta).
+    private(set) var masteredBefore = 0
 
     init(service: LearningService, speedRound: Bool = false, boss: Bool = false,
          auto: AutoMode = .off, worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
@@ -106,8 +128,10 @@ final class SessionViewModel {
         }
         self.queue = built
         self.originalCount = built.count
+        self.masteredBefore = service.activeProfile().masteredCount
         questionStart = .now
         if built.isEmpty { stage = .finished }   // e.g. Speed Round with no fluent facts yet
+        updateMeter()   // rollover days start the meter pre-filled where yesterday ended
     }
 
     var current: PlannedQuestion? { index < queue.count ? queue[index] : nil }
@@ -194,6 +218,7 @@ final class SessionViewModel {
             }
         }
         if isQuest { questCharge = Self.charge(of: questBatch, service: service) }
+        updateMeter()
         if let c = result.celebration {
             pendingCelebration = c
             Feedback.fire(c.tier >= .t3 ? .milestone : .levelUp)
@@ -245,7 +270,7 @@ final class SessionViewModel {
         lastSelected = nil
 
         if isQuest {
-            if starEarnedThisSession && totalAnswered >= min(questFloor, queue.count) {
+            if starEarnedThisSession && totalAnswered >= floorTarget {
                 finish(); return
             }
             if totalAnswered >= questCeiling { finish(); return }   // star rolls over
