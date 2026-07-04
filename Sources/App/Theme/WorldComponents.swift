@@ -154,8 +154,44 @@ struct WorldButtonBackground: View {
     }
 }
 
+/// Horizontal shake (locked-node nudges, star-slam impacts); integer phases land
+/// at zero offset so the view always settles exactly in place.
+struct Shake: GeometryEffect {
+    var travel: CGFloat = 7
+    var shakesPerUnit: CGFloat = 3
+    var animatableData: CGFloat
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(
+            translationX: travel * sin(animatableData * .pi * shakesPerUnit * 2), y: 0))
+    }
+}
+
+/// One star — gold art when earned, stone socket when vacant (SF fallback pre-art).
+struct StarGlyph: View {
+    let filled: Bool
+    var size: CGFloat = 15
+
+    var body: some View {
+        if Art.exists(filled ? "star_gold" : "star_empty") {
+            Image(filled ? "star_gold" : "star_empty")
+                .resizable().scaledToFit()
+                .frame(width: size * 1.25, height: size * 1.25)
+                .shadow(color: .black.opacity(filled ? 0.45 : 0.3), radius: size * 0.08, y: size * 0.05)
+        } else {
+            Image(systemName: filled ? "star.fill" : "star")
+                .font(.system(size: size, weight: .bold))
+                .foregroundStyle(filled
+                    ? AnyShapeStyle(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.35),
+                                                            Color(red: 0.95, green: 0.63, blue: 0.1)],
+                                                   startPoint: .top, endPoint: .bottom))
+                    : AnyShapeStyle(Color.white.opacity(0.45)))
+                .shadow(color: .black.opacity(0.5), radius: 1.5, y: 1)
+        }
+    }
+}
+
 /// World progress as stars (game-style): each star is ~1/5 of the world's facts
-/// reaching fluent. Filled stars are gold; empty slots stay visibly waiting.
+/// reaching fluent. Filled stars are gold; empty sockets stay visibly waiting.
 struct WorldStars: View {
     let fluent: Int
     let total: Int
@@ -176,14 +212,7 @@ struct WorldStars: View {
         let filled = Self.filled(fluent: fluent, total: total)
         HStack(spacing: spacing) {
             ForEach(0..<Self.starCount, id: \.self) { i in
-                Image(systemName: i < filled ? "star.fill" : "star")
-                    .font(.system(size: size, weight: .bold))
-                    .foregroundStyle(i < filled
-                        ? AnyShapeStyle(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.35),
-                                                                Color(red: 0.95, green: 0.63, blue: 0.1)],
-                                                       startPoint: .top, endPoint: .bottom))
-                        : AnyShapeStyle(Color.white.opacity(0.45)))
-                    .shadow(color: .black.opacity(0.5), radius: 1.5, y: 1)
+                StarGlyph(filled: i < filled, size: size)
             }
         }
         .accessibilityLabel("\(filled) of \(Self.starCount) stars")

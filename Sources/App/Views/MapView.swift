@@ -337,16 +337,6 @@ private struct UnlockRevealNode: View {
     }
 }
 
-/// Horizontal shake for "not yet" taps; integer phases land at zero offset.
-private struct Shake: GeometryEffect {
-    var travel: CGFloat = 7
-    var shakesPerUnit: CGFloat = 3
-    var animatableData: CGFloat
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        ProjectionTransform(CGAffineTransform(
-            translationX: travel * sin(animatableData * .pi * shakesPerUnit * 2), y: 0))
-    }
-}
 
 /// A dashed trail connecting the node positions.
 private struct TrailPath: Shape {

@@ -21,6 +21,12 @@ struct SessionView: View {
                 } else {
                     active(vm)
                 }
+                if let starIndex = vm.pendingStarEarned {
+                    StarEarnedOverlay(
+                        worldName: WorldCatalog.worlds[safe: vm.worldStatBefore.index]?.name ?? "This world",
+                        newStarIndex: starIndex) { vm.starEarnedDismissed() }
+                        .transition(.opacity).zIndex(9)
+                }
                 if let celebration = vm.pendingCelebration {
                     CelebrationOverlay(celebration: celebration) { vm.celebrationDismissed() }
                         .transition(.opacity).zIndex(10)
@@ -39,6 +45,9 @@ struct SessionView: View {
                 vm = SessionViewModel(service: LearningService(context: context),
                                       speedRound: speedRound, boss: boss, auto: mode,
                                       worldIndex: worldIndex, testFormat: testFormat)
+                if args.contains("-demoStar") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { vm?.debugShowStar(2) }
+                }
             }
         }
     }

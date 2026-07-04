@@ -30,6 +30,8 @@ final class SessionViewModel {
     private var touched = Set<FactID>()
 
     var pendingCelebration: Celebration?
+    /// 0-based index of a just-earned world star; drives the full-screen slam overlay.
+    var pendingStarEarned: Int?
     private(set) var endCelebration: Celebration?
 
     /// Debug autoplay (launch-arg gated) for screenshot verification.
@@ -135,8 +137,14 @@ final class SessionViewModel {
         justMastered = result.becameMastered
         Feedback.fire(correct ? .correct : .wrong, combo: combo)
         if result.becameFluent {
+            let filledBefore = WorldStars.filled(fluent: worldFluent, total: worldTotal)
             worldFluent = service.worldStat(at: worldStatBefore.index).fluent
+            let filledNow = WorldStars.filled(fluent: worldFluent, total: worldTotal)
             Feedback.fire(.milestone)   // magic shimmer layered over the coin
+            // Crossing a star threshold takes over the screen (slam-into-socket).
+            if filledNow > filledBefore, showsWorldRing {
+                pendingStarEarned = filledNow - 1
+            }
         }
         if let c = result.celebration {
             pendingCelebration = c
@@ -158,7 +166,8 @@ final class SessionViewModel {
             let delay = (justMastered || justFluent) ? 1.6 : 0.9   // let the ring moment land
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.stage == .feedback, self.feedbackGen == gen,
-                      self.pendingCelebration == nil else { return }   // overlay up → wait for its dismissal
+                      self.pendingCelebration == nil,
+                      self.pendingStarEarned == nil else { return }   // overlay up → wait for its dismissal
                 self.next()
             }
         }
@@ -168,8 +177,17 @@ final class SessionViewModel {
     /// auto-advance, move on now.
     func celebrationDismissed() {
         pendingCelebration = nil
-        if stage == .feedback, lastCorrect, auto == .off { next() }
+        if stage == .feedback, lastCorrect, auto == .off, pendingStarEarned == nil { next() }
     }
+
+    /// Star-earned overlay dismissed; resume the flow.
+    func starEarnedDismissed() {
+        pendingStarEarned = nil
+        if stage == .feedback, lastCorrect, auto == .off, pendingCelebration == nil { next() }
+    }
+
+    /// Debug (launch-arg): show the star-earned overlay without earning one.
+    func debugShowStar(_ index: Int) { pendingStarEarned = index }
 
     /// Advance after the neutral-soft reveal.
     func next() {
