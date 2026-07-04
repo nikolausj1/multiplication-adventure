@@ -17,3 +17,6 @@ No attribution required (CC0), credits kept here out of courtesy.
 
 sfx_phase_zap.wav — user-supplied Kling.ai render (sfx_electricZap.mp3 in
 _inbox), trimmed/leveled; the Quest Meter phase-transition jolt.
+
+sfx_star_slam.wav — user-supplied render (slam.aiff in _inbox), leveled with a
+tail fade; the STAR EARNED overlay's slam-into-socket impact.

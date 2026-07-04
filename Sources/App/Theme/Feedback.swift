@@ -14,6 +14,7 @@ enum Feedback {
         case correct, wrong, keyTap, levelUp, milestone, complete
         case bossHit, bossDefeat
         case phaseJolt   // Quest Meter electric zap at a phase transition
+        case starSlam    // STAR EARNED overlay: the star hits its socket
     }
 
     static func fire(_ event: Event, combo: Int = 0) {
@@ -40,6 +41,7 @@ enum Feedback {
         case .bossHit:    return "sfx_boss_hit"
         case .bossDefeat: return "sfx_boss_defeat"
         case .phaseJolt:  return "sfx_phase_zap"
+        case .starSlam:   return "sfx_star_slam"
         }
     }
 
@@ -84,6 +86,7 @@ enum Feedback {
         case .bossHit:   impact(.medium)
         case .bossDefeat: notify(.success)
         case .phaseJolt: impact(.rigid)
+        case .starSlam:  impact(.heavy)
         }
         #endif
     }

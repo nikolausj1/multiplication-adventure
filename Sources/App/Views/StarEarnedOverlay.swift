@@ -95,7 +95,7 @@ struct StarEarnedOverlay: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) {
             withAnimation(.easeOut(duration: 0.45)) { impact = true }
-            Feedback.fire(.levelUp)
+            Feedback.fire(.starSlam)
         }
     }
 }
