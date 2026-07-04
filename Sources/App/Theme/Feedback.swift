@@ -12,6 +12,7 @@ enum Feedback {
 
     enum Event {
         case correct, wrong, keyTap, levelUp, milestone, complete
+        case bossHit, bossDefeat
     }
 
     static func fire(_ event: Event, combo: Int = 0) {
@@ -30,11 +31,13 @@ enum Feedback {
             case 5...7: return "sfx_correct3"
             default:    return "sfx_correct4"
             }
-        case .wrong:     return "sfx_wrong"
-        case .keyTap:    return "sfx_key"
-        case .levelUp:   return "sfx_world_unlock"
-        case .milestone: return "sfx_milestone"
-        case .complete:  return "sfx_complete"
+        case .wrong:      return "sfx_wrong"
+        case .keyTap:     return "sfx_key"
+        case .levelUp:    return "sfx_world_unlock"
+        case .milestone:  return "sfx_milestone"
+        case .complete:   return "sfx_complete"
+        case .bossHit:    return "sfx_boss_hit"
+        case .bossDefeat: return "sfx_boss_defeat"
         }
     }
 
@@ -76,6 +79,8 @@ enum Feedback {
         case .levelUp:   notify(.success)
         case .milestone: notify(.success)
         case .complete:  notify(.success)
+        case .bossHit:   impact(.medium)
+        case .bossDefeat: notify(.success)
         }
         #endif
     }

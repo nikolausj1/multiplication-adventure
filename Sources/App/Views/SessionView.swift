@@ -67,7 +67,8 @@ struct SessionView: View {
                 // answer lands a hit. Otherwise the question stands alone.
                 if vm.bossWorldIndex != nil && Art.exists(theme.bossImage) {
                     HStack(alignment: .center, spacing: 4) {
-                        BossPanel(theme: theme, hits: vm.correctCount, hpTotal: vm.bossHPTotal)
+                        BossPanel(theme: theme, hits: vm.correctCount, hpTotal: vm.bossHPTotal,
+                                  lastHitCritical: vm.lastHitCritical)
                             .frame(maxWidth: 400)
                         QuestionContainer(vm: vm, question: q)
                             .id(vm.index)

@@ -58,8 +58,9 @@ final class Profile {
 
     func markWorldCleared(_ index: Int) { clearedWorldsMask |= (1 << index) }
 
-    /// Records practice on `date` and returns the new streak length. Missing a day
-    /// resets the streak to 1 but never destroys progress (§3, no punishment).
+    /// Records practice on `date` and returns the new streak length. One missed day
+    /// is forgiven (summer grace); two or more in a row resets to 1. Progress itself
+    /// is never destroyed (§3, no punishment).
     @discardableResult
     func registerPractice(on date: Date, calendar: Calendar = .current) -> Int {
         defer { lastPracticeDate = date }
@@ -68,7 +69,7 @@ final class Profile {
         let dayDelta = calendar.dateComponents([.day],
             from: calendar.startOfDay(for: last),
             to: calendar.startOfDay(for: date)).day ?? 0
-        streakDays = dayDelta == 1 ? streakDays + 1 : 1
+        streakDays = dayDelta <= 2 ? streakDays + 1 : 1
         return streakDays
     }
 }

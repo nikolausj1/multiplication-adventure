@@ -273,6 +273,9 @@ struct LearningService {
     /// Facts at Fluency or Mastered — gates the Speed Round (count-up + beat-your-best).
     func fluentPlusCount() -> Int { facts().filter { $0.stage >= .fluency }.count }
 
+    /// The current fast-answer bar (boss crit-hits compare against this).
+    func fluencyThresholdNow() -> Double { currentThreshold() }
+
     /// Fluent-progress of the current world (for wrap-screen "how close am I" UI).
     func currentWorldStat() -> (index: Int, fluent: Int, total: Int) {
         let snaps = facts().map(\.snapshot)

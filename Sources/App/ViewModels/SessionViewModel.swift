@@ -57,6 +57,10 @@ final class SessionViewModel {
     /// Set for a world-boss challenge run; the wrap uses `bossPassed` for its verdict.
     let bossWorldIndex: Int?
     private(set) var bossPassed = false
+    /// Faster-than-threshold boss answers land CRITICAL hits (bigger flinch + callout).
+    private(set) var critCount = 0
+    private(set) var lastHitCritical = false
+    private let critThreshold: Double
     /// Correct answers needed to visually defeat the guardian (the pass bar).
     var bossHPTotal: Int {
         max(1, Int(ceil(Double(originalCount) * LearningService.bossPassAccuracy)))
@@ -82,6 +86,7 @@ final class SessionViewModel {
         self.isSpeed = speedRound
         self.isTest = testFormat != nil
         self.bossWorldIndex = boss ? worldIndex : nil
+        self.critThreshold = service.fluencyThresholdNow()
         self.auto = auto
         self.worldStatBefore = service.currentWorldStat()
         self.worldFluent = worldStatBefore.fluent
@@ -162,7 +167,21 @@ final class SessionViewModel {
         lastXP = result.xp
         justFluent = result.becameFluent
         justMastered = result.becameMastered
-        Feedback.fire(correct ? .correct : .wrong, combo: combo)
+        if bossWorldIndex != nil {
+            // Boss fights have their own soundscape: hits instead of coins.
+            if correct {
+                lastHitCritical = FluencyThreshold.isFast(rt, threshold: critThreshold)
+                if lastHitCritical { critCount += 1 }
+                Feedback.fire(.bossHit)
+                if lastHitCritical { Feedback.fire(.correct, combo: 8) }  // bright zing on top
+                if correctCount == bossHPTotal { Feedback.fire(.bossDefeat) }
+            } else {
+                lastHitCritical = false
+                Feedback.fire(.wrong)
+            }
+        } else {
+            Feedback.fire(correct ? .correct : .wrong, combo: combo)
+        }
         if result.becameFluent {
             let filledBefore = WorldStars.filled(fluent: worldFluent, total: worldTotal)
             worldFluent = service.worldStat(at: worldStatBefore.index).fluent

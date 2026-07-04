@@ -95,7 +95,7 @@ struct ParentAreaView: View {
             explainRow("flag.checkered",
                        "5 stars wake the BOSS: a timed round of that world's facts, pass at 85%, free retries. Beating it clears the world and reveals the next. 7 worlds = the trophy.")
             explainRow("flame.fill",
-                       "The map flame lights when today's quest is done. Extra play the same day continues to the next star. Mastery (for the certificate) still requires fast answers on 2 different days — that part can't be rushed.")
+                       "The map flame lights when today's quest is done, and the number is his day streak. One missed day is forgiven; two in a row resets the streak. Extra play the same day continues to the next star. Mastery (for the certificate) still requires fast answers on 2 different days — that part can't be rushed.")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.Metric.pad).cardSurface()
