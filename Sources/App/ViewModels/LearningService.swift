@@ -132,8 +132,7 @@ struct LearningService {
         let snaps = facts().map(\.snapshot)
         let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
         let idx = WorldProgress.currentIndex(snapshots: snaps, cleared: p.clearedWorlds)
-        let worldFacts = WorldCatalog.facts(inWorld: idx)
-            .sorted { (Curriculum.slot(of: $0), $0.b, $0.a) < (Curriculum.slot(of: $1), $1.b, $1.a) }
+        let worldFacts = Self.dripOrder(WorldCatalog.facts(inWorld: idx))
         let fluentCount = worldFacts.filter { (byID[$0]?.stage ?? .recognition) >= .fluency }.count
         let total = worldFacts.count
 
@@ -144,17 +143,17 @@ struct LearningService {
             var qs = SessionPlanner.plan(snapshots: snaps, now: now,
                                          seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)),
                                          clearedWorlds: p.clearedWorlds)
-            let mastered = Set(snaps.filter { $0.stage == .mastered }.map(\.id))
-            if mastered.count >= Self.missingFactorMinMastered {
+            let fluent = Set(snaps.filter { $0.stage >= .fluency }.map(\.id))
+            if fluent.count >= Self.missingFactorMinFluent {
                 var mfRng = SplitMix64(seed: (seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970))) &+ 7)
                 qs = qs.map { q in
-                    guard q.movement != .warmup, mastered.contains(q.fact),
+                    guard q.movement != .warmup, fluent.contains(q.fact), q.fact.a != 0,
                           mfRng.next() % Self.missingFactorDenominator == 0 else { return q }
                     return PlannedQuestion(prompt: q.prompt, format: .recall, movement: q.movement,
                                            options: nil, timed: false, missingFactor: true)
                 }
             }
-            return (qs, [])
+            return (Self.antiRepeat(qs), [])
         }
 
         let filledStars = WorldStars.filled(fluent: fluentCount, total: total)
@@ -170,6 +169,100 @@ struct LearningService {
         var rng = SplitMix64(seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)))
         let queue = assembleQuest(batch: batch, byID: byID, snaps: snaps, now: now, rng: &rng)
         return (queue, batch)
+    }
+
+    /// The world's facts in "drip order": round-robin across the world's tables
+    /// so star batches mix (0×3, 0×4, 1×3 — never nine ×3s in a row).
+    static func dripOrder(_ facts: [FactID]) -> [FactID] {
+        let bySlot = Dictionary(grouping: facts) { Curriculum.slot(of: $0) }
+        let columns = bySlot.keys.sorted().map { s in
+            bySlot[s]!.sorted { ($0.b, $0.a) < ($1.b, $1.a) }
+        }
+        var out: [FactID] = []
+        var row = 0
+        while out.count < facts.count {
+            for col in columns where row < col.count { out.append(col[row]) }
+            row += 1
+        }
+        return out
+    }
+
+    /// The session clock isn't done but the day's batch is: pull the NEXT facts
+    /// forward as card-only previews (capped safely below fluent — tomorrow's
+    /// star stays tomorrow's), woven with weak-fact reviews. Empty only when
+    /// there is truly nothing left to practice (day-1 exhaustion escape).
+    func questBackfill(exclude: Set<FactID>, reviewExclude: Set<FactID> = [],
+                       now: Date = .now) -> [PlannedQuestion] {
+        let p = activeProfile()
+        let snaps = facts().map(\.snapshot)
+        let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
+        let idx = WorldProgress.currentIndex(snapshots: snaps, cleared: p.clearedWorlds)
+        let threshold = FluencyThreshold.current(
+            recentFluencyTimes: snaps.flatMap { $0.stage >= .fluency ? $0.recentTimes : [] })
+        let fluentTotal = snaps.filter { $0.stage >= .fluency }.count
+        var rng = SplitMix64(seed: UInt64(bitPattern: Int64(now.timeIntervalSince1970)) &+ 33)
+
+        // Preview facts: next up the mountain, 2 cards each — but only facts a
+        // fast card CANNOT promote to fluent (no surprise second star). A fact
+        // at recall 1+/3 is one fast answer from fluent, so it waits for its batch.
+        let pulled = Self.dripOrder(WorldCatalog.facts(inWorld: idx))
+            .filter { id in
+                guard !exclude.contains(id) else { return false }
+                guard let s = byID[id], s.introduced else { return true }   // fresh
+                return s.stage == .recognition || (s.stage == .recall && s.recallCorrect == 0)
+            }
+            .prefix(3)
+        var queue: [PlannedQuestion] = []
+        for id in pulled {
+            for _ in 0..<2 {
+                let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
+                queue.append(PlannedQuestion(
+                    prompt: prompt, format: .recognition, movement: .core,
+                    options: DistractorGenerator.options(for: prompt, seed: rng.next()),
+                    timed: false))
+            }
+        }
+        // Weak-first reviews keep the gold stretch honest work. Fluent+ only
+        // (sub-fluent facts belong to batches), and the per-session serve cap
+        // (reviewExclude) stops a small pool from cycling endlessly.
+        let excluded = exclude.union(pulled).union(reviewExclude)
+        let reviews = snaps
+            .filter { $0.introduced && $0.stage >= .fluency && !excluded.contains($0.id) }
+            .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
+                    > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
+            .prefix(10)
+        for s in reviews {
+            let prompt = OrientedPrompt(fact: s.id, swapped: (rng.next() & 1) == 1)
+            if s.stage >= .fluency, s.id.a != 0, fluentTotal >= Self.missingFactorMinFluent,
+               rng.next() % Self.missingFactorDenominator == 0 {
+                queue.append(PlannedQuestion(prompt: prompt, format: .recall,
+                                             movement: .review, options: nil,
+                                             timed: false, missingFactor: true))
+            } else {
+                queue.append(PlannedQuestion(
+                    prompt: prompt, format: s.stage == .mastered ? .fluency : s.stage,
+                    movement: .review, options: nil, timed: s.stage >= .fluency))
+            }
+        }
+        return Self.antiRepeat(queue)
+    }
+
+    /// No answer three times in a row, and repeats spaced out — kills the
+    /// "the answer is 1 nine times" feel. Swaps stay within a format+movement
+    /// so phase blocks (and the bar's color contract) survive.
+    static func antiRepeat(_ q: [PlannedQuestion]) -> [PlannedQuestion] {
+        var qs = q
+        guard qs.count > 2 else { return qs }
+        for i in 2..<qs.count {
+            guard qs[i].expectedAnswer == qs[i - 1].expectedAnswer,
+                  qs[i].expectedAnswer == qs[i - 2].expectedAnswer else { continue }
+            var j = i + 1
+            while j < qs.count,
+                  !(qs[j].format == qs[i].format && qs[j].movement == qs[i].movement
+                    && qs[j].expectedAnswer != qs[i].expectedAnswer) { j += 1 }
+            if j < qs.count { qs.swapAt(i, j) }
+        }
+        return qs
     }
 
     /// More reps for batch facts that haven't reached fluent (miss recovery),
@@ -192,11 +285,11 @@ struct LearningService {
         return Double(done) / 5.0
     }
 
-    /// Missing-factor review: 1 question in `missingFactorDenominator` (mastered
-    /// facts only, once the mastered pool is deep enough). Static so a debug launch
-    /// arg can force it for previews.
-    static var missingFactorDenominator: UInt64 = 6
-    static let missingFactorMinMastered = 15
+    /// Missing-factor review: 1 question in `missingFactorDenominator` (fluent-or-
+    /// better facts, once a handful are fluent). Static so a debug launch arg can
+    /// force it for previews.
+    static var missingFactorDenominator: UInt64 = 5
+    static let missingFactorMinFluent = 5
 
     /// Builds the quest in three phases so the input mode never thrashes:
     /// WARM-UP (typed review) → MEET (all multiple-choice for today's new facts)
@@ -207,7 +300,7 @@ struct LearningService {
                                includeWarmup: Bool = true) -> [PlannedQuestion] {
         let fluencyTimes = snaps.flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
         let threshold = FluencyThreshold.current(recentFluencyTimes: fluencyTimes)
-        let masteredCount = snaps.filter { $0.stage == .mastered }.count
+        let fluentTotal = snaps.filter { $0.stage >= .fluency }.count
 
         func question(_ id: FactID, format: MasteryStage, movement: SessionMovement,
                       missingFactor: Bool = false) -> PlannedQuestion {
@@ -236,19 +329,18 @@ struct LearningService {
             }
         }
 
-        // Cumulative review pool by priority; mastered facts occasionally arrive in
-        // inverse form ("3 × ? = 12") once his mastered pool is deep enough.
-        // Recognition-stage facts are excluded: their reviews would be multiple-
-        // choice, breaking the one-input-mode-per-phase promise. They rejoin as
-        // batch facts within a day or two anyway.
+        // Cumulative review pool by priority — FLUENT-or-better facts only.
+        // Sub-fluent facts are the batch's (or a future batch's) job: reviewing
+        // them here could promote them mid-session and pop a second star, and
+        // recognition-stage reviews would be cards ambushing a keypad phase.
         let batchSet = Set(batch)
         let reviewSnaps = snaps
-            .filter { $0.introduced && $0.stage >= .recall && !batchSet.contains($0.id) }
+            .filter { $0.introduced && $0.stage >= .fluency && !batchSet.contains($0.id) }
             .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
                     > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
             .prefix(reviewTarget)
         var reviews = reviewSnaps.map { s in
-            if s.stage == .mastered, masteredCount >= Self.missingFactorMinMastered,
+            if s.stage >= .fluency, s.id.a != 0, fluentTotal >= Self.missingFactorMinFluent,
                rng.next() % Self.missingFactorDenominator == 0 {
                 return question(s.id, format: .recall, movement: .review, missingFactor: true)
             }
@@ -281,9 +373,10 @@ struct LearningService {
                 if let r = reviews.next() { queue.append(r) }
             }
         }
-        // Top up with review so a quest is never a drive-by (floor ~15 where possible).
-        while queue.count < 15, let r = reviews.next() { queue.append(r) }
-        return queue
+        // Top up with review so a quest is never a drive-by; the session's time
+        // floor pulls backfill dynamically once this initial queue runs dry.
+        while queue.count < 20, let r = reviews.next() { queue.append(r) }
+        return Self.antiRepeat(queue)
     }
 
     private func currentThreshold() -> Double {

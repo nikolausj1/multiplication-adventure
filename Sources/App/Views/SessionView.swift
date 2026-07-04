@@ -113,7 +113,7 @@ struct SessionView: View {
                     .frame(maxWidth: .infinity)
             }
             if vm.showsWorldRing {
-                StarChip(fluent: vm.worldFluent, total: vm.worldTotal)
+                StarChip(fluent: vm.shownWorldFluent, total: vm.worldTotal)
             }
             // Always present so the header never reflows — dim until it ignites at 3.
             ComboChip(combo: vm.combo)

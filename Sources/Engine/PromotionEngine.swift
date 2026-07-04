@@ -47,11 +47,18 @@ public enum PromotionEngine {
             f.dueDate = promoted.due
 
             switch f.stage {
+            // Adaptive ladder: a fast correct answer tests OUT of reps he doesn't
+            // need — one snappy card clears recognition, two snappy typed answers
+            // clear recall. Slow-but-correct walks the full ladder. "Fast" is the
+            // same adaptive bar the fluency stage uses, so testing out tightens
+            // as he speeds up over the summer.
             case .recognition:
                 f.recognitionStreak += 1
-                if f.recognitionStreak >= recognitionGoal { advance(&f, to: .recall) }
+                if (countsTime && FluencyThreshold.isFast(responseTime, threshold: fluencyThreshold))
+                    || f.recognitionStreak >= recognitionGoal { advance(&f, to: .recall) }
             case .recall:
-                f.recallCorrect += 1
+                let fast = countsTime && FluencyThreshold.isFast(responseTime, threshold: fluencyThreshold)
+                f.recallCorrect += fast ? 2 : 1
                 if f.recallCorrect >= recallGoal { advance(&f, to: .fluency) }
             case .fluency:
                 if FluencyThreshold.isFast(responseTime, threshold: fluencyThreshold) {

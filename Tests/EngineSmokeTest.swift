@@ -35,13 +35,23 @@ check(LeitnerScheduler.promote(box: 0, from: now).box == 1, "correct promotes a 
 check(LeitnerScheduler.demote(box: 4, from: now).box == 2, "wrong drops two boxes")
 check(LeitnerScheduler.demote(box: 4, from: now).due == now, "wrong re-queues immediately")
 
-print("Promotion: recognition → recall (2 consecutive)")
+print("Promotion: recognition → recall (2 consecutive slow, or 1 fast test-out)")
 var f = FactSnapshot(id: FactID(7, 8), introduced: true, stage: .recognition)
-f = PromotionEngine.apply(to: f, correct: true, responseTime: 2, fluencyThreshold: 3, now: now).snapshot
-check(f.stage == .recognition, "one correct stays in recognition")
-let o = PromotionEngine.apply(to: f, correct: true, responseTime: 2, fluencyThreshold: 3, now: now)
+f = PromotionEngine.apply(to: f, correct: true, responseTime: 5, fluencyThreshold: 3, now: now).snapshot
+check(f.stage == .recognition, "one slow correct stays in recognition")
+let o = PromotionEngine.apply(to: f, correct: true, responseTime: 5, fluencyThreshold: 3, now: now)
 check(o.snapshot.stage == .recall, "two consecutive correct promotes to recall")
 check(o.promotedStage, "promotion flagged")
+let ft = FactSnapshot(id: FactID(7, 9), introduced: true, stage: .recognition)
+check(PromotionEngine.apply(to: ft, correct: true, responseTime: 1.5, fluencyThreshold: 3,
+                            now: now).snapshot.stage == .recall,
+      "one FAST correct tests out of recognition")
+var rc = FactSnapshot(id: FactID(8, 9), introduced: true, stage: .recall)
+rc = PromotionEngine.apply(to: rc, correct: true, responseTime: 1.5, fluencyThreshold: 3, now: now).snapshot
+check(rc.stage == .recall, "one fast typed is not yet recall-complete")
+check(PromotionEngine.apply(to: rc, correct: true, responseTime: 1.5, fluencyThreshold: 3,
+                            now: now).snapshot.stage == .fluency,
+      "two fast typed test out of recall")
 
 print("Promotion: a wrong MC resets the streak")
 var g = FactSnapshot(id: FactID(3, 4), introduced: true, stage: .recognition, recognitionStreak: 1)

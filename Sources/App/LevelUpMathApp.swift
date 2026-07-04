@@ -18,6 +18,7 @@ struct LevelUpMathApp: App {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-demoComplete") { service.applyDemoProgress(complete: true) }
         else if args.contains("-demoProgress") { service.applyDemoProgress(complete: false) }
+        MainActor.assumeIsolated { QuestPlanDump.runIfRequested() }
     }
 
     var body: some Scene {
