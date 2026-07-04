@@ -103,17 +103,18 @@ final class SessionViewModel {
     }
 
     /// Current quest phase (quest days with a batch only — review-only days, boss
-    /// fights, and speed/test runs stay nil and the meter stays gold). Monotonic:
-    /// extensions re-add warm-up reps, but the session never "goes back a round."
+    /// fights, and speed/test runs stay nil and the meter stays gold). The color
+    /// ALWAYS matches the input on screen: green = cards, blue/gold = keypad.
+    /// Extension rounds jolt backwards honestly ("bonus round") — only the fill
+    /// is monotonic, never the color.
     private(set) var questPhase: QuestPhase?
 
     private func updatePhase() {
         guard isQuest, bossWorldIndex == nil, let q = current else { return }
         let raw: QuestPhase = q.movement == .warmup ? .warmup
             : (q.format == .recognition ? .meet : .train)
-        let advanced = max(questPhase ?? raw, raw)
-        if let old = questPhase, advanced > old { Feedback.fire(.phaseJolt) }
-        questPhase = advanced
+        if let old = questPhase, raw != old { Feedback.fire(.phaseJolt) }
+        questPhase = raw
     }
 
     /// Mastered count at session start (the wrap's Master Quest delta).
@@ -252,10 +253,26 @@ final class SessionViewModel {
             Feedback.fire(c.tier >= .t3 ? .milestone : .levelUp)
         }
 
-        // A wrong answer re-queues the fact a few slots later (§4.4).
+        // A wrong answer re-queues the fact a few slots later (§4.4) — but never
+        // across an input-mode boundary: a missed card retries inside the card
+        // round, and a keypad retry never splits a card block. The bar's color
+        // must always match the input on screen.
         if !correct {
-            let insertAt = min(index + 4, queue.count)
-            queue.insert(q, at: insertAt)
+            var at = min(index + 4, queue.count)
+            if q.format == .recognition {
+                var boundary = index + 1
+                while boundary < queue.count, queue[boundary].format == .recognition {
+                    boundary += 1
+                }
+                at = min(at, boundary)
+            } else {
+                while at > 0, at < queue.count,
+                      queue[at].format == .recognition,
+                      queue[at - 1].format == .recognition {
+                    at += 1
+                }
+            }
+            queue.insert(q, at: at)
         }
         stage = .feedback
         feedbackGen += 1

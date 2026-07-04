@@ -126,10 +126,10 @@ struct SessionView: View {
 
 /// The Quest Meter: a chunky bar that fills as the day's work gets done. Every
 /// answer moves it — review nudges, star-ladder work jumps. Each round wears its
-/// own color (gold warm-up → green meet → blue train) and the bar takes an
+/// own color (blue warm-up → green meet → gold train) and the bar takes an
 /// electric jolt at each transition: a white flash, a height pop, and sparks off
-/// the fill's leading edge. When the quest completes, the whole bar flips to
-/// glowing gold — the bar becomes the prize.
+/// the fill's leading edge. The color always matches the input on screen: green
+/// = cards, blue/gold = keypad. Completion glows gold with a final jolt.
 private struct QuestMeter: View {
     let progress: Double
     let complete: Bool
@@ -144,15 +144,16 @@ private struct QuestMeter: View {
     @State private var flash = false     // white sweep over the fill
     @State private var sparkID = 0       // > 0 → burst exists; bump retriggers
 
-    /// Non-quest days (phase nil) stay gold — and completion always flips to gold.
+    /// Blue warm-up → green cards → gold train; the ramp ends on gold, where the
+    /// star charges. Non-quest days (phase nil) and completion are gold too.
     private var fillColors: [Color] {
         if complete { return Self.gold }
         switch shownPhase {
-        case .warmup, .none: return Self.gold
+        case .warmup: return [Color(red: 0.45, green: 0.82, blue: 1.0),
+                              Color(red: 0.12, green: 0.5, blue: 0.95)]
         case .meet:   return [Color(red: 0.55, green: 0.88, blue: 0.45),
                               Color(red: 0.15, green: 0.62, blue: 0.25)]
-        case .train:  return [Color(red: 0.45, green: 0.82, blue: 1.0),
-                              Color(red: 0.12, green: 0.5, blue: 0.95)]
+        case .train, .none: return Self.gold
         }
     }
     private static let gold = [Color(red: 1, green: 0.84, blue: 0.35),
