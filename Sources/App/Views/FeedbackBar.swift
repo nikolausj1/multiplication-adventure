@@ -32,7 +32,7 @@ struct FeedbackBar: View {
                     Label("Fact mastered!", systemImage: "star.fill")
                         .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
                 } else if fluent {
-                    Label("New fluent fact — ring +1!", systemImage: "star.circle.fill")
+                    Label("New fluent fact!", systemImage: "star.circle.fill")
                         .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.correct)
                 }
             }

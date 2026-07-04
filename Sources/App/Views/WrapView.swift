@@ -125,18 +125,8 @@ struct WrapView: View {
                     Text("\(fluent)/\(total) facts fluent")
                         .font(Theme.Font.label(14)).foregroundStyle(.white.opacity(0.8))
                 }
-                // Two segments: green = fluent, soft gold = introduced & in training,
-                // so day-one effort shows even before anything turns fluent.
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.14))
-                        Capsule().fill(Theme.Color.accent.opacity(0.45))
-                            .frame(width: geo.size.width * CGFloat(fluent + inTraining) / CGFloat(total))
-                        Capsule().fill(Theme.Color.correct)
-                            .frame(width: geo.size.width * CGFloat(fluent) / CGFloat(total))
-                    }
-                }
-                .frame(height: 8)
+                WorldStars(fluent: fluent, total: total, size: 26, spacing: 8)
+                    .padding(.vertical, 2)
                 if gained > 0 {
                     Text("+\(gained) new fluent fact\(gained == 1 ? "" : "s") today!")
                         .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
@@ -146,8 +136,8 @@ struct WrapView: View {
                         .multilineTextAlignment(.center)
                 }
                 Text(fluent == total
-                     ? "All facts fluent — the BOSS CHALLENGE is waiting on the map. Beat it to clear \(name)!"
-                     : "New facts join a few at a time. Make all \(total) fluent to unlock the \(name) boss challenge.")
+                     ? "All 5 stars earned — the BOSS CHALLENGE is waiting on the map. Beat it to clear \(name)!"
+                     : "New facts join a few at a time. Earn all 5 stars to unlock the \(name) boss challenge.")
                     .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
             }

@@ -86,7 +86,7 @@ struct SessionView: View {
                 }
                 Spacer()
                 if vm.showsWorldRing {
-                    worldRingChip(vm)
+                    StarChip(fluent: vm.worldFluent, total: vm.worldTotal)
                 }
                 if vm.combo >= 3 {
                     Label("×\(vm.combo)", systemImage: "flame.fill")
@@ -110,26 +110,50 @@ struct SessionView: View {
         .padding(.horizontal, Theme.Metric.pad).padding(.top, 12)
     }
 
-    /// Live world progress: the same green ring as the map node, ticking up the
-    /// moment a fact turns fluent so "how close am I" is always on screen.
-    private func worldRingChip(_ vm: SessionViewModel) -> some View {
-        HStack(spacing: 7) {
-            ZStack {
-                Circle().stroke(.white.opacity(0.3), lineWidth: 3.5)
-                Circle()
-                    .trim(from: 0, to: vm.worldTotal == 0 ? 0 : CGFloat(vm.worldFluent) / CGFloat(vm.worldTotal))
-                    .stroke(Theme.Color.correct, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
+}
+
+/// Live world stars in the session header. When fluency crosses a star threshold
+/// mid-session, the newest star slams in with a bounce and a sparkle burst.
+private struct StarChip: View {
+    let fluent: Int
+    let total: Int
+
+    @State private var shownFilled: Int = 0
+    @State private var earnPulse = false
+
+    var body: some View {
+        let filled = WorldStars.filled(fluent: fluent, total: total)
+        HStack(spacing: 4) {
+            ForEach(0..<WorldStars.starCount, id: \.self) { i in
+                Image(systemName: i < filled ? "star.fill" : "star")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(i < filled
+                        ? AnyShapeStyle(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.35),
+                                                                Color(red: 0.95, green: 0.63, blue: 0.1)],
+                                                       startPoint: .top, endPoint: .bottom))
+                        : AnyShapeStyle(Color.white.opacity(0.4)))
+                    .scaleEffect(earnPulse && i == filled - 1 ? 1.7 : 1)
+                    .rotationEffect(.degrees(earnPulse && i == filled - 1 ? 18 : 0))
             }
-            .frame(width: 22, height: 22)
-            Text("\(vm.worldFluent)/\(vm.worldTotal)")
-                .font(Theme.Font.number(15)).foregroundStyle(.white)
-                .contentTransition(.numericText(value: Double(vm.worldFluent)))
         }
-        .padding(.horizontal, 11).padding(.vertical, 7)
+        .padding(.horizontal, 12).padding(.vertical, 8)
         .background(Capsule().fill(.black.opacity(0.32)))
-        .animation(Theme.Motion.celebrate, value: vm.worldFluent)
-        .accessibilityLabel("\(vm.worldFluent) of \(vm.worldTotal) facts fluent in this world")
+        .overlay {
+            if earnPulse {
+                ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 12)
+                    .frame(width: 160, height: 160)
+            }
+        }
+        .onAppear { shownFilled = filled }
+        .onChange(of: filled) { _, newFilled in
+            guard newFilled > shownFilled else { shownFilled = newFilled; return }
+            shownFilled = newFilled
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.4)) { earnPulse = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                withAnimation(Theme.Motion.snappy) { earnPulse = false }
+            }
+        }
+        .accessibilityLabel("\(filled) of \(WorldStars.starCount) stars in this world")
     }
 }
 

@@ -199,14 +199,6 @@ struct MapView: View {
                         LockedNodeView()
                     }
                     if isCurrent { PulsingRing() }
-                    // Progress toward clearing the current world — the "almost there" cue.
-                    if isCurrent, !cleared, let s = stat, s.total > 0, s.fluentPlus > 0 {
-                        Circle().trim(from: 0, to: CGFloat(s.fluentPlus) / CGFloat(s.total))
-                            .stroke(Theme.Color.correct, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                            .frame(width: 104, height: 104)
-                            .shadow(color: .black.opacity(0.35), radius: 2)
-                    }
                     if cleared {
                         Image(systemName: "checkmark.seal.fill").font(.system(size: 26))
                             .foregroundStyle(Theme.Color.correct)
@@ -219,6 +211,11 @@ struct MapView: View {
             .modifier(Shake(animatableData: world.index == shakeTarget ? shakePhase : 0))
 
             if unlocked {
+                // Star progress — the loud, game-style "how close am I" indicator.
+                // A cleared world always wears all five.
+                WorldStars(fluent: cleared ? (stat?.total ?? 1) : (stat?.fluentPlus ?? 0),
+                           total: stat?.total ?? 1)
+                    .padding(.top, 2)
                 Text(world.name)
                     .font(Theme.Font.label(13)).foregroundStyle(.white)
                     .padding(.horizontal, 10).padding(.vertical, 4)
