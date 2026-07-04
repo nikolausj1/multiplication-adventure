@@ -237,9 +237,12 @@ struct LearningService {
 
         // Cumulative review pool by priority; mastered facts occasionally arrive in
         // inverse form ("3 × ? = 12") once his mastered pool is deep enough.
+        // Recognition-stage facts are excluded: their reviews would be multiple-
+        // choice, breaking the one-input-mode-per-phase promise. They rejoin as
+        // batch facts within a day or two anyway.
         let batchSet = Set(batch)
         let reviewSnaps = snaps
-            .filter { $0.introduced && !batchSet.contains($0.id) }
+            .filter { $0.introduced && $0.stage >= .recall && !batchSet.contains($0.id) }
             .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
                     > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
             .prefix(reviewTarget)

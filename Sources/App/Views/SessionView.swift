@@ -109,7 +109,7 @@ struct SessionView: View {
                 Spacer()
             } else {
                 QuestMeter(progress: vm.isQuest ? vm.questMeter : vm.progress,
-                           complete: vm.questComplete)
+                           complete: vm.questComplete, phase: vm.questPhase)
                     .frame(maxWidth: .infinity)
             }
             if vm.showsWorldRing {
@@ -134,30 +134,81 @@ struct SessionView: View {
 
 }
 
-/// The Quest Meter: a chunky gold bar that fills as the day's work gets done.
-/// Every answer moves it — review nudges, star-ladder work jumps — and it glows
-/// when the quest is complete.
+/// The Quest Meter: a chunky bar that fills as the day's work gets done. Every
+/// answer moves it — review nudges, star-ladder work jumps — and it glows when
+/// the quest is complete. It wears the phase's color (blue warm-up → purple meet
+/// → gold train, the rarity ladder) and takes an electric jolt at each transition:
+/// a white flash, a height pop, and sparks off the fill's leading edge.
 private struct QuestMeter: View {
     let progress: Double
     let complete: Bool
+    var phase: QuestPhase? = nil
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shownPhase: QuestPhase?
+    @State private var pop = false       // brief thickness spring
+    @State private var flash = false     // white sweep over the fill
+    @State private var sparkID = 0       // > 0 → burst exists; bump retriggers
+
+    /// Non-quest days (phase nil) stay gold — the bar means one thing everywhere.
+    private var fillColors: [Color] {
+        switch phase {
+        case .warmup: return [Color(red: 0.45, green: 0.82, blue: 1.0),
+                              Color(red: 0.12, green: 0.5, blue: 0.95)]
+        case .meet:   return [Color(red: 0.78, green: 0.55, blue: 1.0),
+                              Color(red: 0.5, green: 0.24, blue: 0.88)]
+        case .train, .none:
+                      return [Color(red: 1, green: 0.84, blue: 0.35),
+                              Color(red: 0.95, green: 0.6, blue: 0.1)]
+        }
+    }
 
     var body: some View {
         GeometryReader { geo in
+            let fillWidth = progress <= 0.005 ? 0
+                : max(14, geo.size.width * min(progress, 1))
             ZStack(alignment: .leading) {
                 Capsule().fill(.black.opacity(0.38))
                 Capsule()
-                    .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.35),
-                                                  Color(red: 0.95, green: 0.6, blue: 0.1)],
+                    .fill(LinearGradient(colors: fillColors,
                                          startPoint: .top, endPoint: .bottom))
-                    .frame(width: progress <= 0.005 ? 0
-                           : max(14, geo.size.width * min(progress, 1)))
+                    .frame(width: fillWidth)
                     .shadow(color: complete ? Theme.Color.accent.opacity(0.9) : .clear, radius: 6)
+                Capsule().fill(.white)
+                    .frame(width: fillWidth)
+                    .opacity(flash ? 0.85 : 0)
                 Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1.5)
+            }
+            .overlay(alignment: .leading) {
+                if sparkID > 0 {
+                    ParticleBurst(kind: .stars,
+                                  colors: [.white, fillColors[0]],
+                                  count: 10, seed: UInt64(sparkID))
+                        .frame(width: 120, height: 120)
+                        .offset(x: fillWidth - 60, y: -53)
+                        .id(sparkID)
+                        .allowsHitTesting(false)
+                }
             }
         }
         .frame(height: 13)
+        .scaleEffect(y: pop ? 1.5 : 1)
         .animation(Theme.Motion.snappy, value: progress)
         .animation(Theme.Motion.celebrate, value: complete)
+        .animation(.easeInOut(duration: 0.3), value: phase)
+        .onAppear { shownPhase = phase }
+        .onChange(of: phase) { _, newPhase in
+            let jolt = shownPhase != nil && newPhase != nil
+            shownPhase = newPhase
+            guard jolt, !reduceMotion else { return }   // Reduce Motion: crossfade only
+            sparkID += 1
+            flash = true
+            withAnimation(.spring(response: 0.16, dampingFraction: 0.45)) { pop = true }
+            withAnimation(.easeOut(duration: 0.45)) { flash = false }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.55)) { pop = false }
+            }
+        }
         .accessibilityLabel("Quest progress \(Int(min(progress, 1) * 100)) percent")
     }
 }

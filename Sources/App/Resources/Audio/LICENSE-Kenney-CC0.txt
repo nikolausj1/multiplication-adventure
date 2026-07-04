@@ -14,3 +14,7 @@ Remaining CC0 (public domain) sounds:
   https://opengameart.org/content/level-up-power-up-coin-get-13-sounds
 
 No attribution required (CC0), credits kept here out of courtesy.
+
+sfx_phase_zap.wav — synthesized in-house with ffmpeg (noise burst + descending
+chirp), placeholder for the Quest Meter phase-transition jolt. No external
+source; replace with a Kling.ai render when available.

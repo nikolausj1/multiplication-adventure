@@ -1,6 +1,13 @@
 import SwiftUI
 import SwiftData
 
+/// The quest's three rounds. The Quest Meter wears a different color per phase
+/// (blue → purple → gold, the rarity ladder) and jolts at each transition.
+enum QuestPhase: Int, Comparable {
+    case warmup, meet, train
+    static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+}
+
 /// Drives one practice session: serves questions, records answers, re-queues wrong
 /// answers within the session, and surfaces celebrations. The child never chooses
 /// anything (§3) — this object always knows what comes next.
@@ -95,6 +102,20 @@ final class SessionViewModel {
         questMeter = meterHighWater
     }
 
+    /// Current quest phase (quest days with a batch only — review-only days, boss
+    /// fights, and speed/test runs stay nil and the meter stays gold). Monotonic:
+    /// extensions re-add warm-up reps, but the session never "goes back a round."
+    private(set) var questPhase: QuestPhase?
+
+    private func updatePhase() {
+        guard isQuest, bossWorldIndex == nil, let q = current else { return }
+        let raw: QuestPhase = q.movement == .warmup ? .warmup
+            : (q.format == .recognition ? .meet : .train)
+        let advanced = max(questPhase ?? raw, raw)
+        if let old = questPhase, advanced > old { Feedback.fire(.phaseJolt) }
+        questPhase = advanced
+    }
+
     /// Mastered count at session start (the wrap's Master Quest delta).
     private(set) var masteredBefore = 0
 
@@ -132,6 +153,7 @@ final class SessionViewModel {
         questionStart = .now
         if built.isEmpty { stage = .finished }   // e.g. Speed Round with no fluent facts yet
         updateMeter()   // rollover days start the meter pre-filled where yesterday ended
+        updatePhase()   // meter opens already wearing round 1's color (no jolt)
     }
 
     var current: PlannedQuestion? { index < queue.count ? queue[index] : nil }
@@ -159,6 +181,7 @@ final class SessionViewModel {
 
     func beginQuestion() {
         questionStart = .now
+        updatePhase()
         guard auto != .off else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self, self.stage == .asking, let q = self.current else { return }
