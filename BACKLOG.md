@@ -24,9 +24,10 @@ Ideas and deferred work, roughly ordered by value. Nothing here blocks launch.
 - **Re-listen to sfx_milestone** — trimmed from a 10s render; may want a re-cut.
 
 ## Pre-launch logistics (parent tasks)
-- **Apple Developer account decision** — free Apple ID provisioning expires
-  every 7 days (app won't open until re-deployed from Xcode; data survives).
-  $99/yr removes the treadmill and enables TestFlight.
+- **Sign with the paid Apple Developer team** (account confirmed 2026-07-04) —
+  set the team in project.yml (`DEVELOPMENT_TEAM: <team id>`), deploy once by
+  cable; signing then lasts a year. Optional: TestFlight for cable-free updates
+  (needs an App Store Connect app record; internal testing only, no review).
 - **Real-iPad shakedown** — sounds at hardware volume, haptics, touch targets.
 - **Fresh profile before day 1** — wipe dev/test data on the son's iPad.
 - **Watch the first real boss fight** — CRITICAL! visual lands? 85% pass bar
