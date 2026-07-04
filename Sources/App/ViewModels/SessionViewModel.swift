@@ -77,6 +77,9 @@ final class SessionViewModel {
     /// boss/speed/test runs and boss-pending review days.
     private(set) var questBatch: [FactID] = []
     private(set) var starEarnedThisSession = false
+    /// 0-based index of the star earned this session; slams at quest completion.
+    private var earnedStarIndex: Int?
+    private var questEndPending = false   // slam showing; finish() on its dismissal
     /// Ladder charge of today's star in [0, 1] — drives the top progress bar.
     private(set) var questCharge: Double = 0
     var isQuest: Bool { !questBatch.isEmpty }
@@ -235,15 +238,12 @@ final class SessionViewModel {
             worldFluent = service.worldStat(at: worldStatBefore.index).fluent
             let filledNow = WorldStars.filled(fluent: worldFluent, total: worldTotal)
             Feedback.fire(.milestone)   // magic shimmer layered over the coin
-            // Crossing a star threshold takes over the screen (slam-into-socket) —
-            // after a beat, so he SEES the meter surge before the star moment.
+            // Crossing the star threshold just surges the meter; the slam is the
+            // FINALE — it fires at quest completion (see completeQuest), after
+            // the bar is full and gold. Quest Complete is what the slam means.
             if filledNow > filledBefore, showsWorldRing {
                 starEarnedThisSession = true
-                let starIndex = filledNow - 1
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                    guard let self, self.auto != .wrap else { return }   // demo autoplay skips it
-                    self.pendingStarEarned = starIndex
-                }
+                earnedStarIndex = filledNow - 1
             }
         }
         if isQuest { questCharge = Self.charge(of: questBatch, service: service) }
@@ -256,8 +256,9 @@ final class SessionViewModel {
         // A wrong answer re-queues the fact a few slots later (§4.4) — but never
         // across an input-mode boundary: a missed card retries inside the card
         // round, and a keypad retry never splits a card block. The bar's color
-        // must always match the input on screen.
-        if !correct {
+        // must always match the input on screen. Boss fights are one shot per
+        // question — no retries, or victory would be grindable.
+        if !correct, bossWorldIndex == nil {
             var at = min(index + 4, queue.count)
             if q.format == .recognition {
                 var boundary = index + 1
@@ -281,7 +282,9 @@ final class SessionViewModel {
         // Misses wait for an explicit Continue so the reveal actually lands.
         if correct, auto == .off {
             let gen = feedbackGen
-            let delay = (justMastered || justFluent) ? 1.6 : 0.9   // let the ring moment land
+            // Killing blow gets a long beat so the defeat animation plays out.
+            let delay = (bossWorldIndex != nil && correctCount >= bossHPTotal) ? 2.2
+                : (justMastered || justFluent) ? 1.6 : 0.9   // let the ring moment land
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.stage == .feedback, self.feedbackGen == gen,
                       self.pendingCelebration == nil,
@@ -298,9 +301,11 @@ final class SessionViewModel {
         if stage == .feedback, lastCorrect, auto == .off, pendingStarEarned == nil { next() }
     }
 
-    /// Star-earned overlay dismissed; resume the flow.
+    /// Star-earned overlay dismissed. The slam is the quest's finale, so this
+    /// normally rolls straight into the wrap.
     func starEarnedDismissed() {
         pendingStarEarned = nil
+        if questEndPending { finish(); return }
         if stage == .feedback, lastCorrect, auto == .off, pendingCelebration == nil { next() }
     }
 
@@ -314,14 +319,19 @@ final class SessionViewModel {
         index += 1
         lastSelected = nil
 
+        // Boss dies the moment his HP empties — instant victory, no leftover
+        // questions against a corpse.
+        if bossWorldIndex != nil, correctCount >= bossHPTotal {
+            finish(); return
+        }
         if isQuest {
             if starEarnedThisSession && totalAnswered >= floorTarget {
-                finish(); return
+                completeQuest(); return
             }
-            if totalAnswered >= questCeiling { finish(); return }   // star rolls over
+            if totalAnswered >= questCeiling { completeQuest(); return }   // star rolls over
             if index >= queue.count {
                 let ext = service.questExtension(batch: questBatch)
-                if ext.isEmpty { finish() } else {
+                if ext.isEmpty { completeQuest() } else {
                     queue.append(contentsOf: ext)
                     stage = .asking; beginQuestion()
                 }
@@ -333,8 +343,28 @@ final class SessionViewModel {
         stage = .asking; beginQuestion()
     }
 
-    /// Stop early — full credit for what was done (§6).
-    func stop() { if stage != .finished { finish() } }
+    /// Quest over. If a star was earned, the slam overlay is the finale — the
+    /// bar is already full and gold — and the wrap follows its dismissal.
+    private func completeQuest() {
+        if let star = earnedStarIndex, !questEndPending, auto != .wrap {
+            questEndPending = true
+            pendingStarEarned = star
+        } else {
+            finish()
+        }
+    }
+
+    /// Stop early — full credit for what was done (§6); an earned star still
+    /// gets its slam on the way out.
+    func stop() {
+        guard stage != .finished else { return }
+        if isQuest, earnedStarIndex != nil, !questEndPending {
+            stage = .feedback   // ensure a consistent state under the overlay
+            completeQuest()
+        } else {
+            finish()
+        }
+    }
 
     private func finish() {
         stage = .finished

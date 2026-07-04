@@ -12,7 +12,12 @@ struct WorldBackdrop: View {
     var body: some View {
         ZStack {
             if Art.exists(theme.bgImage) {
-                Image(theme.bgImage).resizable().scaledToFill()
+                // Contained fill: the overlay keeps the image's oversize out of
+                // layout, so a 4:3 screen (12.9" iPad) doesn't inflate the ZStack
+                // and push siblings' edges off-screen.
+                Color.clear
+                    .overlay(Image(theme.bgImage).resizable().scaledToFill())
+                    .clipped()
             } else {
                 LinearGradient(colors: [theme.primary, theme.deep],
                                startPoint: .topLeading, endPoint: .bottomTrailing)

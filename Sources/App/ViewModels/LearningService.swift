@@ -181,7 +181,7 @@ struct LearningService {
         guard !remaining.isEmpty else { return [] }
         var rng = SplitMix64(seed: UInt64(bitPattern: Int64(now.timeIntervalSince1970)) &+ 99)
         return assembleQuest(batch: remaining, byID: byID, snaps: snaps, now: now,
-                             rng: &rng, reviewTarget: 4)
+                             rng: &rng, reviewTarget: 4, includeWarmup: false)
     }
 
     /// Ladder completion of a fact toward fluent, in [0, 1] (5 total rungs).
@@ -203,7 +203,8 @@ struct LearningService {
     /// → TRAIN (typed: batch reps woven with cumulative review).
     private func assembleQuest(batch: [FactID], byID: [FactID: FactSnapshot],
                                snaps: [FactSnapshot], now: Date,
-                               rng: inout SplitMix64, reviewTarget: Int = 25) -> [PlannedQuestion] {
+                               rng: inout SplitMix64, reviewTarget: Int = 25,
+                               includeWarmup: Bool = true) -> [PlannedQuestion] {
         let fluencyTimes = snaps.flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
         let threshold = FluencyThreshold.current(recentFluencyTimes: fluencyTimes)
         let masteredCount = snaps.filter { $0.stage == .mastered }.count
@@ -255,12 +256,16 @@ struct LearningService {
         }.makeIterator()
 
         var queue: [PlannedQuestion] = []
-        // WARM-UP: two easy typed reviews to get hands moving.
-        for _ in 0..<2 {
-            if let r = reviews.next() {
-                queue.append(PlannedQuestion(prompt: r.prompt, format: r.format,
-                                             movement: .warmup, options: r.options,
-                                             timed: r.timed, missingFactor: false))
+        // WARM-UP: three easy typed reviews to get hands moving — long enough
+        // that the blue phase reads as a round, not a flicker. Extensions skip
+        // it ("warming up" mid-session is nonsense, and it kept the bar honest).
+        if includeWarmup {
+            for _ in 0..<3 {
+                if let r = reviews.next() {
+                    queue.append(PlannedQuestion(prompt: r.prompt, format: r.format,
+                                                 movement: .warmup, options: r.options,
+                                                 timed: r.timed, missingFactor: false))
+                }
             }
         }
         // MEET: all of today's multiple-choice, facts alternating.

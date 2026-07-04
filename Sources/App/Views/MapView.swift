@@ -94,7 +94,11 @@ struct MapView: View {
     private var mapBackdrop: some View {
         ZStack {
             if Art.exists("map_bg") {
-                Image("map_bg").resizable().scaledToFill()
+                // Contained fill (see WorldBackdrop): keeps the image's overflow
+                // out of layout so 4:3 screens don't push siblings off-screen.
+                Color.clear
+                    .overlay(Image("map_bg").resizable().scaledToFill())
+                    .clipped()
             } else {
                 LinearGradient(colors: [Theme.Color.bg, Theme.Color.primary.opacity(0.25)],
                                startPoint: .top, endPoint: .bottom)
