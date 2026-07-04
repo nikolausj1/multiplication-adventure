@@ -9,7 +9,8 @@ settings:
   base:
     SWIFT_VERSION: "5.0"
     TARGETED_DEVICE_FAMILY: "2"            # iPad
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "6A4J2GTB6F"     # Justin Nikolaus (paid team — signing lasts a year)
+    CODE_SIGN_STYLE: Automatic
     GENERATE_INFOPLIST_FILE: "YES"
     CURRENT_PROJECT_VERSION: "1"
     MARKETING_VERSION: "1.0"
