@@ -87,94 +87,77 @@ struct SessionView: View {
     }
 
     private func topBar(_ vm: SessionViewModel) -> some View {
-        VStack(spacing: 10) {
-            HStack {
-                Button { vm.stop() } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 30)).foregroundStyle(.white)
-                        .frame(width: 48, height: 48).contentShape(Rectangle())
-                        .shadow(radius: 3)
-                }
-                .accessibilityLabel("End session")
-                Spacer()
-                if vm.bossWorldIndex != nil {
-                    Label(theme.world.bossName.uppercased(), systemImage: "flag.checkered")
-                        .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white)
-                        .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(Capsule().fill(
-                            LinearGradient(colors: [Color(red: 0.85, green: 0.25, blue: 0.2),
-                                                    Color(red: 0.6, green: 0.1, blue: 0.15)],
-                                           startPoint: .top, endPoint: .bottom)))
-                        .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
-                } else {
-                    Text(vm.movementLabel.uppercased())
-                        .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white).shadow(radius: 2)
-                }
-                Spacer()
-                if vm.showsWorldRing {
-                    StarChip(fluent: vm.worldFluent, total: vm.worldTotal)
-                }
-                if vm.combo >= 3 {
-                    Label("×\(vm.combo)", systemImage: "flame.fill")
-                        .font(Theme.Font.number(16)).foregroundStyle(.white)
-                        .padding(.horizontal, 11).padding(.vertical, 6)
-                        .background(Capsule().fill(
-                            LinearGradient(colors: [Color(red: 1, green: 0.55, blue: 0.15),
-                                                    Color(red: 0.95, green: 0.3, blue: 0.1)],
-                                           startPoint: .top, endPoint: .bottom)))
-                        .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
-                        .transition(.scale(scale: 0.4).combined(with: .opacity))
-                        .contentTransition(.numericText(value: Double(vm.combo)))
-                }
+        HStack(spacing: 14) {
+            Button { vm.stop() } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 30)).foregroundStyle(.white)
+                    .frame(width: 48, height: 48).contentShape(Rectangle())
+                    .shadow(radius: 3)
             }
-            .animation(Theme.Motion.celebrate, value: vm.combo)
-            // Boss fights: the guardian's HP bar is the progress — no second meter.
-            if vm.bossWorldIndex == nil {
+            .accessibilityLabel("End session")
+            if vm.bossWorldIndex != nil {
+                // Boss fights: the guardian's HP bar is the progress — no meter here.
+                Spacer()
+                Label(theme.world.bossName.uppercased(), systemImage: "flag.checkered")
+                    .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white)
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Capsule().fill(
+                        LinearGradient(colors: [Color(red: 0.85, green: 0.25, blue: 0.2),
+                                                Color(red: 0.6, green: 0.1, blue: 0.15)],
+                                       startPoint: .top, endPoint: .bottom)))
+                    .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
+                Spacer()
+            } else {
                 QuestMeter(progress: vm.isQuest ? vm.questMeter : vm.progress,
                            complete: vm.questComplete)
+                    .frame(maxWidth: .infinity)
+            }
+            if vm.showsWorldRing {
+                StarChip(fluent: vm.worldFluent, total: vm.worldTotal)
+            }
+            if vm.combo >= 3 {
+                Label("×\(vm.combo)", systemImage: "flame.fill")
+                    .font(Theme.Font.number(16)).foregroundStyle(.white)
+                    .padding(.horizontal, 11).padding(.vertical, 6)
+                    .background(Capsule().fill(
+                        LinearGradient(colors: [Color(red: 1, green: 0.55, blue: 0.15),
+                                                Color(red: 0.95, green: 0.3, blue: 0.1)],
+                                       startPoint: .top, endPoint: .bottom)))
+                    .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
+                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    .contentTransition(.numericText(value: Double(vm.combo)))
             }
         }
+        .animation(Theme.Motion.celebrate, value: vm.combo)
         .padding(.horizontal, Theme.Metric.pad).padding(.top, 12)
     }
 
 }
 
-/// The Quest Meter: a chunky gold bar that fills toward today's star. Every answer
-/// moves it — review nudges, star-ladder work jumps — and the star at the end
-/// ignites when the quest is complete.
+/// The Quest Meter: a chunky gold bar that fills as the day's work gets done.
+/// Every answer moves it — review nudges, star-ladder work jumps — and it glows
+/// when the quest is complete.
 private struct QuestMeter: View {
     let progress: Double
     let complete: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.black.opacity(0.38))
-                    Capsule()
-                        .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.35),
-                                                      Color(red: 0.95, green: 0.6, blue: 0.1)],
-                                             startPoint: .top, endPoint: .bottom))
-                        .frame(width: progress <= 0.005 ? 0
-                               : max(14, geo.size.width * min(progress, 1)))
-                    Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1.5)
-                }
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.black.opacity(0.38))
+                Capsule()
+                    .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.35),
+                                                  Color(red: 0.95, green: 0.6, blue: 0.1)],
+                                         startPoint: .top, endPoint: .bottom))
+                    .frame(width: progress <= 0.005 ? 0
+                           : max(14, geo.size.width * min(progress, 1)))
+                    .shadow(color: complete ? Theme.Color.accent.opacity(0.9) : .clear, radius: 6)
+                Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1.5)
             }
-            .frame(height: 13)
-            .animation(Theme.Motion.snappy, value: progress)
-
-            StarGlyph(filled: true, size: 26)
-                .saturation(complete ? 1 : 0.15)
-                .opacity(complete ? 1 : 0.5)
-                .scaleEffect(complete ? 1.2 : 1)
-                .overlay {
-                    if complete {
-                        ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 10)
-                            .frame(width: 130, height: 130)
-                    }
-                }
-                .animation(Theme.Motion.celebrate, value: complete)
         }
+        .frame(height: 13)
+        .animation(Theme.Motion.snappy, value: progress)
+        .animation(Theme.Motion.celebrate, value: complete)
         .accessibilityLabel("Quest progress \(Int(min(progress, 1) * 100)) percent")
     }
 }
