@@ -115,18 +115,8 @@ struct SessionView: View {
             if vm.showsWorldRing {
                 StarChip(fluent: vm.worldFluent, total: vm.worldTotal)
             }
-            if vm.combo >= 3 {
-                Label("×\(vm.combo)", systemImage: "flame.fill")
-                    .font(Theme.Font.number(16)).foregroundStyle(.white)
-                    .padding(.horizontal, 11).padding(.vertical, 6)
-                    .background(Capsule().fill(
-                        LinearGradient(colors: [Color(red: 1, green: 0.55, blue: 0.15),
-                                                Color(red: 0.95, green: 0.3, blue: 0.1)],
-                                       startPoint: .top, endPoint: .bottom)))
-                    .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
-                    .transition(.scale(scale: 0.4).combined(with: .opacity))
-                    .contentTransition(.numericText(value: Double(vm.combo)))
-            }
+            // Always present so the header never reflows — dim until it ignites at 3.
+            ComboChip(combo: vm.combo)
         }
         .animation(Theme.Motion.celebrate, value: vm.combo)
         .padding(.horizontal, Theme.Metric.pad).padding(.top, 12)
@@ -135,33 +125,38 @@ struct SessionView: View {
 }
 
 /// The Quest Meter: a chunky bar that fills as the day's work gets done. Every
-/// answer moves it — review nudges, star-ladder work jumps — and it glows when
-/// the quest is complete. It wears the phase's color (blue warm-up → purple meet
-/// → gold train, the rarity ladder) and takes an electric jolt at each transition:
-/// a white flash, a height pop, and sparks off the fill's leading edge.
+/// answer moves it — review nudges, star-ladder work jumps. Each round wears its
+/// own color (gold warm-up → green meet → blue train) and the bar takes an
+/// electric jolt at each transition: a white flash, a height pop, and sparks off
+/// the fill's leading edge. When the quest completes, the whole bar flips to
+/// glowing gold — the bar becomes the prize.
 private struct QuestMeter: View {
     let progress: Double
     let complete: Bool
     var phase: QuestPhase? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Colors follow this, not `phase` directly, so the color arrives WITH the
+    /// jolt (both delayed a beat past the question swap, where eyes can catch it).
     @State private var shownPhase: QuestPhase?
+    @State private var appeared = false
     @State private var pop = false       // brief thickness spring
     @State private var flash = false     // white sweep over the fill
     @State private var sparkID = 0       // > 0 → burst exists; bump retriggers
 
-    /// Non-quest days (phase nil) stay gold — the bar means one thing everywhere.
+    /// Non-quest days (phase nil) stay gold — and completion always flips to gold.
     private var fillColors: [Color] {
-        switch phase {
-        case .warmup: return [Color(red: 0.45, green: 0.82, blue: 1.0),
+        if complete { return Self.gold }
+        switch shownPhase {
+        case .warmup, .none: return Self.gold
+        case .meet:   return [Color(red: 0.55, green: 0.88, blue: 0.45),
+                              Color(red: 0.15, green: 0.62, blue: 0.25)]
+        case .train:  return [Color(red: 0.45, green: 0.82, blue: 1.0),
                               Color(red: 0.12, green: 0.5, blue: 0.95)]
-        case .meet:   return [Color(red: 0.78, green: 0.55, blue: 1.0),
-                              Color(red: 0.5, green: 0.24, blue: 0.88)]
-        case .train, .none:
-                      return [Color(red: 1, green: 0.84, blue: 0.35),
-                              Color(red: 0.95, green: 0.6, blue: 0.1)]
         }
     }
+    private static let gold = [Color(red: 1, green: 0.84, blue: 0.35),
+                               Color(red: 0.95, green: 0.6, blue: 0.1)]
 
     var body: some View {
         GeometryReader { geo in
@@ -176,40 +171,77 @@ private struct QuestMeter: View {
                     .shadow(color: complete ? Theme.Color.accent.opacity(0.9) : .clear, radius: 6)
                 Capsule().fill(.white)
                     .frame(width: fillWidth)
-                    .opacity(flash ? 0.85 : 0)
+                    .opacity(flash ? 0.9 : 0)
                 Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1.5)
             }
             .overlay(alignment: .leading) {
                 if sparkID > 0 {
                     ParticleBurst(kind: .stars,
                                   colors: [.white, fillColors[0]],
-                                  count: 10, seed: UInt64(sparkID))
-                        .frame(width: 120, height: 120)
-                        .offset(x: fillWidth - 60, y: -53)
+                                  count: 16, seed: UInt64(sparkID))
+                        .frame(width: 150, height: 150)
+                        .offset(x: fillWidth - 75, y: -68)
                         .id(sparkID)
                         .allowsHitTesting(false)
                 }
             }
         }
         .frame(height: 13)
-        .scaleEffect(y: pop ? 1.5 : 1)
+        .scaleEffect(y: pop ? 1.9 : 1)
         .animation(Theme.Motion.snappy, value: progress)
+        .animation(.easeInOut(duration: 0.3), value: shownPhase)
         .animation(Theme.Motion.celebrate, value: complete)
-        .animation(.easeInOut(duration: 0.3), value: phase)
-        .onAppear { shownPhase = phase }
+        .onAppear { shownPhase = phase; appeared = true }
         .onChange(of: phase) { _, newPhase in
-            let jolt = shownPhase != nil && newPhase != nil
-            shownPhase = newPhase
-            guard jolt, !reduceMotion else { return }   // Reduce Motion: crossfade only
-            sparkID += 1
-            flash = true
-            withAnimation(.spring(response: 0.16, dampingFraction: 0.45)) { pop = true }
-            withAnimation(.easeOut(duration: 0.45)) { flash = false }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.55)) { pop = false }
+            guard appeared, newPhase != nil, newPhase != shownPhase else {
+                shownPhase = newPhase; return
+            }
+            // Wait out the question swap so the jolt lands where eyes can see it.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                shownPhase = newPhase
+                jolt()
             }
         }
+        .onChange(of: complete) { _, done in
+            if done { jolt() }   // the gold flip hits like a transition too
+        }
         .accessibilityLabel("Quest progress \(Int(min(progress, 1) * 100)) percent")
+    }
+
+    private func jolt() {
+        guard !reduceMotion else { return }   // Reduce Motion: color crossfade only
+        sparkID += 1
+        flash = true
+        withAnimation(.spring(response: 0.16, dampingFraction: 0.4)) { pop = true }
+        withAnimation(.easeOut(duration: 0.5)) { flash = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.5)) { pop = false }
+        }
+    }
+}
+
+/// In-session combo flame. Always rendered (fixed slot — the header never
+/// reflows); dim while the streak builds, ignites orange at 3+.
+private struct ComboChip: View {
+    let combo: Int
+    private var lit: Bool { combo >= 3 }
+
+    var body: some View {
+        Label("×\(combo)", systemImage: "flame.fill")
+            .font(Theme.Font.number(16))
+            .foregroundStyle(lit ? .white : .white.opacity(0.45))
+            .padding(.horizontal, 11).padding(.vertical, 6)
+            .frame(minWidth: 64)
+            .background(Capsule().fill(lit
+                ? AnyShapeStyle(LinearGradient(colors: [Color(red: 1, green: 0.55, blue: 0.15),
+                                                        Color(red: 0.95, green: 0.3, blue: 0.1)],
+                                               startPoint: .top, endPoint: .bottom))
+                : AnyShapeStyle(Color.black.opacity(0.32))))
+            .shadow(color: .black.opacity(lit ? 0.3 : 0), radius: 3, y: 2)
+            .scaleEffect(lit ? 1 : 0.94)
+            .contentTransition(.numericText(value: Double(combo)))
+            .animation(Theme.Motion.celebrate, value: lit)
+            .accessibilityLabel("Streak \(combo) in a row")
     }
 }
 

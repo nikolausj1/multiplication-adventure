@@ -234,10 +234,15 @@ final class SessionViewModel {
             worldFluent = service.worldStat(at: worldStatBefore.index).fluent
             let filledNow = WorldStars.filled(fluent: worldFluent, total: worldTotal)
             Feedback.fire(.milestone)   // magic shimmer layered over the coin
-            // Crossing a star threshold takes over the screen (slam-into-socket).
+            // Crossing a star threshold takes over the screen (slam-into-socket) —
+            // after a beat, so he SEES the meter surge before the star moment.
             if filledNow > filledBefore, showsWorldRing {
-                pendingStarEarned = filledNow - 1
                 starEarnedThisSession = true
+                let starIndex = filledNow - 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                    guard let self, self.auto != .wrap else { return }   // demo autoplay skips it
+                    self.pendingStarEarned = starIndex
+                }
             }
         }
         if isQuest { questCharge = Self.charge(of: questBatch, service: service) }
