@@ -15,6 +15,5 @@ Remaining CC0 (public domain) sounds:
 
 No attribution required (CC0), credits kept here out of courtesy.
 
-sfx_phase_zap.wav — synthesized in-house with ffmpeg (noise burst + descending
-chirp), placeholder for the Quest Meter phase-transition jolt. No external
-source; replace with a Kling.ai render when available.
+sfx_phase_zap.wav — user-supplied Kling.ai render (sfx_electricZap.mp3 in
+_inbox), trimmed/leveled; the Quest Meter phase-transition jolt.
