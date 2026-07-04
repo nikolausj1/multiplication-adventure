@@ -11,8 +11,19 @@ public struct PlannedQuestion: Sendable, Equatable {
     public let movement: SessionMovement
     public let options: [Int]?           // populated for recognition
     public let timed: Bool               // fluency-format questions are timed
+    /// Inverse form ("a × ? = product"): the typed answer is the hidden factor.
+    /// Served only as review for mastered facts — division readiness in disguise.
+    public var missingFactor: Bool = false
 
     public var fact: FactID { prompt.fact }
+
+    /// What the child must type/tap to be correct.
+    public var expectedAnswer: Int { missingFactor ? prompt.secondFactor : prompt.answer }
+
+    /// The plaque text, e.g. "3 × 4" or "3 × ? = 12".
+    public var displayText: String {
+        missingFactor ? "\(prompt.firstFactor) × ? = \(prompt.answer)" : prompt.text
+    }
 }
 
 public struct SessionConfig: Sendable {

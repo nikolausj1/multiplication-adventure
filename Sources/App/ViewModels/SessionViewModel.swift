@@ -143,10 +143,12 @@ final class SessionViewModel {
     func answer(_ value: Int) {
         guard stage == .asking, let q = current else { return }
         let rt = Date.now.timeIntervalSince(questionStart)
-        let correct = value == q.prompt.answer
+        let correct = value == q.expectedAnswer
 
+        // Inverse-form answers are naturally slower; keep them out of the speed baseline.
         let result = service.record(prompt: q.prompt, format: q.format,
-                                    correct: correct, responseTime: rt)
+                                    correct: correct, responseTime: rt,
+                                    countsTime: !q.missingFactor)
         touched.insert(q.fact)
         totalAnswered += 1
         if correct { correctCount += 1 }

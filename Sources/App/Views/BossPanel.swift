@@ -8,6 +8,8 @@ struct BossPanel: View {
     let hits: Int
     let hpTotal: Int
 
+    private var bossName: String { theme.world.bossName }
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shakePhase: CGFloat = 0
     @State private var burst = 0
@@ -50,9 +52,9 @@ struct BossPanel: View {
                 .frame(height: 16)
                 .animation(Theme.Motion.snappy, value: hpFraction)
 
-                Text(defeated ? "GUARDIAN DEFEATED!" : "GUARDIAN")
-                    .font(Theme.Font.label(12)).tracking(1.5)
-                    .foregroundStyle(defeated ? Theme.Color.accent : .white.opacity(0.85))
+                Text(defeated ? "\(bossName.uppercased()) DEFEATED!" : bossName.uppercased())
+                    .font(Theme.Font.label(13)).tracking(1.5)
+                    .foregroundStyle(defeated ? Theme.Color.accent : .white.opacity(0.9))
                     .shadow(color: .black.opacity(0.6), radius: 2, y: 1)
             }
             .padding(.horizontal, 26)
@@ -63,7 +65,7 @@ struct BossPanel: View {
             withAnimation(.easeInOut(duration: 0.4)) { shakePhase += 1 }
             burst += 1
         }
-        .accessibilityLabel(defeated ? "Guardian defeated"
-                            : "Guardian health \(Int(hpFraction * 100)) percent")
+        .accessibilityLabel(defeated ? "\(bossName) defeated"
+                            : "\(bossName) health \(Int(hpFraction * 100)) percent")
     }
 }

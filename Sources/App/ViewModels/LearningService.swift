@@ -179,38 +179,51 @@ struct LearningService {
         return Double(done) / 5.0
     }
 
-    /// Interleaves each batch fact's remaining ladder reps with review questions.
+    /// Missing-factor review: 1 question in `missingFactorDenominator` (mastered
+    /// facts only, once the mastered pool is deep enough). Static so a debug launch
+    /// arg can force it for previews.
+    static var missingFactorDenominator: UInt64 = 6
+    static let missingFactorMinMastered = 15
+
+    /// Builds the quest in three phases so the input mode never thrashes:
+    /// WARM-UP (typed review) → MEET (all multiple-choice for today's new facts)
+    /// → TRAIN (typed: batch reps woven with cumulative review).
     private func assembleQuest(batch: [FactID], byID: [FactID: FactSnapshot],
                                snaps: [FactSnapshot], now: Date,
                                rng: inout SplitMix64, reviewTarget: Int = 25) -> [PlannedQuestion] {
         let fluencyTimes = snaps.flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
         let threshold = FluencyThreshold.current(recentFluencyTimes: fluencyTimes)
+        let masteredCount = snaps.filter { $0.stage == .mastered }.count
 
-        func question(_ id: FactID, format: MasteryStage, movement: SessionMovement) -> PlannedQuestion {
+        func question(_ id: FactID, format: MasteryStage, movement: SessionMovement,
+                      missingFactor: Bool = false) -> PlannedQuestion {
             let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
             let options = format == .recognition
                 ? DistractorGenerator.options(for: prompt, seed: rng.next()) : nil
             return PlannedQuestion(prompt: prompt, format: format, movement: movement,
-                                   options: options, timed: format == .fluency)
+                                   options: options, timed: format == .fluency && !missingFactor,
+                                   missingFactor: missingFactor)
         }
 
-        // Remaining ladder reps per batch fact (2 recognition, then 3 recall).
-        let reps: [[PlannedQuestion]] = batch.map { id in
+        // Ladder reps per batch fact, split by input mode.
+        var mcReps: [[PlannedQuestion]] = []
+        var typedReps: [[PlannedQuestion]] = []
+        for id in batch {
             let s = byID[id]
-            var list: [PlannedQuestion] = []
             let stage = s?.stage ?? .recognition
             if stage == .recognition || !(s?.introduced ?? false) {
                 let mcLeft = max(0, 2 - (s?.recognitionStreak ?? 0))
-                list += (0..<mcLeft).map { _ in question(id, format: .recognition, movement: .core) }
-                list += (0..<3).map { _ in question(id, format: .recall, movement: .core) }
+                mcReps.append((0..<mcLeft).map { _ in question(id, format: .recognition, movement: .core) })
+                typedReps.append((0..<3).map { _ in question(id, format: .recall, movement: .core) })
             } else {
+                mcReps.append([])
                 let left = max(1, 3 - (s?.recallCorrect ?? 0))
-                list += (0..<left).map { _ in question(id, format: .recall, movement: .core) }
+                typedReps.append((0..<left).map { _ in question(id, format: .recall, movement: .core) })
             }
-            return list
         }
 
-        // Cumulative review pool by priority (everything introduced, batch excluded).
+        // Cumulative review pool by priority; mastered facts occasionally arrive in
+        // inverse form ("3 × ? = 12") once his mastered pool is deep enough.
         let batchSet = Set(batch)
         let reviewSnaps = snaps
             .filter { $0.introduced && !batchSet.contains($0.id) }
@@ -218,19 +231,33 @@ struct LearningService {
                     > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
             .prefix(reviewTarget)
         var reviews = reviewSnaps.map { s in
-            question(s.id, format: s.stage == .mastered ? .fluency : s.stage, movement: .review)
+            if s.stage == .mastered, masteredCount >= Self.missingFactorMinMastered,
+               rng.next() % Self.missingFactorDenominator == 0 {
+                return question(s.id, format: .recall, movement: .review, missingFactor: true)
+            }
+            return question(s.id, format: s.stage == .mastered ? .fluency : s.stage, movement: .review)
         }.makeIterator()
 
         var queue: [PlannedQuestion] = []
-        // Two review questions lead as a warm-up when available.
-        for _ in 0..<2 { if let r = reviews.next() { queue.append(r) } }
-        // Round-robin the batch reps; a review after each rep keeps same-fact spacing.
-        let gap = batch.count == 1 ? 2 : 1
-        let maxReps = reps.map(\.count).max() ?? 0
-        for round in 0..<maxReps {
-            for factReps in reps where round < factReps.count {
+        // WARM-UP: two easy typed reviews to get hands moving.
+        for _ in 0..<2 {
+            if let r = reviews.next() {
+                queue.append(PlannedQuestion(prompt: r.prompt, format: r.format,
+                                             movement: .warmup, options: r.options,
+                                             timed: r.timed, missingFactor: false))
+            }
+        }
+        // MEET: all of today's multiple-choice, facts alternating.
+        let mcMax = mcReps.map(\.count).max() ?? 0
+        for round in 0..<mcMax {
+            for factReps in mcReps where round < factReps.count { queue.append(factReps[round]) }
+        }
+        // TRAIN: typed batch reps round-robin, a review between for spacing.
+        let typedMax = typedReps.map(\.count).max() ?? 0
+        for round in 0..<typedMax {
+            for factReps in typedReps where round < factReps.count {
                 queue.append(factReps[round])
-                for _ in 0..<gap { if let r = reviews.next() { queue.append(r) } }
+                if let r = reviews.next() { queue.append(r) }
             }
         }
         // Top up with review so a quest is never a drive-by (floor ~15 where possible).
@@ -324,7 +351,7 @@ struct LearningService {
     }
 
     func record(prompt: OrientedPrompt, format: MasteryStage, correct: Bool,
-                responseTime: Double, now: Date = .now) -> AnswerResult {
+                responseTime: Double, countsTime: Bool = true, now: Date = .now) -> AnswerResult {
         let p = activeProfile()
         guard let factRow = fact(prompt.fact) else {
             return AnswerResult(correct: correct, xp: 0, becameFluent: false,
@@ -336,7 +363,8 @@ struct LearningService {
 
         let outcome = PromotionEngine.apply(to: factRow.snapshot, correct: correct,
                                             responseTime: responseTime,
-                                            fluencyThreshold: threshold, now: now)
+                                            fluencyThreshold: threshold, now: now,
+                                            countsTime: countsTime)
         factRow.apply(outcome.snapshot)
 
         let frac = Double(masteredCount()) / Double(FactUniverse.count)
@@ -382,16 +410,18 @@ struct LearningService {
             rec.profile = p
             context.insert(rec)
             let accuracy = questionCount == 0 ? 0 : Double(correctCount) / Double(questionCount)
-            let name = WorldCatalog.worlds[safe: bossWorld]?.name ?? "World \(bossWorld + 1)"
+            let world = WorldCatalog.worlds[safe: bossWorld]
+            let name = world?.name ?? "World \(bossWorld + 1)"
+            let boss = world?.bossName ?? "Guardian"
             if accuracy >= Self.bossPassAccuracy, !p.clearedWorlds.contains(bossWorld) {
                 p.markWorldCleared(bossWorld)
                 let milestone = MilestoneRecord(kindLabel: "Cleared \(name)",
-                                                detail: "Boss challenge won", tier: .t3, earnedDate: now)
+                                                detail: "Defeated the \(boss)", tier: .t3, earnedDate: now)
                 milestone.profile = p
                 context.insert(milestone)
                 try? context.save()
                 return Celebration(tier: .t3, headline: "\(name) cleared!",
-                                   lines: ["Boss challenge won — the trail continues!"])
+                                   lines: ["The \(boss) has fallen — the trail continues!"])
             }
             try? context.save()
             return nil   // wrap shows the encouraging retry state

@@ -105,13 +105,13 @@ struct WrapView: View {
 
         VStack(spacing: 8) {
             if let bossWorld = vm.bossWorldIndex {
-                let bossName = WorldCatalog.worlds[safe: bossWorld]?.name ?? "World"
+                let boss = WorldCatalog.worlds[safe: bossWorld]?.bossName ?? "Guardian"
                 if vm.bossPassed {
-                    Text("You beat the \(bossName) boss — the next world is revealed on the map!")
+                    Text("You defeated the \(boss) — the next world is revealed on the map!")
                         .font(Theme.Font.body()).foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                 } else {
-                    Text("\(vm.correctCount) of \(vm.totalAnswered) — you need \(Int(LearningService.bossPassAccuracy * 100))%. Warm up and challenge the boss again — it costs nothing to retry!")
+                    Text("The \(boss) held you off — \(vm.correctCount) of \(vm.totalAnswered), and you need \(Int(LearningService.bossPassAccuracy * 100))%. Train up and challenge it again — retries are free!")
                         .font(Theme.Font.body()).foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                 }

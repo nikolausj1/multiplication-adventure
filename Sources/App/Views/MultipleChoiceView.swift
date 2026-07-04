@@ -15,7 +15,7 @@ struct MultipleChoiceView: View {
 
     var body: some View {
         VStack(spacing: 26) {
-            PromptText(question.prompt)
+            PromptText(question.displayText)
             LazyVGrid(columns: columns, spacing: 18) {
                 ForEach(question.options ?? [], id: \.self) { option in
                     optionButton(option)
@@ -70,8 +70,8 @@ struct MultipleChoiceView: View {
 /// a soft dark blob sits behind the numeral over the busy frame centers.
 struct PromptText: View {
     @Environment(\.worldTheme) private var theme
-    let prompt: OrientedPrompt
-    init(_ p: OrientedPrompt) { prompt = p }
+    let text: String
+    init(_ text: String) { self.text = text }
 
     var body: some View {
         if Art.exists(theme.buttonImage) {
@@ -94,7 +94,7 @@ struct PromptText: View {
     }
 
     private var numeral: some View {
-        Text(prompt.text)
+        Text(text)
             .font(Theme.Font.display(58))
             .foregroundStyle(.white)
             .shadow(color: .black.opacity(0.55), radius: 3, y: 2)

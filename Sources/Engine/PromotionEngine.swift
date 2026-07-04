@@ -16,12 +16,15 @@ public enum PromotionEngine {
         public var lapsed: Bool               // a mastered fact slipped
     }
 
+    /// `countsTime: false` records correctness but keeps the response time out of
+    /// the speed baseline (used for inverse-form questions, which are naturally slower).
     public static func apply(
         to s: FactSnapshot,
         correct: Bool,
         responseTime: Double,
         fluencyThreshold: Double,
-        now: Date
+        now: Date,
+        countsTime: Bool = true
     ) -> Outcome {
         var f = s
         f.introduced = true
@@ -31,11 +34,13 @@ public enum PromotionEngine {
 
         if correct {
             f.totalCorrect += 1
-            f.recentTimes.append(responseTime)
-            if f.recentTimes.count > recentTimesCap {
-                f.recentTimes.removeFirst(f.recentTimes.count - recentTimesCap)
+            if countsTime {
+                f.recentTimes.append(responseTime)
+                if f.recentTimes.count > recentTimesCap {
+                    f.recentTimes.removeFirst(f.recentTimes.count - recentTimesCap)
+                }
+                f.averageTime = f.recentTimes.reduce(0, +) / Double(f.recentTimes.count)
             }
-            f.averageTime = f.recentTimes.reduce(0, +) / Double(f.recentTimes.count)
 
             let promoted = LeitnerScheduler.promote(box: f.box, from: now)
             f.box = promoted.box

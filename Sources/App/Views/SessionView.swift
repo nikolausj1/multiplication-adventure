@@ -97,7 +97,7 @@ struct SessionView: View {
                 .accessibilityLabel("End session")
                 Spacer()
                 if vm.bossWorldIndex != nil {
-                    Label("BOSS CHALLENGE", systemImage: "flag.checkered")
+                    Label(theme.world.bossName.uppercased(), systemImage: "flag.checkered")
                         .font(Theme.Font.label(13)).tracking(1.5).foregroundStyle(.white)
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(Capsule().fill(

@@ -27,7 +27,7 @@ struct OpenResponseView: View {
                 }
             }
 
-            PromptText(question.prompt)
+            PromptText(question.displayText)
 
             entryField
 
