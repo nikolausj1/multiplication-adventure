@@ -37,7 +37,7 @@ struct BossPanel: View {
                 }
                 .shadow(color: .black.opacity(0.5), radius: 14, y: 8)
 
-            VStack(spacing: 5) {
+            VStack(spacing: 12) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(.black.opacity(0.45))
@@ -53,9 +53,9 @@ struct BossPanel: View {
                 .animation(Theme.Motion.snappy, value: hpFraction)
 
                 Text(defeated ? "\(bossName.uppercased()) DEFEATED!" : bossName.uppercased())
-                    .font(Theme.Font.label(13)).tracking(1.5)
-                    .foregroundStyle(defeated ? Theme.Color.accent : .white.opacity(0.9))
-                    .shadow(color: .black.opacity(0.6), radius: 2, y: 1)
+                    .font(Theme.Font.label(18)).tracking(2)
+                    .foregroundStyle(defeated ? Theme.Color.accent : .white.opacity(0.95))
+                    .shadow(color: .black.opacity(0.7), radius: 3, y: 2)
             }
             .padding(.horizontal, 26)
         }
