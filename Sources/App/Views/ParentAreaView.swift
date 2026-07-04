@@ -88,14 +88,14 @@ struct ParentAreaView: View {
     private var howItWorksCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("How progress works").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
-            explainRow("rectangle.grid.2x2.fill",
-                       "Each fact climbs a ladder: 2 correct as multiple choice (both on its first day), then 3 correct typed across later sessions → fluent. That spacing is what makes facts stick — about 4 sessions per fact.")
+            explainRow("star.fill",
+                       "Every day is one QUEST: the app picks the facts for today's star and drills each one up its ladder (2 multiple-choice + 3 typed), mixed with review of everything learned so far. The quest ends when the star slams in — roughly 4–12 minutes, longer in bigger worlds.")
             explainRow("map.fill",
-                       "Worlds grow along the trail: Highland Trail has just 6 facts (quick first win); later worlds have 10–23. Clearing one world usually takes several short sessions.")
-            explainRow("checkmark.seal.fill",
-                       "When every fact in a world is fluent, it clears and the next world unlocks. Facts keep going to mastered (fast answers on 2 different days); 100% mastered earns the certificate.")
-            explainRow("bolt.fill",
-                       "Playing more than once a day speeds up everything except the final mastery step, which needs separate days.")
+                       "Each world has 5 stars ≈ one star per day. A hard day rolls over (\"star 80% charged — finish tomorrow\") with no penalty.")
+            explainRow("flag.checkered",
+                       "5 stars wake the BOSS: a timed round of that world's facts, pass at 85%, free retries. Beating it clears the world and reveals the next. 7 worlds = the trophy.")
+            explainRow("flame.fill",
+                       "The map flame lights when today's quest is done. Extra play the same day continues to the next star. Mastery (for the certificate) still requires fast answers on 2 different days — that part can't be rushed.")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.Metric.pad).cardSurface()

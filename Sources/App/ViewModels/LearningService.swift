@@ -119,6 +119,125 @@ struct LearningService {
                                    clearedWorlds: activeProfile().clearedWorlds)
     }
 
+    // MARK: Star Quest planning
+
+    /// The day's quest: drill the facts of the current world's NEXT star through
+    /// their whole ladder (2 MC + 3 typed, spaced by review questions), woven with
+    /// cumulative review. The session ends when the star lands (see the VM), so
+    /// "one quest ≈ one star" by construction. When the world is boss-pending
+    /// (all fluent), returns a classic review session and an empty batch.
+    func buildQuestSession(now: Date = .now, seed: UInt64? = nil)
+        -> (queue: [PlannedQuestion], batch: [FactID]) {
+        let p = activeProfile()
+        let snaps = facts().map(\.snapshot)
+        let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
+        let idx = WorldProgress.currentIndex(snapshots: snaps, cleared: p.clearedWorlds)
+        let worldFacts = WorldCatalog.facts(inWorld: idx)
+            .sorted { (Curriculum.slot(of: $0), $0.b, $0.a) < (Curriculum.slot(of: $1), $1.b, $1.a) }
+        let fluentCount = worldFacts.filter { (byID[$0]?.stage ?? .recognition) >= .fluency }.count
+        let total = worldFacts.count
+
+        // Boss-pending (or catalog edge): review-only session, no batch.
+        guard total > 0, fluentCount < total else {
+            return (SessionPlanner.plan(snapshots: snaps, now: now,
+                                        seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)),
+                                        clearedWorlds: p.clearedWorlds), [])
+        }
+
+        let filledStars = WorldStars.filled(fluent: fluentCount, total: total)
+        let nextThreshold = Int(ceil(Double(total) * Double(filledStars + 1) / Double(WorldStars.starCount)))
+        let needed = max(1, nextThreshold - fluentCount)
+
+        // Today's batch: half-climbed leftovers first, then fresh facts in slot order.
+        let notFluent = worldFacts.filter { (byID[$0]?.stage ?? .recognition) < .fluency }
+        let leftovers = notFluent.filter { byID[$0]?.introduced ?? false }
+        let fresh = notFluent.filter { !(byID[$0]?.introduced ?? false) }
+        let batch = Array((leftovers + fresh).prefix(needed))
+
+        var rng = SplitMix64(seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)))
+        let queue = assembleQuest(batch: batch, byID: byID, snaps: snaps, now: now, rng: &rng)
+        return (queue, batch)
+    }
+
+    /// More reps for batch facts that haven't reached fluent (miss recovery),
+    /// woven with a few fresh reviews. Empty when the batch is done.
+    func questExtension(batch: [FactID], now: Date = .now) -> [PlannedQuestion] {
+        let snaps = facts().map(\.snapshot)
+        let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
+        let remaining = batch.filter { (byID[$0]?.stage ?? .recognition) < .fluency }
+        guard !remaining.isEmpty else { return [] }
+        var rng = SplitMix64(seed: UInt64(bitPattern: Int64(now.timeIntervalSince1970)) &+ 99)
+        return assembleQuest(batch: remaining, byID: byID, snaps: snaps, now: now,
+                             rng: &rng, reviewTarget: 4)
+    }
+
+    /// Ladder completion of a fact toward fluent, in [0, 1] (5 total rungs).
+    func ladderProgress(_ id: FactID) -> Double {
+        guard let s = fact(id)?.snapshot else { return 0 }
+        if s.stage >= .fluency { return 1 }
+        let done = s.stage == .recall ? 2 + min(s.recallCorrect, 3) : min(s.recognitionStreak, 2)
+        return Double(done) / 5.0
+    }
+
+    /// Interleaves each batch fact's remaining ladder reps with review questions.
+    private func assembleQuest(batch: [FactID], byID: [FactID: FactSnapshot],
+                               snaps: [FactSnapshot], now: Date,
+                               rng: inout SplitMix64, reviewTarget: Int = 25) -> [PlannedQuestion] {
+        let fluencyTimes = snaps.flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
+        let threshold = FluencyThreshold.current(recentFluencyTimes: fluencyTimes)
+
+        func question(_ id: FactID, format: MasteryStage, movement: SessionMovement) -> PlannedQuestion {
+            let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
+            let options = format == .recognition
+                ? DistractorGenerator.options(for: prompt, seed: rng.next()) : nil
+            return PlannedQuestion(prompt: prompt, format: format, movement: movement,
+                                   options: options, timed: format == .fluency)
+        }
+
+        // Remaining ladder reps per batch fact (2 recognition, then 3 recall).
+        let reps: [[PlannedQuestion]] = batch.map { id in
+            let s = byID[id]
+            var list: [PlannedQuestion] = []
+            let stage = s?.stage ?? .recognition
+            if stage == .recognition || !(s?.introduced ?? false) {
+                let mcLeft = max(0, 2 - (s?.recognitionStreak ?? 0))
+                list += (0..<mcLeft).map { _ in question(id, format: .recognition, movement: .core) }
+                list += (0..<3).map { _ in question(id, format: .recall, movement: .core) }
+            } else {
+                let left = max(1, 3 - (s?.recallCorrect ?? 0))
+                list += (0..<left).map { _ in question(id, format: .recall, movement: .core) }
+            }
+            return list
+        }
+
+        // Cumulative review pool by priority (everything introduced, batch excluded).
+        let batchSet = Set(batch)
+        let reviewSnaps = snaps
+            .filter { $0.introduced && !batchSet.contains($0.id) }
+            .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
+                    > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
+            .prefix(reviewTarget)
+        var reviews = reviewSnaps.map { s in
+            question(s.id, format: s.stage == .mastered ? .fluency : s.stage, movement: .review)
+        }.makeIterator()
+
+        var queue: [PlannedQuestion] = []
+        // Two review questions lead as a warm-up when available.
+        for _ in 0..<2 { if let r = reviews.next() { queue.append(r) } }
+        // Round-robin the batch reps; a review after each rep keeps same-fact spacing.
+        let gap = batch.count == 1 ? 2 : 1
+        let maxReps = reps.map(\.count).max() ?? 0
+        for round in 0..<maxReps {
+            for factReps in reps where round < factReps.count {
+                queue.append(factReps[round])
+                for _ in 0..<gap { if let r = reviews.next() { queue.append(r) } }
+            }
+        }
+        // Top up with review so a quest is never a drive-by (floor ~15 where possible).
+        while queue.count < 15, let r = reviews.next() { queue.append(r) }
+        return queue
+    }
+
     private func currentThreshold() -> Double {
         let times = facts().flatMap { $0.stage >= .fluency ? $0.recentTimes : [] }
         return FluencyThreshold.current(recentFluencyTimes: times)
@@ -246,10 +365,13 @@ struct LearningService {
     @discardableResult
     func finishSession(questionCount: Int, correctCount: Int, xpEarned: Int,
                        responseTimes: [Double], factsTouched: Int,
-                       speed: Bool = false, bossWorld: Int? = nil, now: Date = .now) -> Celebration? {
+                       speed: Bool = false, bossWorld: Int? = nil,
+                       practiced: Bool = true, now: Date = .now) -> Celebration? {
         let p = activeProfile()
         let beforeStreak = p.streakDays
-        let newStreak = p.registerPractice(on: now)
+        // The flame is strict: only real completed work lights it (quest star landed,
+        // rollover effort, boss, speed) — never a two-answer drive-by or a dev jump.
+        let newStreak = practiced ? p.registerPractice(on: now) : p.streakDays
 
         let median = Self.median(responseTimes)
 
@@ -283,7 +405,6 @@ struct LearningService {
                                     xpEarned: xpEarned, medianResponseTime: median, factsTouched: factsTouched)
             rec.profile = p
             context.insert(rec)
-            p.registerPractice(on: now)
             try? context.save()
             return Celebration(tier: isBest ? .t2 : .t1,
                                headline: isBest ? "New best time!" : "Speed Round complete!",

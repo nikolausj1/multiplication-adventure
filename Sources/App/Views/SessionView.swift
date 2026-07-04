@@ -63,12 +63,23 @@ struct SessionView: View {
             topBar(vm)
             Spacer(minLength: 0)
             if let q = vm.current {
-                // No monolithic card: each element carries its own dark plate so the
-                // world art stays the star of the screen.
-                QuestionContainer(vm: vm, question: q)
-                    .id(vm.index)
-                    .frame(maxWidth: 680)
+                // Boss fights put the world's guardian on screen; every correct
+                // answer lands a hit. Otherwise the question stands alone.
+                if vm.bossWorldIndex != nil && Art.exists(theme.bossImage) {
+                    HStack(alignment: .center, spacing: 4) {
+                        BossPanel(theme: theme, hits: vm.correctCount, hpTotal: vm.bossHPTotal)
+                            .frame(maxWidth: 400)
+                        QuestionContainer(vm: vm, question: q)
+                            .id(vm.index)
+                            .frame(maxWidth: 620)
+                    }
                     .padding(Theme.Metric.pad)
+                } else {
+                    QuestionContainer(vm: vm, question: q)
+                        .id(vm.index)
+                        .frame(maxWidth: 680)
+                        .padding(Theme.Metric.pad)
+                }
             }
             Spacer(minLength: 0)
         }

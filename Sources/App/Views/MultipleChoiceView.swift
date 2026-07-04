@@ -65,17 +65,39 @@ struct MultipleChoiceView: View {
     }
 }
 
-/// The hero numeral prompt on its own dark plate — readable over any world.
+/// The hero numeral prompt on the world's ornate plaque (the button art, reborn) —
+/// dark-glass fallback for any world without plaque art. Readability always wins:
+/// a soft dark blob sits behind the numeral over the busy frame centers.
 struct PromptText: View {
+    @Environment(\.worldTheme) private var theme
     let prompt: OrientedPrompt
     init(_ p: OrientedPrompt) { prompt = p }
+
     var body: some View {
+        if Art.exists(theme.buttonImage) {
+            ZStack {
+                Image(theme.buttonImage)
+                    .resizable().scaledToFit()
+                    .frame(height: 150)
+                    .shadow(color: .black.opacity(0.45), radius: 10, y: 5)
+                numeral
+                    .background(
+                        Ellipse().fill(Color.black.opacity(0.38))
+                            .blur(radius: 16)
+                            .padding(.horizontal, -30).padding(.vertical, -10))
+            }
+        } else {
+            numeral
+                .padding(.horizontal, 36).padding(.vertical, 12)
+                .darkPlate()
+        }
+    }
+
+    private var numeral: some View {
         Text(prompt.text)
             .font(Theme.Font.display(58))
             .foregroundStyle(.white)
-            .shadow(color: .black.opacity(0.5), radius: 3, y: 2)
+            .shadow(color: .black.opacity(0.55), radius: 3, y: 2)
             .minimumScaleFactor(0.6).lineLimit(1)
-            .padding(.horizontal, 36).padding(.vertical, 12)
-            .darkPlate()
     }
 }

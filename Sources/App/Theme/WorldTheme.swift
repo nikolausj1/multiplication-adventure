@@ -12,6 +12,7 @@ struct WorldTheme: Equatable {
     var bgImage: String { "\(world.assetKey)_bg" }
     var nodeImage: String { "\(world.assetKey)_node" }
     var buttonImage: String { "\(world.assetKey)_button" }
+    var bossImage: String { "\(world.assetKey)_boss" }
 
     static func forWorld(_ index: Int) -> WorldTheme {
         WorldTheme(world: WorldCatalog.worlds[min(max(index, 0), WorldCatalog.count - 1)])

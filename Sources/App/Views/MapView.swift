@@ -156,12 +156,21 @@ struct MapView: View {
                         .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
                 }
             }
-            if let p = profile, p.streakDays > 0 {
+            if let p = profile {
+                // The daily flame: lit = today's quest done; dim = not yet today.
+                let practicedToday = p.lastPracticeDate.map { Calendar.current.isDateInToday($0) } ?? false
                 HStack(spacing: 5) {
-                    Image(systemName: "flame.fill").foregroundStyle(Theme.Color.accent)
-                    Text("\(p.streakDays)").font(Theme.Font.number(16)).foregroundStyle(.white)
+                    Image(systemName: "flame.fill")
+                        .foregroundStyle(practicedToday ? Theme.Color.accent : Color.white.opacity(0.3))
+                    if p.streakDays > 0 {
+                        Text("\(p.streakDays)").font(Theme.Font.number(16))
+                            .foregroundStyle(practicedToday ? .white : .white.opacity(0.5))
+                    }
                 }
                 .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
+                .accessibilityLabel(practicedToday
+                    ? "Streak \(p.streakDays) days, practiced today"
+                    : "Not practiced yet today")
             }
             Button { showParent = true } label: {
                 Image(systemName: "gearshape.fill").font(.system(size: 19))

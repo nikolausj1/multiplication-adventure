@@ -22,6 +22,7 @@ struct WrapView: View {
     private var headline: String {
         if clearedThisSession { return "\(clearedName) cleared!" }
         if bossFailed { return "So close!" }
+        if vm.isQuest && vm.starEarnedThisSession { return "Quest complete!" }
         return "Great work!"
     }
 
@@ -127,6 +128,16 @@ struct WrapView: View {
                 }
                 WorldStars(fluent: fluent, total: total, size: 26, spacing: 8)
                     .padding(.vertical, 2)
+                if vm.isQuest {
+                    if vm.starEarnedThisSession {
+                        Label("Quest complete — you're done for today!", systemImage: "flame.fill")
+                            .font(Theme.Font.label(15)).foregroundStyle(Theme.Color.accent)
+                    } else {
+                        Text("Today's star is \(Int(vm.questCharge * 100))% charged — finish it tomorrow!")
+                            .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.accent)
+                            .multilineTextAlignment(.center)
+                    }
+                }
                 if gained > 0 {
                     Text("+\(gained) new fluent fact\(gained == 1 ? "" : "s") today!")
                         .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
@@ -137,7 +148,7 @@ struct WrapView: View {
                 }
                 Text(fluent == total
                      ? "All 5 stars earned — the BOSS CHALLENGE is waiting on the map. Beat it to clear \(name)!"
-                     : "New facts join a few at a time. Earn all 5 stars to unlock the \(name) boss challenge.")
+                     : "One quest ≈ one star. Earn all 5 to unlock the \(name) boss challenge.")
                     .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
             }
