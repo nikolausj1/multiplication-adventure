@@ -13,13 +13,18 @@ struct SessionView: View {
     private var theme: WorldTheme { .forWorld(worldIndex) }
 
     var body: some View {
+        // Blur the whole scene while the STAR EARNED takeover is up, so the big
+        // stars sit on a calm background instead of visual noise.
+        let starShowing = vm?.pendingStarEarned != nil
         ZStack {
             WorldBackdrop(theme: theme)
+                .blur(radius: starShowing ? 12 : 0)
             if let vm {
                 if vm.stage == .finished {
                     WrapView(vm: vm) { dismiss() }.transition(.opacity)
                 } else {
                     active(vm)
+                        .blur(radius: starShowing ? 12 : 0)
                 }
                 if let starIndex = vm.pendingStarEarned {
                     StarEarnedOverlay(

@@ -14,37 +14,37 @@ struct StarEarnedOverlay: View {
     @State private var impact = false        // brief shake + flash on landing
     @State private var shown = false         // scrim/text fade-in
 
-    private let starSize: CGFloat = 96
+    private let starSize: CGFloat = 122
 
     var body: some View {
         ZStack {
             Color.black.opacity(shown ? 0.8 : 0).ignoresSafeArea()
 
-            VStack(spacing: 30) {
+            VStack(spacing: 40) {
                 Text("STAR EARNED!")
-                    .font(Theme.Font.display(40)).foregroundStyle(.white)
-                    .tracking(2)
-                    .shadow(color: .black.opacity(0.6), radius: 4, y: 2)
+                    .font(Theme.Font.display(58)).foregroundStyle(.white)
+                    .tracking(2.5)
+                    .shadow(color: .black.opacity(0.6), radius: 5, y: 3)
                     .scaleEffect(shown ? 1 : 0.7)
 
-                HStack(spacing: 20) {
+                HStack(spacing: 26) {
                     ForEach(0..<WorldStars.starCount, id: \.self) { i in
                         socket(i)
                     }
                 }
-                .modifier(Shake(travel: 9, shakesPerUnit: 3, animatableData: impact ? 1 : 0))
+                .modifier(Shake(travel: 11, shakesPerUnit: 3, animatableData: impact ? 1 : 0))
 
-                VStack(spacing: 6) {
+                VStack(spacing: 10) {
                     Text(worldName)
-                        .font(Theme.Font.label(17)).foregroundStyle(.white.opacity(0.85))
+                        .font(Theme.Font.label(24)).foregroundStyle(.white.opacity(0.85))
                     Text(remainingText)
-                        .font(Theme.Font.body(19)).foregroundStyle(Theme.Color.accent)
+                        .font(Theme.Font.body(27)).foregroundStyle(Theme.Color.accent)
                         .multilineTextAlignment(.center)
                 }
                 .opacity(landed ? 1 : 0)
 
                 Text("Tap to continue")
-                    .font(Theme.Font.label()).foregroundStyle(.white.opacity(0.55))
+                    .font(Theme.Font.label(17)).foregroundStyle(.white.opacity(0.55))
                     .opacity(landed ? 1 : 0)
             }
             .padding(40)
@@ -68,8 +68,8 @@ struct StarEarnedOverlay: View {
                     .overlay {
                         if impact {
                             ParticleBurst(kind: .stars,
-                                          colors: [Theme.Color.accent, .white], count: 14)
-                                .frame(width: 300, height: 300)
+                                          colors: [Theme.Color.accent, .white], count: 16)
+                                .frame(width: 380, height: 380)
                         }
                     }
             }
