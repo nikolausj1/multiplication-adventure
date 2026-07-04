@@ -114,9 +114,6 @@ struct SessionView: View {
                         .transition(.scale(scale: 0.4).combined(with: .opacity))
                         .contentTransition(.numericText(value: Double(vm.combo)))
                 }
-                Label("\(vm.xpEarned)", systemImage: "star.fill")
-                    .font(Theme.Font.number(17)).foregroundStyle(Theme.Color.accent).shadow(radius: 2)
-                    .contentTransition(.numericText(value: Double(vm.xpEarned)))
             }
             .animation(Theme.Motion.celebrate, value: vm.combo)
             ProgressView(value: vm.progress).tint(.white)
@@ -139,13 +136,7 @@ private struct StarChip: View {
         let filled = WorldStars.filled(fluent: fluent, total: total)
         HStack(spacing: 4) {
             ForEach(0..<WorldStars.starCount, id: \.self) { i in
-                Image(systemName: i < filled ? "star.fill" : "star")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(i < filled
-                        ? AnyShapeStyle(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.35),
-                                                                Color(red: 0.95, green: 0.63, blue: 0.1)],
-                                                       startPoint: .top, endPoint: .bottom))
-                        : AnyShapeStyle(Color.white.opacity(0.4)))
+                StarGlyph(filled: i < filled, size: 16)
                     .scaleEffect(earnPulse && i == filled - 1 ? 1.7 : 1)
                     .rotationEffect(.degrees(earnPulse && i == filled - 1 ? 18 : 0))
             }

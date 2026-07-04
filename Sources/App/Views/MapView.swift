@@ -116,7 +116,8 @@ struct MapView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(profile?.name ?? "Player").font(Theme.Font.display(16)).foregroundStyle(.white)
                     HStack(spacing: 3) {
-                        Image(systemName: "star.fill").font(.system(size: 10))
+                        // Gem, not star: stars are world progress, XP is treasure.
+                        Image(systemName: "diamond.fill").font(.system(size: 9))
                             .foregroundStyle(Theme.Color.accent)
                         Text("\(profile?.totalXP ?? 0) XP")
                             .font(Theme.Font.label(12)).foregroundStyle(.white.opacity(0.8))
