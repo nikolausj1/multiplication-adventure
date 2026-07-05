@@ -440,3 +440,13 @@ Where earlier sections conflict with this, this wins:
   HP hits zero; questions exhausted with HP left = held off.
 - **Debug:** `-dumpQuestPlan` simulates 10 days through the real engine (see
   SampleSessions.md); `-questFloorSeconds/-questCeilingSeconds` shorten demos.
+
+### 17.1 Final pre-launch revisions (2026-07-05)
+- **Universe capped at 77 facts:** 0s–11s only; no ×12 table and no 11×11
+  (11×10 is the summit). Worlds re-cut: …W6 Volcano = the 7s, W7 Sky = the 8s.
+- **Adaptive budget refund:** a fact cleared in ≤3 flawless answers refunds its
+  novelty slot — known material can't eat the day; ×0/×1 skip cards entirely.
+- **×6/7/8 review boost (1.5×)** and missing-factor at 1-in-3 once mastered.
+- **Never the same fact twice in a row** (planner passes + serve-time net).
+- **X = pause for the day** (resume clock/bar/budget; map shows CONTINUE
+  QUEST!); session clock counts active screen time only.
