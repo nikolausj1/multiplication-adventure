@@ -1,6 +1,6 @@
 import Foundation
 
-/// The rank ladder (§7), tied to cumulative facts mastered. Master at 91 == the
+/// The rank ladder (§7), tied to cumulative facts mastered. Master at the full
 /// completion state (§10). Thresholds are a first cut of §14's open question.
 public struct Rank: Sendable, Equatable {
     public let index: Int
@@ -15,7 +15,7 @@ public enum RankLadder {
         Rank(index: 2, name: "Builder",    masteredThreshold: 22),
         Rank(index: 3, name: "Skilled",    masteredThreshold: 42),
         Rank(index: 4, name: "Expert",     masteredThreshold: 66),
-        Rank(index: 5, name: "Master",     masteredThreshold: 91),
+        Rank(index: 5, name: "Master",     masteredThreshold: FactUniverse.count),
     ]
 
     public static func rank(forMasteredCount n: Int) -> Rank {

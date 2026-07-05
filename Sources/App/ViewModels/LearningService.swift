@@ -64,7 +64,7 @@ struct LearningService {
         try? context.save()
     }
 
-    /// Wipes a profile back to brand-new (re-seeds its 91 facts).
+    /// Wipes a profile back to brand-new (re-seeds its facts).
     func resetProgress(_ profile: Profile) {
         for f in profile.facts { context.delete(f) }
         for s in profile.sessions { context.delete(s) }
@@ -158,6 +158,44 @@ struct LearningService {
 
     /// Whether a fact has ever been served (the novelty budget counts the rest).
     func isIntroduced(_ id: FactID) -> Bool { fact(id)?.introduced ?? false }
+
+    // MARK: Paused quest (X = pause for the day)
+
+    func savePausedQuest(elapsed: Double, meter: Double, newCount: Int, now: Date = .now) {
+        let p = activeProfile()
+        p.pausedQuestDate = now
+        p.pausedQuestElapsed = elapsed
+        p.pausedQuestMeter = meter
+        p.pausedQuestNewCount = newCount
+        try? context.save()
+    }
+
+    /// Today's paused quest, if any (stale ones are cleared). Loading does NOT
+    /// clear it — completion does, so a crash can't eat progress.
+    func loadPausedQuest(now: Date = .now) -> (elapsed: Double, meter: Double, newCount: Int)? {
+        let p = activeProfile()
+        guard let date = p.pausedQuestDate else { return nil }
+        guard Calendar.current.isDate(date, inSameDayAs: now) else {
+            clearPausedQuest()
+            return nil
+        }
+        return (p.pausedQuestElapsed, p.pausedQuestMeter, p.pausedQuestNewCount)
+    }
+
+    func clearPausedQuest() {
+        let p = activeProfile()
+        p.pausedQuestDate = nil
+        p.pausedQuestElapsed = 0
+        p.pausedQuestMeter = 0
+        p.pausedQuestNewCount = 0
+        try? context.save()
+    }
+
+    /// Map hint: is there a resumable quest right now?
+    func hasPausedQuest(now: Date = .now) -> Bool {
+        guard let d = activeProfile().pausedQuestDate else { return false }
+        return Calendar.current.isDate(d, inSameDayAs: now)
+    }
 
     /// Mid-session: the batch is done but the clock isn't — chain the next
     /// frontier batch (full ladder: cards then typed) with a few fresh reviews.

@@ -12,14 +12,16 @@ let now = Date(timeIntervalSince1970: 1_700_000_000)
 let day: TimeInterval = 86_400
 
 print("Fact universe")
-check(FactUniverse.count == 91, "91 unique facts")
+check(FactUniverse.count == 77, "77 unique facts (0s through 11s, no 11×11)")
+check(!FactUniverse.allFacts.contains(FactID(11, 11)), "11×11 is out of scope")
+check(!FactUniverse.allFacts.contains(FactID(3, 12)), "no ×12 facts")
 check(FactID(8, 7) == FactID(7, 8), "facts are commutative/canonical")
 check(FactUniverse.allFacts.allSatisfy { $0.a <= $0.b }, "all stored canonically")
 
 print("Curriculum")
 check(Curriculum.slot(of: FactID(0, 0)) == 0, "0×0 introduced first")
 check(Curriculum.slot(of: FactID(6, 7)) == Curriculum.introRank(ofFactor: 7), "6×7 unlocks with the 7s")
-check(Curriculum.factsBySlot().reduce(0) { $0 + $1.count } == 91, "every fact lands in a slot")
+check(Curriculum.factsBySlot().reduce(0) { $0 + $1.count } == 77, "every fact lands in a slot")
 
 print("Distractors")
 let prompt = OrientedPrompt(fact: FactID(7, 8), swapped: false)
@@ -93,7 +95,7 @@ check(lateFast > earlyFast, "a fast correct pays more late (mastery) than early"
 
 print("Ranks")
 check(RankLadder.rank(forMasteredCount: 0).name == "Novice", "starts Novice")
-check(RankLadder.rank(forMasteredCount: 91).name == "Master", "Master at 91")
+check(RankLadder.rank(forMasteredCount: FactUniverse.count).name == "Master", "Master at full count")
 check(RankLadder.next(afterMasteredCount: 0)?.rank.name == "Apprentice", "next rank is Apprentice")
 
 print("Session planner: cold start")
@@ -115,7 +117,7 @@ check(plan0.first?.fact == FactID(0, 0) || plan0.contains { $0.fact == FactID(0,
       "earliest curriculum fact appears first")
 
 print("Session planner: interleaving")
-let q = (2...12).flatMap { b in [FactSnapshot(id: FactID(b, b), introduced: true, stage: .recall)] }
+let q = (2...11).flatMap { b in [FactSnapshot(id: FactID(b, b == 11 ? 10 : b), introduced: true, stage: .recall)] }
 let interleaved = SessionPlanner.plan(snapshots: q, now: now, seed: 7)
 var adjacentSameTable = 0
 for i in 1..<interleaved.count where interleaved[i].fact.b == interleaved[i-1].fact.b { adjacentSameTable += 1 }
@@ -131,16 +133,16 @@ check((celebration?.lines.count ?? 0) >= 2, "lower milestones fold into the line
 check(evs.contains { if case .worldCleared = $0.kind { return true }; return false }, "world-cleared event emitted")
 
 print("Milestones: completion supersedes all")
-let preDone = ProgressAggregate(masteredCount: 90, completedFactors: [], clearedWorlds: 6, streakDays: 6)
-let done = ProgressAggregate(masteredCount: 91, completedFactors: [], clearedWorlds: 7, streakDays: 7)
+let preDone = ProgressAggregate(masteredCount: FactUniverse.count - 1, completedFactors: [], clearedWorlds: 6, streakDays: 6)
+let done = ProgressAggregate(masteredCount: FactUniverse.count, completedFactors: [], clearedWorlds: 7, streakDays: 7)
 let doneEvents = MilestoneEngine.events(before: preDone, after: done)
 check(doneEvents.count == 1 && doneEvents[0].tier == .t4, "100% is a single T4 finale")
 
 print("Worlds")
 check(WorldCatalog.count == 7, "7 worlds")
 check(WorldCatalog.worldIndex(ofFact: FactID(0,0)) == 0, "0×0 is in the first world")
-check(WorldCatalog.worldIndex(ofFact: FactID(12,12)) == 6, "12×12 is in the last world")
-check((0..<7).reduce(0) { $0 + WorldCatalog.facts(inWorld: $1).count } == 91, "every fact maps to a world")
+check(WorldCatalog.worldIndex(ofFact: FactID(8,8)) == 6, "8×8 is in the last world (Sky Citadel = the 8s)")
+check((0..<7).reduce(0) { $0 + WorldCatalog.facts(inWorld: $1).count } == 77, "every fact maps to a world")
 let freshW = FactUniverse.allFacts.map { FactSnapshot(id: $0) }
 check(WorldProgress.currentIndex(snapshots: freshW) == 0, "fresh start is on world 0")
 check(WorldProgress.clearedCount(snapshots: freshW) == 0, "nothing cleared at start")

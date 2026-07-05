@@ -31,6 +31,14 @@ final class Profile {
     /// sockets, its boss unlocks, beating the boss opens the next world.
     var questStars: Int = 0
 
+    /// Paused daily quest (X = pause, not quit, for the rest of the day):
+    /// re-entering the world resumes the clock, meter, and novelty budget.
+    /// Expires at midnight — tomorrow is always a fresh quest.
+    var pausedQuestDate: Date? = nil
+    var pausedQuestElapsed: Double = 0
+    var pausedQuestMeter: Double = 0
+    var pausedQuestNewCount: Int = 0
+
     // Per-profile data (cascade so deleting a profile cleans everything up).
     @Relationship(deleteRule: .cascade, inverse: \Fact.profile) var facts: [Fact] = []
     @Relationship(deleteRule: .cascade, inverse: \SessionRecord.profile) var sessions: [SessionRecord] = []

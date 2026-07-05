@@ -68,7 +68,7 @@ public struct ProgressAggregate: Equatable, Sendable {
 public enum MilestoneEngine {
     static let streakThresholds = [3, 7, 14, 30]
     static let percentCounts: [(pct: Int, count: Int)] = [
-        (25, 23), (50, 46), (75, 69),
+        (25, 20), (50, 39), (75, 58),   // of the 77-fact universe
     ]
 
     /// Diff two aggregates and return every milestone crossed.

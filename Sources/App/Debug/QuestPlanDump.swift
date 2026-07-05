@@ -26,7 +26,7 @@ enum QuestPlanDump {
                !service.activeProfile().clearedWorlds.contains(worldIdx) {
                 let boss = SessionViewModel(service: service, boss: true, worldIndex: worldIdx)
                 boss.now = { simDate }
-                boss.sessionStart = simDate
+                boss.clockRun()
                 while boss.stage != .finished {
                     guard let q = boss.current else { break }
                     simDate += 3
@@ -40,7 +40,7 @@ enum QuestPlanDump {
             }
             let vm = SessionViewModel(service: service)
             vm.now = { simDate }
-            vm.sessionStart = simDate
+            vm.clockRun()
             let world = WorldCatalog.worlds[safe: vm.worldStatBefore.index]?.name ?? "?"
             print("\n━━━ SESSION \(session) — \(world) ━━━")
             var n = 0

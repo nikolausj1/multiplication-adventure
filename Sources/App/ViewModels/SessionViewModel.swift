@@ -89,12 +89,24 @@ final class SessionViewModel {
     /// ~12 minutes whether he's sprinting ×10s in July or grinding ×8s in August.
     /// Launch args (-questFloorSeconds n / -questCeilingSeconds n) override for
     /// demo/verify runs.
-    var sessionStart = Date.now   // injectable for -dumpQuestPlan
     private let floorSeconds = SessionViewModel.launchSeconds("-questFloorSeconds", fallback: 12 * 60)
     private let ceilingSeconds = SessionViewModel.launchSeconds("-questCeilingSeconds", fallback: 20 * 60)
     /// Injectable clock (the -dumpQuestPlan simulator advances virtual time).
     var now: () -> Date = { .now }
-    var elapsed: TimeInterval { now().timeIntervalSince(sessionStart) }
+    /// The clock counts ACTIVE screen time only — a snack break (backgrounded
+    /// app or paused session) never fills the bar by itself.
+    private var accumulatedActive: TimeInterval = 0
+    private var activeSince: Date?
+    var elapsed: TimeInterval {
+        accumulatedActive + (activeSince.map { now().timeIntervalSince($0) } ?? 0)
+    }
+    func clockRun() { if activeSince == nil { activeSince = now() } }
+    func clockPause() {
+        if let s = activeSince { accumulatedActive += now().timeIntervalSince(s) }
+        activeSince = nil
+    }
+    /// X pressed mid-quest: paused for the day (the view dismisses, no wrap).
+    private(set) var didPause = false
     /// Review serves per fact this session (cap 2 — a small pool must not cycle).
     private var reviewCounts: [FactID: Int] = [:]
     /// Novelty budget: at most this many BRAND-NEW facts introduced per session
@@ -175,11 +187,20 @@ final class SessionViewModel {
         } else if speedRound {
             built = service.buildSpeedSession()
         } else {
+            // Resume a same-day paused quest: clock, meter, and novelty budget
+            // carry over. The queue rebuilds from current fact state — leftovers-
+            // first frontier naturally re-picks the same in-flight material.
+            var carriedNew = 0
+            if let paused = service.loadPausedQuest() {
+                accumulatedActive = paused.elapsed
+                meterHighWater = paused.meter
+                carriedNew = paused.newCount
+            }
             let quest = service.buildDailyQuest()
             built = quest.queue
             questBatch = quest.batch
             questCharge = Self.charge(of: quest.batch, service: service)
-            newIntroduced = quest.batch.filter { !service.isIntroduced($0) }.count
+            newIntroduced = carriedNew + quest.batch.filter { !service.isIntroduced($0) }.count
         }
         self.queue = built
         self.originalCount = built.count
@@ -216,6 +237,7 @@ final class SessionViewModel {
 
     func beginQuestion() {
         questionStart = .now
+        clockRun()
         updatePhase()
         guard auto != .off else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -444,6 +466,7 @@ final class SessionViewModel {
     /// is full and gold — and the wrap follows its dismissal.
     private func completeQuest() {
         if !questEndPending {
+            service.clearPausedQuest()   // completed — nothing left to resume
             earnedStarIndex = service.awardQuestStar()
             starEarnedThisSession = earnedStarIndex != nil
             shownStars = service.starsInCurrentWorld()
@@ -456,12 +479,25 @@ final class SessionViewModel {
         }
     }
 
-    /// Stop early — full credit for the facts practiced, but a quit session
-    /// earns no star. (§6: progress is never destroyed; trophies are earned.)
-    func stop() { if stage != .finished { finish() } }
+    /// X on a quest = PAUSE for the day, not quit: clock, bar, and budget are
+    /// saved; tapping the world resumes. (Learning was already recorded per
+    /// answer either way.) Boss/speed/test runs end normally.
+    func stop() {
+        guard stage != .finished else { return }
+        if isQuest, !questEndPending, auto == .off {
+            clockPause()
+            service.savePausedQuest(elapsed: elapsed, meter: meterHighWater,
+                                    newCount: newIntroduced)
+            didPause = true
+            stage = .finished   // the view sees didPause and dismisses (no wrap)
+            return
+        }
+        finish()
+    }
 
     private func finish() {
         stage = .finished
+        clockPause()
         if auto == .wrap { pendingStarEarned = nil }   // demo autoplay: don't trap the wrap
         // Strict flame: dev jumps never count; quests count when the day's star
         // landed or real time was put in; boss and speed runs always count.

@@ -6,7 +6,8 @@ import Foundation
 public enum Curriculum {
 
     /// Introduction order of the single-factor "tables", easiest first (§5).
-    public static let tableOrder: [Int] = [0, 1, 2, 10, 5, 11, 3, 4, 9, 6, 7, 8, 12]
+    /// No ×12 — the universe tops out at the 11s (see FactUniverse).
+    public static let tableOrder: [Int] = [0, 1, 2, 10, 5, 11, 3, 4, 9, 6, 7, 8]
 
     /// Rank of a factor in the introduction order (lower = introduced earlier).
     public static func introRank(ofFactor f: Int) -> Int {

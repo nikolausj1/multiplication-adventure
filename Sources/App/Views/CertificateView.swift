@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The completion certificate (§10): shown when all 91 facts are mastered. Renders to
+/// The completion certificate (§10): shown when every fact is mastered. Renders to
 /// an image that can be shared or printed via the system share sheet.
 struct CertificateView: View {
     @Environment(\.dismiss) private var dismiss

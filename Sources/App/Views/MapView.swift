@@ -249,7 +249,11 @@ struct MapView: View {
                     .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
             } else if isCurrent, !cleared {
                 let remaining = WorldStars.starCount - starsHere
-                Text(starsHere > 0 && remaining > 0
+                let resumable = (profile?.pausedQuestDate).map {
+                    Calendar.current.isDateInToday($0)
+                } ?? false
+                Text(resumable ? "CONTINUE QUEST!"
+                     : starsHere > 0 && remaining > 0
                      ? "\(remaining) STAR\(remaining == 1 ? "" : "S") TO THE BOSS!" : "TAP TO PLAY")
                     .font(Theme.Font.label(10)).tracking(1)
                     .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 3)

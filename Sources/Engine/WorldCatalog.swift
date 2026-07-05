@@ -43,10 +43,10 @@ public enum WorldCatalog {
               assetKey: "world5", slots: [9],
               palette: WorldPalette("#5FB0E5", "#B388FF", "#1E3A5F")),
         World(index: 5, name: "Volcano Depths",  bossName: "Magma Fist",
-              assetKey: "world6", slots: [10, 11],
+              assetKey: "world6", slots: [10],
               palette: WorldPalette("#FF7A18", "#FFC93C", "#3A2C2A")),
         World(index: 6, name: "Sky Citadel",     bossName: "Storm Titan",
-              assetKey: "world7", slots: [12],
+              assetKey: "world7", slots: [11],
               palette: WorldPalette("#5B4B8A", "#FFD24C", "#2A2350")),
     ]
 

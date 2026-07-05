@@ -4,6 +4,7 @@ import SwiftData
 struct SessionView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     var worldIndex: Int = 0
     var speedRound: Bool = false
     var boss: Bool = false
@@ -21,7 +22,12 @@ struct SessionView: View {
                 .blur(radius: starShowing ? 12 : 0)
             if let vm {
                 if vm.stage == .finished {
-                    WrapView(vm: vm) { dismiss() }.transition(.opacity)
+                    if vm.didPause {
+                        // Paused for the day — straight back to the map, no wrap.
+                        Color.clear.onAppear { dismiss() }
+                    } else {
+                        WrapView(vm: vm) { dismiss() }.transition(.opacity)
+                    }
                 } else {
                     active(vm)
                         .blur(radius: starShowing ? 12 : 0)
@@ -42,6 +48,10 @@ struct SessionView: View {
         }
         .environment(\.worldTheme, theme)
         .animation(Theme.Motion.snappy, value: vm?.stage)
+        .onChange(of: scenePhase) { _, phase in
+            // The quest clock counts active screen time only.
+            if phase == .active { vm?.clockRun() } else { vm?.clockPause() }
+        }
         .onAppear {
             if vm == nil {
                 let args = ProcessInfo.processInfo.arguments
