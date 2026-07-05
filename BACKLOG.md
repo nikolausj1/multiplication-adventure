@@ -3,11 +3,9 @@
 Ideas and deferred work, roughly ordered by value. Nothing here blocks launch.
 
 ## Assets pending
-- **Avatar art 7 + 8** — avatar1–6 installed 2026-07-05 (explorer, treasure
-  hunter, pirate, wizard, knight, sky pilot). Still missing: avatar7 golden
-  champion, avatar8 night ninja (prompts delivered; crown/moon placeholders
-  ship meanwhile). Drop `avatar7.png`/`avatar8.png` in `_inbox/` → install
-  as imagesets, zero code changes.
+- ~~Avatar art~~ DONE 2026-07-05: all 8 portraits installed (explorer,
+  treasure hunter, pirate, wizard, knight, sky pilot, golden champion,
+  night ninja).
 
 ## Features
 - **Boss idle videos** — replace boss stills with seamless idle loops (Kling
