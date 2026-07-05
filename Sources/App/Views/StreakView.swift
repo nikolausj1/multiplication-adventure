@@ -41,26 +41,26 @@ struct StreakView: View {
             Spacer(minLength: 0)
         }
         .padding(Theme.Metric.pad)
-        .frame(minWidth: 560, minHeight: 640)
+        .frame(minWidth: 840, minHeight: 900)
         .background(Self.sheetBG)
         .presentationBackground(Self.sheetBG)
     }
 
     private var hero: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(LinearGradient(colors: [Theme.Color.accent,
-                                                         Color(red: 0.95, green: 0.35, blue: 0.1)],
-                                                startPoint: .top, endPoint: .bottom))
-                .shadow(color: Theme.Color.accent.opacity(0.6), radius: 16)
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+        VStack(spacing: 8) {
+            HStack(spacing: 14) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 66))
+                    .foregroundStyle(LinearGradient(colors: [Theme.Color.accent,
+                                                             Color(red: 0.95, green: 0.35, blue: 0.1)],
+                                                    startPoint: .top, endPoint: .bottom))
+                    .shadow(color: Theme.Color.accent.opacity(0.6), radius: 16)
                 Text("\(profile?.streakDays ?? 0)")
-                    .font(Theme.Font.display(52)).foregroundStyle(.white)
-                Text("DAY STREAK")
-                    .font(Theme.Font.label(16)).tracking(3)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .font(Theme.Font.display(66)).foregroundStyle(.white)
             }
+            Text("DAY STREAK")
+                .font(Theme.Font.label(24)).tracking(4)
+                .foregroundStyle(.white.opacity(0.8))
         }
     }
 
@@ -85,8 +85,8 @@ struct StreakView: View {
                 .disabled(!canGoForward)
             }
             let symbols = cal.veryShortWeekdaySymbols
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 7),
-                      spacing: 7) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 9), count: 7),
+                      spacing: 9) {
                 ForEach(0..<7, id: \.self) { i in
                     Text(symbols[(i + cal.firstWeekday - 1) % 7])
                         .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.5))
@@ -112,22 +112,22 @@ struct StreakView: View {
             let practiced = practiceDays.contains(key)
             VStack(spacing: 3) {
                 Text("\(cal.component(.day, from: day))")
-                    .font(Theme.Font.number(14))
+                    .font(Theme.Font.number(17))
                     .foregroundStyle(star ? .white : .white.opacity(future ? 0.25 : 0.6))
                 if star {
                     Image(systemName: "flame.fill")
-                        .font(.system(size: 20))
+                        .font(.system(size: 27))
                         .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                 } else if practiced {
-                    Circle().fill(Theme.Color.accent).frame(width: 9, height: 9)
-                        .padding(.vertical, 5.5)
+                    Circle().fill(Theme.Color.accent).frame(width: 11, height: 11)
+                        .padding(.vertical, 8)
                 } else {
-                    Color.clear.frame(height: 20)
+                    Color.clear.frame(height: 27)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 58)
+            .frame(height: 78)
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(star
@@ -142,7 +142,7 @@ struct StreakView: View {
                                   lineWidth: isToday ? 2.5 : 1)
             }
         } else {
-            Color.clear.frame(height: 58)
+            Color.clear.frame(height: 78)
         }
     }
 
