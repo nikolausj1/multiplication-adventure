@@ -26,6 +26,7 @@ final class SessionViewModel {
     private(set) var lastSelected: Int?
     private(set) var lastXP = 0
     private(set) var justFluent = false
+    private(set) var fluentGained = 0    // facts reaching Fluency this session
     private(set) var justMastered = false
 
     // Running session stats.
@@ -289,6 +290,7 @@ final class SessionViewModel {
         // Stars are session trophies now (awarded at completion) — a fact going
         // fluent is still its own magic moment.
         if result.becameFluent {
+            fluentGained += 1
             Feedback.fire(.milestone)
             // Adaptive budget: a fact cleared in ≤3 flawless answers was already
             // known — refund its novelty slot so the frontier keeps reaching
@@ -506,7 +508,8 @@ final class SessionViewModel {
         endCelebration = service.finishSession(
             questionCount: totalAnswered, correctCount: correctCount, xpEarned: xpEarned,
             responseTimes: responseTimes, factsTouched: touched.count,
-            speed: isSpeed, bossWorld: bossWorldIndex, practiced: practiced)
+            speed: isSpeed, bossWorld: bossWorldIndex, practiced: practiced,
+            starEarned: starEarnedThisSession, fluentGained: fluentGained)
         if let bossWorldIndex {
             bossPassed = service.activeProfile().clearedWorlds.contains(bossWorldIndex)
             Feedback.fire(bossPassed ? .levelUp : .wrong)

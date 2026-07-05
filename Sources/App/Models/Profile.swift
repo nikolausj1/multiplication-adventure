@@ -7,10 +7,15 @@ import SwiftData
 final class Profile {
     var id: UUID
     var name: String
-    var avatarSymbol: String       // SF Symbol name (static avatar in v1)
+    var avatarSymbol: String       // avatar asset key ("avatar3") or legacy SF Symbol name
     var totalXP: Int
     var createdAt: Date
     var isActive: Bool
+
+    /// First-run state: false until the kid finishes onboarding (name/grade/avatar).
+    var onboarded: Bool = false
+    /// The grade he's going into ("Pre-K", "K", "1"…"5") — info only.
+    var grade: String = ""
 
     // Streak bookkeeping (§8).
     var lastPracticeDate: Date?

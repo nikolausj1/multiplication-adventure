@@ -11,6 +11,8 @@ struct MapView: View {
 
     @State private var sessionWorld: WorldSelection?
     @State private var showParent = false
+    @State private var showProfile = false
+    @State private var showStreak = false
     @State private var showCertificate = false
 
     // Locked-node tap response + the fog-lift reveal when a new world opens.
@@ -74,12 +76,16 @@ struct MapView: View {
                 .environment(\.worldTheme, .forWorld(sel.id))
         }
         .sheet(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
+        .fullScreenCover(isPresented: $showProfile) { PlayerProfileView() }
+        .fullScreenCover(isPresented: $showStreak) { StreakView() }
         .sheet(isPresented: $showCertificate) { CertificateView(name: profile?.name ?? "Champion") }
         .onAppear {
             baselineCurrent = currentIndex
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-autostartSession") { sessionWorld = WorldSelection(id: currentIndex) }
             if args.contains("-autostartParent") { showParent = true }
+            if args.contains("-autostartProfile") { showProfile = true }
+            if args.contains("-autostartStreak") { showStreak = true }
             if args.contains("-autostartCertificate") { showCertificate = true }
             if args.contains("-autostartSpeed") { sessionWorld = WorldSelection(id: currentIndex, speed: true) }
             if args.contains("-autostartBoss") { sessionWorld = WorldSelection(id: currentIndex, boss: true) }
@@ -111,29 +117,27 @@ struct MapView: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            // Player chip: dark glass to match the session plates.
-            HStack(spacing: 10) {
-                Image(systemName: profile?.avatarSymbol ?? "figure.hiking")
-                    .font(.system(size: 20, weight: .semibold)).foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Circle().fill(LinearGradient(colors: [Theme.Color.primary.shaded(by: 0.2),
-                                                              Theme.Color.primary.shaded(by: -0.2)],
-                                                     startPoint: .top, endPoint: .bottom)))
-                    .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1.5))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(profile?.name ?? "Player").font(Theme.Font.display(16)).foregroundStyle(.white)
-                    HStack(spacing: 3) {
-                        // Gem, not star: stars are world progress, XP is treasure.
-                        Image(systemName: "diamond.fill").font(.system(size: 9))
-                            .foregroundStyle(Theme.Color.accent)
-                        Text("\(profile?.totalXP ?? 0) XP")
-                            .font(Theme.Font.label(12)).foregroundStyle(.white.opacity(0.8))
+            // Player chip: dark glass to match the session plates. Tapping it
+            // opens the kid's trophy-room profile.
+            Button { showProfile = true } label: {
+                HStack(spacing: 10) {
+                    AvatarBadge(key: profile?.avatarSymbol ?? "avatar1", size: 40)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(profile?.name ?? "Player").font(Theme.Font.display(16)).foregroundStyle(.white)
+                        HStack(spacing: 3) {
+                            // Gem, not star: stars are world progress, XP is treasure.
+                            Image(systemName: "diamond.fill").font(.system(size: 9))
+                                .foregroundStyle(Theme.Color.accent)
+                            Text("\(profile?.totalXP ?? 0) XP")
+                                .font(Theme.Font.label(12)).foregroundStyle(.white.opacity(0.8))
+                        }
                     }
                 }
+                .padding(.vertical, 7).padding(.horizontal, 9).padding(.trailing, 7)
+                .darkPlate(corner: 27)
             }
-            .padding(.vertical, 7).padding(.horizontal, 9).padding(.trailing, 7)
-            .darkPlate(corner: 27)
+            .buttonStyle(PopButtonStyle())
+            .accessibilityLabel("My profile")
             Spacer()
             // Title lives in the full-bleed banner; fall back to the floating
             // logo or text when banner art is absent.
@@ -166,16 +170,20 @@ struct MapView: View {
             }
             if let p = profile {
                 // The daily flame: lit = today's quest done; dim = not yet today.
+                // Tapping opens the streak calendar.
                 let practicedToday = p.lastPracticeDate.map { Calendar.current.isDateInToday($0) } ?? false
-                HStack(spacing: 5) {
-                    Image(systemName: "flame.fill")
-                        .foregroundStyle(practicedToday ? Theme.Color.accent : Color.white.opacity(0.3))
-                    if p.streakDays > 0 {
-                        Text("\(p.streakDays)").font(Theme.Font.number(16))
-                            .foregroundStyle(practicedToday ? .white : .white.opacity(0.5))
+                Button { showStreak = true } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "flame.fill")
+                            .foregroundStyle(practicedToday ? Theme.Color.accent : Color.white.opacity(0.3))
+                        if p.streakDays > 0 {
+                            Text("\(p.streakDays)").font(Theme.Font.number(16))
+                                .foregroundStyle(practicedToday ? .white : .white.opacity(0.5))
+                        }
                     }
+                    .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
                 }
-                .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
+                .buttonStyle(PopButtonStyle())
                 .accessibilityLabel(practicedToday
                     ? "Streak \(p.streakDays) days, practiced today"
                     : "Not practiced yet today")

@@ -26,9 +26,9 @@ struct ParentAreaView: View {
     @State private var testWorld = 0
     @State private var testLaunch: WorldSelection?
     @State private var showCert = false
+    @State private var startOverTarget: Profile?
 
-    private let avatars = ["figure.hiking", "tortoise.fill", "hare.fill", "bird.fill",
-                           "pawprint.fill", "star.fill"]
+    private let avatars = AvatarCatalog.keys
 
     var body: some View {
         NavigationStack {
@@ -77,6 +77,15 @@ struct ParentAreaView: View {
             Button("Reset", role: .destructive) { if let t = resetTarget { service.resetProgress(t) }; resetTarget = nil }
             Button("Cancel", role: .cancel) { resetTarget = nil }
         } message: { Text("This returns the profile to brand-new. It cannot be undone.") }
+        .alert("Start over?", isPresented: Binding(get: { startOverTarget != nil },
+                                                   set: { if !$0 { startOverTarget = nil } })) {
+            Button("Start over", role: .destructive) {
+                if let t = startOverTarget { service.startOver(t) }
+                startOverTarget = nil
+                dismiss()   // onboarding takes over the map
+            }
+            Button("Cancel", role: .cancel) { startOverTarget = nil }
+        } message: { Text("Wipes progress AND name, avatar, and grade — the app begins again with the first-time setup. It cannot be undone.") }
     }
 
     private func gated(_ action: @escaping () -> Void) { pending = action; showGate = true }
@@ -196,8 +205,7 @@ struct ParentAreaView: View {
 
     private func profileRow(_ p: Profile) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: p.avatarSymbol).font(.system(size: 22)).foregroundStyle(Theme.Color.primary)
-                .frame(width: 40, height: 40).background(Theme.Color.primary.opacity(0.12), in: Circle())
+            AvatarBadge(key: p.avatarSymbol, size: 40)
             VStack(alignment: .leading, spacing: 1) {
                 Text(p.name).font(Theme.Font.label(16)).foregroundStyle(Theme.Color.ink)
                 Text("\(p.masteredCount)/\(FactUniverse.count) mastered · \(p.totalXP) XP")
@@ -214,6 +222,7 @@ struct ParentAreaView: View {
             Menu {
                 Button { gated { renameTarget = p; renameText = p.name } } label: { Label("Rename", systemImage: "pencil") }
                 Button { gated { resetTarget = p } } label: { Label("Reset progress", systemImage: "arrow.counterclockwise") }
+                Button { gated { startOverTarget = p } } label: { Label("Start over (redo onboarding)", systemImage: "arrow.uturn.backward") }
                 if profiles.count > 1 {
                     Button(role: .destructive) { gated { deleteTarget = p } } label: { Label("Delete", systemImage: "trash") }
                 }
@@ -245,27 +254,32 @@ struct ParentAreaView: View {
     }
 }
 
-/// The parent gate: a 2-digit × 2-digit challenge a young child can't pass.
+/// The parent gate: "enter your year of birth" — accepts any year implying an
+/// adult (18–100 years old).
 struct ParentGateView: View {
     let onPass: () -> Void
     let onCancel: () -> Void
 
-    @State private var a = 12
-    @State private var b = 13
     @State private var entry = ""
     @State private var wrong = false
-    @State private var ready = false
 
     var body: some View {
         VStack(spacing: 18) {
-            Text("Grown-ups only").font(Theme.Font.display(24)).foregroundStyle(Theme.Color.ink)
-            Text("Solve to continue").font(Theme.Font.body()).foregroundStyle(Theme.Color.inkSoft)
-            Text("\(a) × \(b)").font(Theme.Font.number(44)).foregroundStyle(Theme.Color.ink)
-            Text(entry.isEmpty ? " " : entry)
-                .font(Theme.Font.number(34)).frame(minWidth: 140, minHeight: 60)
-                .background(Theme.Color.bg).clipShape(RoundedRectangle(cornerRadius: 14))
+            Text("Parents only").font(Theme.Font.display(24)).foregroundStyle(Theme.Color.ink)
+            Text("Please enter your year of birth").font(Theme.Font.body()).foregroundStyle(Theme.Color.inkSoft)
+            HStack(spacing: 10) {
+                ForEach(0..<4, id: \.self) { i in
+                    Text(i < entry.count ? String(Array(entry)[i]) : "")
+                        .font(Theme.Font.number(30)).foregroundStyle(Theme.Color.ink)
+                        .frame(width: 52, height: 62)
+                        .background(Theme.Color.bg)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(i == entry.count ? Theme.Color.primary : .clear, lineWidth: 2))
+                }
+            }
             if wrong { Text("Not quite — try again").font(Theme.Font.label()).foregroundStyle(Theme.Color.gentle) }
-            NumberPadView(enterEnabled: !entry.isEmpty,
+            NumberPadView(enterEnabled: entry.count == 4,
                           onDigit: { d in if entry.count < 4 { entry.append(String(d)) } },
                           onDelete: { _ = entry.popLast() },
                           onEnter: check)
@@ -273,13 +287,14 @@ struct ParentGateView: View {
         }
         .padding(Theme.Metric.pad)
         .frame(maxWidth: 460)
-        .onAppear {
-            guard !ready else { return }
-            a = Int.random(in: 11...29); b = Int.random(in: 11...29); ready = true
-        }
     }
 
     private func check() {
-        if Int(entry) == a * b { onPass() } else { wrong = true; entry = "" }
+        let currentYear = Calendar.current.component(.year, from: .now)
+        if let y = Int(entry), ((currentYear - 100)...(currentYear - 18)).contains(y) {
+            onPass()
+        } else {
+            wrong = true; entry = ""
+        }
     }
 }

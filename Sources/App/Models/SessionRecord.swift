@@ -12,6 +12,10 @@ final class SessionRecord {
     var xpEarned: Int
     var medianResponseTime: Double
     var factsTouched: Int
+    /// This session completed the daily quest (streak-calendar flame days).
+    var starEarned: Bool = false
+    /// Facts that reached Fluency during this session (weekly dashboard stat).
+    var fluentGained: Int = 0
 
     init(date: Date = .now, questionCount: Int = 0, correctCount: Int = 0,
          xpEarned: Int = 0, medianResponseTime: Double = 0, factsTouched: Int = 0) {

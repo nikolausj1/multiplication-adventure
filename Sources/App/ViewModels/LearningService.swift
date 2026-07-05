@@ -18,6 +18,11 @@ struct LearningService {
         } else {
             if !profiles.contains(where: { $0.isActive }) { profiles[0].isActive = true }
             for p in profiles where p.facts.isEmpty { seedFacts(for: p) }
+            // Migration heal: a profile with real progress predates onboarding —
+            // never re-onboard it.
+            for p in profiles where !p.onboarded && (p.totalXP > 0 || !p.sessions.isEmpty) {
+                p.onboarded = true
+            }
         }
         try? context.save()
     }
@@ -43,6 +48,7 @@ struct LearningService {
         for p in allProfiles() { p.isActive = false }
         let p = Profile(name: name.isEmpty ? "Player \(allProfiles().count + 1)" : name,
                         avatarSymbol: avatar, isActive: true)
+        p.onboarded = true   // parent-created profiles skip the kid onboarding
         context.insert(p); seedFacts(for: p); try? context.save(); return p
     }
 
@@ -75,7 +81,23 @@ struct LearningService {
         profile.speedRoundUnlocked = false
         profile.clearedWorldsMask = 0
         profile.bestSpeedAvg = 0
+        profile.questStars = 0
+        profile.pausedQuestDate = nil
+        profile.pausedQuestElapsed = 0
+        profile.pausedQuestMeter = 0
+        profile.pausedQuestNewCount = 0
         seedFacts(for: profile)
+        try? context.save()
+    }
+
+    /// Full "hand the app to a new kid" wipe: progress AND identity, and the
+    /// first-run onboarding plays again.
+    func startOver(_ profile: Profile) {
+        resetProgress(profile)
+        profile.name = "Player 1"
+        profile.avatarSymbol = "avatar1"
+        profile.grade = ""
+        profile.onboarded = false
         try? context.save()
     }
 
@@ -84,6 +106,7 @@ struct LearningService {
     func applyDemoProgress(complete: Bool) {
         let p = activeProfile()
         let now = Date()
+        p.onboarded = true   // demo jumps never trip the first-run gate
         // Bosses count as beaten for the demo-cleared worlds; stars match.
         for w in 0..<WorldCatalog.count where complete || w <= 2 { p.markWorldCleared(w) }
         p.questStars = complete ? 5 * WorldCatalog.count : 17   // 3 cleared + 2 in world 4
@@ -564,7 +587,8 @@ struct LearningService {
     func finishSession(questionCount: Int, correctCount: Int, xpEarned: Int,
                        responseTimes: [Double], factsTouched: Int,
                        speed: Bool = false, bossWorld: Int? = nil,
-                       practiced: Bool = true, now: Date = .now) -> Celebration? {
+                       practiced: Bool = true, starEarned: Bool = false,
+                       fluentGained: Int = 0, now: Date = .now) -> Celebration? {
         let p = activeProfile()
         let beforeStreak = p.streakDays
         // The flame is strict: only real completed work lights it (quest star landed,
@@ -613,6 +637,8 @@ struct LearningService {
         let rec = SessionRecord(date: now, questionCount: questionCount,
                                 correctCount: correctCount, xpEarned: xpEarned,
                                 medianResponseTime: median, factsTouched: factsTouched)
+        rec.starEarned = starEarned
+        rec.fluentGained = fluentGained
         rec.profile = p
         context.insert(rec)
 

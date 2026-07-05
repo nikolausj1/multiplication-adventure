@@ -15,7 +15,8 @@ struct DashboardView: View {
 
     var body: some View {
         VStack(spacing: Theme.Metric.gap) {
-            cadenceAndMastery
+            card("Weekly overview") { weeklyOverview }
+            card("Times-table proficiency") { tableProficiency }
             card("Adventure map") {
                 let cleared = profile?.clearedWorlds.count ?? 0
                 Text("\(cleared) of \(WorldCatalog.count) worlds cleared")
@@ -33,22 +34,144 @@ struct DashboardView: View {
         .frame(maxWidth: 720)
     }
 
-    private var cadenceAndMastery: some View {
-        HStack(spacing: Theme.Metric.gap) {
-            card("This week") {
-                Text("\(daysPracticedThisWeek)/7").font(Theme.Font.number(34)).foregroundStyle(Theme.Color.primary)
-                Text("days practiced").font(Theme.Font.label(13)).foregroundStyle(Theme.Color.inkSoft)
+    // MARK: Weekly overview (this week vs. last)
+
+    private struct WeekStats {
+        var days = 0, stars = 0, problems = 0, newFluent = 0
+        var accuracy: Double?
+    }
+
+    private func stats(in interval: DateInterval?) -> WeekStats {
+        guard let interval else { return WeekStats() }
+        let cal = Calendar.current
+        let recs = sessions.filter { interval.contains($0.date) }
+        var s = WeekStats()
+        s.days = Set(recs.map { cal.startOfDay(for: $0.date) }).count
+        s.stars = recs.filter(\.starEarned).count
+        s.problems = recs.reduce(0) { $0 + $1.questionCount }
+        s.newFluent = recs.reduce(0) { $0 + $1.fluentGained }
+        let q = recs.reduce(0) { $0 + $1.questionCount }
+        let c = recs.reduce(0) { $0 + $1.correctCount }
+        s.accuracy = q > 0 ? Double(c) / Double(q) : nil
+        return s
+    }
+
+    private var weeklyOverview: some View {
+        let cal = Calendar.current
+        let thisWeek = cal.dateInterval(of: .weekOfYear, for: .now)
+        let lastWeek = thisWeek.flatMap { i in
+            cal.date(byAdding: .day, value: -7, to: i.start).flatMap {
+                cal.dateInterval(of: .weekOfYear, for: $0)
+            }
+        }
+        let now = stats(in: thisWeek)
+        let prev = stats(in: lastWeek)
+        let hasHistory = prev.problems > 0
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 0) {
+                statTile("calendar", "\(now.days)", "practice days",
+                         hasHistory ? delta(now.days - prev.days) : nil, Theme.Color.primary)
+                statTile("star.fill", "\(now.stars)", "stars earned",
+                         hasHistory ? delta(now.stars - prev.stars) : nil, Theme.Color.accent)
+                statTile("checkmark.circle.fill",
+                         now.accuracy.map { "\(Int($0 * 100))%" } ?? "—", "accuracy",
+                         hasHistory ? accuracyDelta(now.accuracy, prev.accuracy) : nil, Theme.Color.correct)
+                statTile("number.square.fill", "\(now.problems)", "problems answered",
+                         hasHistory ? delta(now.problems - prev.problems) : nil, Theme.Color.primary)
+                statTile("bolt.fill", "\(now.newFluent)", "new fluent facts",
+                         hasHistory ? delta(now.newFluent - prev.newFluent) : nil, Theme.Color.accent)
+            }
+            HStack(spacing: 14) {
                 if let p = profile, p.streakDays > 0 {
                     Label("\(p.streakDays)-day streak", systemImage: "flame.fill")
-                        .font(Theme.Font.label()).foregroundStyle(Theme.Color.accent)
+                        .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
+                }
+                let pct = Int(Double(masteredCount) / Double(FactUniverse.count) * 100)
+                Label("\(masteredCount)/\(FactUniverse.count) facts mastered (\(pct)%)",
+                      systemImage: "medal.fill")
+                    .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.correct)
+                if !hasHistory {
+                    Text("First week — comparisons start next week!")
+                        .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
                 }
             }
-            card("Mastered") {
-                let pct = Int(Double(masteredCount) / Double(FactUniverse.count) * 100)
-                Text("\(pct)%").font(Theme.Font.number(34)).foregroundStyle(Theme.Color.correct)
-                ProgressView(value: Double(masteredCount), total: Double(FactUniverse.count)).tint(Theme.Color.correct)
-                Text("\(masteredCount) of \(FactUniverse.count) facts")
-                    .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.inkSoft)
+        }
+    }
+
+    private func delta(_ d: Int) -> (String, Color)? {
+        if d > 0 { return ("▲ +\(d) vs last week", Theme.Color.correct) }
+        if d < 0 { return ("▼ \(d) vs last week", Theme.Color.inkSoft) }
+        return ("— same as last week", Theme.Color.inkSoft)
+    }
+    private func accuracyDelta(_ now: Double?, _ prev: Double?) -> (String, Color)? {
+        guard let now, let prev else { return nil }
+        let d = Int((now - prev) * 100)
+        if d > 0 { return ("▲ +\(d) pts", Theme.Color.correct) }
+        if d < 0 { return ("▼ \(d) pts", Theme.Color.inkSoft) }
+        return ("— level", Theme.Color.inkSoft)
+    }
+
+    private func statTile(_ icon: String, _ value: String, _ label: String,
+                          _ change: (String, Color)?, _ tint: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon).font(.system(size: 17)).foregroundStyle(tint)
+            Text(value).font(Theme.Font.number(26)).foregroundStyle(Theme.Color.ink)
+            Text(label).font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
+            if let (text, color) = change {
+                Text(text).font(Theme.Font.label(10)).foregroundStyle(color)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: Times-table proficiency
+
+    private enum TableStatus {
+        case notStarted, working, needsAttention, mastered
+        var label: String {
+            switch self {
+            case .notStarted: "Not started"; case .working: "Working on it"
+            case .needsAttention: "Needs attention"; case .mastered: "Mastered"
+            }
+        }
+        var color: Color {
+            switch self {
+            case .notStarted: Theme.Color.gentle
+            case .working: Theme.Color.primary
+            case .needsAttention: Theme.Color.accent
+            case .mastered: Theme.Color.correct
+            }
+        }
+    }
+
+    private func tableStatus(_ tableFacts: [Fact]) -> TableStatus {
+        guard tableFacts.contains(where: { $0.introduced }) else { return .notStarted }
+        if tableFacts.allSatisfy({ $0.stage == .mastered }) { return .mastered }
+        let struggling = tableFacts.contains {
+            $0.introduced && (($0.totalAttempts >= 3 && $0.snapshot.accuracy < 0.7) || $0.lapseCount >= 2)
+        }
+        return struggling ? .needsAttention : .working
+    }
+
+    private var tableProficiency: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
+                  alignment: .leading, spacing: 8) {
+            ForEach(0...FactUniverse.maxFactor, id: \.self) { t in
+                let tf = facts.filter { $0.a == t || $0.b == t }
+                let status = tableStatus(tf)
+                let fluent = tf.filter { $0.stage >= .fluency }.count
+                HStack(spacing: 10) {
+                    Text("×\(t)").font(Theme.Font.number(17)).foregroundStyle(Theme.Color.ink)
+                        .frame(width: 42, alignment: .leading)
+                    ProgressView(value: tf.isEmpty ? 0 : Double(fluent) / Double(tf.count))
+                        .tint(status.color)
+                    Text(status.label).font(Theme.Font.label(11))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(status.color))
+                        .frame(width: 118, alignment: .trailing)
+                }
             }
         }
     }
