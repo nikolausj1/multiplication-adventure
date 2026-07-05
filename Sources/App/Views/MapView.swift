@@ -77,7 +77,7 @@ struct MapView: View {
         }
         .sheet(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
         .fullScreenCover(isPresented: $showProfile) { PlayerProfileView() }
-        .fullScreenCover(isPresented: $showStreak) { StreakView() }
+        .sheet(isPresented: $showStreak) { StreakView() }
         .sheet(isPresented: $showCertificate) { CertificateView(name: profile?.name ?? "Champion") }
         .onAppear {
             baselineCurrent = currentIndex
