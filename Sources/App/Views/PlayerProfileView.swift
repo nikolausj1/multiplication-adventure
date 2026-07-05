@@ -139,12 +139,21 @@ struct PlayerProfileView: View {
             Text("GUARDIANS DEFEATED")
                 .font(Theme.Font.label(14)).tracking(3)
                 .foregroundStyle(.white.opacity(0.6))
-            HStack(spacing: 12) {
-                ForEach(WorldCatalog.worlds, id: \.index) { world in
-                    trophyTile(world)
+            // Two rows (4 + 3) so the portraits get real width.
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    ForEach(WorldCatalog.worlds.prefix(4), id: \.index) { world in
+                        trophyTile(world)
+                    }
                 }
+                .frame(maxHeight: .infinity)
+                HStack(spacing: 12) {
+                    ForEach(WorldCatalog.worlds.dropFirst(4), id: \.index) { world in
+                        trophyTile(world)
+                    }
+                }
+                .frame(maxHeight: .infinity)
             }
-            .frame(maxHeight: .infinity)
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
