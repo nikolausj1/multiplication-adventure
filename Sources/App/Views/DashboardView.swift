@@ -210,20 +210,32 @@ struct DashboardView: View {
         .frame(height: 180)
     }
 
+    /// Only facts with real evidence of struggle: missed repeatedly (under 75%
+    /// over 3+ tries) or slipped after mastery twice. Being new or slow is
+    /// normal learning, not trouble — with no threshold this card just listed
+    /// his most recent facts and cried wolf.
     private var troubleSpots: [Fact] {
-        facts.filter { $0.introduced && $0.stage != .mastered && $0.totalAttempts >= 2 }
-            .sorted { troubleScore($0) > troubleScore($1) }.prefix(6).map { $0 }
+        facts.filter { f in
+            guard f.introduced, f.stage != .mastered, min(f.a, f.b) > 1 else { return false }
+            let struggling = f.totalAttempts >= 3 && f.snapshot.accuracy < 0.75
+            return struggling || f.lapseCount >= 2
+        }
+        .sorted { troubleScore($0) > troubleScore($1) }.prefix(6).map { $0 }
     }
     private func troubleScore(_ f: Fact) -> Double {
         (1 - f.snapshot.accuracy) * 5 + Double(f.lapseCount) * 3 + max(0, f.averageTime - 2)
     }
     private var trouble: some View {
-        HStack(spacing: 8) {
-            ForEach(troubleSpots) { f in
-                Text("\(f.a)×\(f.b)").font(Theme.Font.number(18)).foregroundStyle(Theme.Color.ink)
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(Theme.Color.accent.opacity(0.15)).clipShape(Capsule())
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                ForEach(troubleSpots) { f in
+                    Text("\(f.a)×\(f.b)").font(Theme.Font.number(18)).foregroundStyle(Theme.Color.ink)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(Theme.Color.accent.opacity(0.15)).clipShape(Capsule())
+                }
             }
+            Text("Missed often or slipped after mastery — worth a minute together.")
+                .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
         }
     }
 

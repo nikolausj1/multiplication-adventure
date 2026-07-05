@@ -124,6 +124,10 @@ struct LearningService {
                 f.stageRaw = (fluent ? MasteryStage.fluency : MasteryStage.recall).rawValue
                 f.box = 3; f.totalAttempts = 4; f.totalCorrect = 4
                 f.recentTimes = [1.6]; f.averageTime = 1.6
+                // A few genuinely-struggled facts so Trouble Spots has data.
+                if (f.a &+ f.b) % 7 == 0, min(f.a, f.b) > 1 {
+                    f.totalAttempts = 8; f.totalCorrect = 4
+                }
             }
         }
         try? context.save()
