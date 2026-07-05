@@ -17,19 +17,19 @@ struct DashboardView: View {
         VStack(spacing: Theme.Metric.gap) {
             card("Weekly overview") { weeklyOverview }
             card("Times-table proficiency") { tableProficiency }
+            if !troubleSpots.isEmpty { card("Trouble spots") { trouble } }
+            card("Mastery map") {
+                ScrollView(.horizontal, showsIndicators: false) { MasteryGridView(facts: facts).padding(4) }
+                legend
+            }
+            if sessions.count >= 2 { card("Progress over time") { trend } }
+            if !unfulfilled.isEmpty { card("Earned rewards", badge: unfulfilled.count) { rewards } }
             card("Adventure map") {
                 let cleared = profile?.clearedWorlds.count ?? 0
                 Text("\(cleared) of \(WorldCatalog.count) worlds cleared")
                     .font(Theme.Font.number(22)).foregroundStyle(Theme.Color.primary)
                 worldBars
             }
-            card("Mastery map") {
-                ScrollView(.horizontal, showsIndicators: false) { MasteryGridView(facts: facts).padding(4) }
-                legend
-            }
-            if sessions.count >= 2 { card("Progress over time") { trend } }
-            if !troubleSpots.isEmpty { card("Trouble spots") { trouble } }
-            if !unfulfilled.isEmpty { card("Earned rewards") { rewards } }
         }
         .frame(maxWidth: 720)
     }
@@ -68,8 +68,8 @@ struct DashboardView: View {
         let prev = stats(in: lastWeek)
         let hasHistory = prev.problems > 0
 
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
                 statTile("calendar", "\(now.days)", "practice days",
                          hasHistory ? delta(now.days - prev.days) : nil, Theme.Color.primary)
                 statTile("star.fill", "\(now.stars)", "stars earned",
@@ -123,6 +123,9 @@ struct DashboardView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 12).padding(.horizontal, 4)
+        .background(tint.opacity(0.08),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     // MARK: Times-table proficiency
@@ -241,12 +244,6 @@ struct DashboardView: View {
         }
     }
 
-    private var daysPracticedThisWeek: Int {
-        let cal = Calendar.current
-        let weekStart = cal.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
-        return Set(sessions.filter { $0.date >= weekStart }.map { cal.startOfDay(for: $0.date) }).count
-    }
-
     private var legend: some View {
         HStack(spacing: 14) {
             ForEach([(FactDisplayState.notStarted, "New"), (.learning, "Learning"),
@@ -260,9 +257,20 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func card<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func card<Content: View>(_ title: String, badge: Int = 0,
+                                     @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+            HStack(spacing: 8) {
+                Text(title.uppercased())
+                    .font(Theme.Font.label(13)).tracking(1.5)
+                    .foregroundStyle(Theme.Color.inkSoft)
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(Theme.Font.label(12)).foregroundStyle(.white)
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .background(Capsule().fill(Color(red: 0.9, green: 0.2, blue: 0.18)))
+                }
+            }
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)

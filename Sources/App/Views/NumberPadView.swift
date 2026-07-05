@@ -9,6 +9,9 @@ struct NumberPadView: View {
     let onDigit: (Int) -> Void
     let onDelete: () -> Void
     let onEnter: () -> Void
+    /// Overrides the world tint on the digit keys (the parent gate shouldn't
+    /// wear a kid-session world color).
+    var keyTint: Color? = nil
 
     private let rows = [[7, 8, 9], [4, 5, 6], [1, 2, 3]]
 
@@ -36,7 +39,8 @@ struct NumberPadView: View {
             Text("\(n)").font(Theme.Font.number(32))
                 .frame(maxWidth: .infinity, minHeight: 62)
         }
-        .buttonStyle(ChunkyKeyStyle(base: theme.primary, deep: theme.deep))
+        .buttonStyle(ChunkyKeyStyle(base: keyTint ?? theme.primary,
+                                    deep: keyTint.map { $0.shaded(by: -0.35) } ?? theme.deep))
     }
 
     private func key(systemImage: String, base: Color, deep: Color,

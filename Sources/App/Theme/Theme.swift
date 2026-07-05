@@ -66,12 +66,14 @@ enum Theme {
 }
 
 extension View {
-    /// Standard card surface used across the app.
+    /// Standard card surface used across the app: flat white with a hairline
+    /// border (no drop shadow — not part of the design language).
     func cardSurface() -> some View {
         self
             .background(Theme.Color.surface)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous))
-            .shadow(color: .black.opacity(0.06), radius: 10, y: 4)
+            .overlay(RoundedRectangle(cornerRadius: Theme.Metric.corner, style: .continuous)
+                .strokeBorder(Theme.Color.ink.opacity(0.08), lineWidth: 1))
     }
 }
 

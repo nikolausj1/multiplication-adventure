@@ -75,7 +75,7 @@ struct MapView: View {
             SessionView(worldIndex: sel.id, speedRound: sel.speed, boss: sel.boss)
                 .environment(\.worldTheme, .forWorld(sel.id))
         }
-        .sheet(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
+        .fullScreenCover(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
         .fullScreenCover(isPresented: $showProfile) { PlayerProfileView() }
         .fullScreenCover(isPresented: $showStreak) { StreakView() }
         .sheet(isPresented: $showCertificate) { CertificateView(name: profile?.name ?? "Champion") }
@@ -239,7 +239,9 @@ struct MapView: View {
             if unlocked {
                 // Star sockets — one star per completed quest; cleared worlds
                 // always wear all five.
-                WorldStars(filled: starsHere)
+                WorldStars(filled: starsHere, size: 19, spacing: 4)
+                    .padding(.horizontal, 9).padding(.vertical, 4)
+                    .background(Capsule().fill(.black.opacity(0.45)))
                     .padding(.top, 2)
                 Text(world.name)
                     .font(Theme.Font.label(13)).foregroundStyle(.white)

@@ -34,27 +34,13 @@ struct PlayerProfileView: View {
 
     private var card: some View {
         VStack(spacing: 18) {
-            ZStack {
-                hero
-                HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 24, weight: .heavy))
-                            .foregroundStyle(.white)
-                            .frame(width: 58, height: 58)
-                    }
-                    .buttonStyle(ChunkyKeyStyle(base: Theme.Color.primary,
-                                                deep: Theme.Color.primary.shaded(by: -0.35),
-                                                corner: 20))
-                    .accessibilityLabel("Close")
-                    Spacer()
-                }
-            }
+            hero
             guardians
                 .frame(maxHeight: .infinity)
             statTiles
         }
         .padding(Theme.Metric.pad)
+        .overlay(alignment: .topLeading) { ModalCloseButton { dismiss() }.padding(14) }
         .background(Self.sheetBG, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
             .strokeBorder(.white.opacity(0.12), lineWidth: 1.5))
@@ -100,19 +86,23 @@ struct PlayerProfileView: View {
                         .background(Color.white.opacity(0.12),
                                     in: RoundedRectangle(cornerRadius: 14))
                 } else {
-                    Button {
-                        draftName = profile?.name ?? ""
-                        editingName = true
-                        nameFocused = true
-                    } label: {
-                        HStack(spacing: 10) {
-                            Text(profile?.name ?? "Player")
-                                .font(Theme.Font.display(38)).foregroundStyle(.white)
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.system(size: 24)).foregroundStyle(.white.opacity(0.5))
+                    HStack(spacing: 12) {
+                        Text(profile?.name ?? "Player")
+                            .font(Theme.Font.display(38)).foregroundStyle(.white)
+                        Button {
+                            draftName = profile?.name ?? ""
+                            editingName = true
+                            nameFocused = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                                .font(Theme.Font.label(14))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 12).padding(.vertical, 7)
+                                .background(Capsule().fill(.white.opacity(0.15)))
+                                .overlay(Capsule().strokeBorder(.white.opacity(0.25)))
                         }
+                        .accessibilityLabel("Change name")
                     }
-                    .accessibilityLabel("Change name")
                 }
             }
             HStack(spacing: 12) {
@@ -171,35 +161,36 @@ struct PlayerProfileView: View {
         } label: {
             VStack(spacing: 8) {
                 Group {
-                    if Art.exists("\(world.assetKey)_boss") {
+                    if cleared, Art.exists("\(world.assetKey)_boss") {
+                        // The reveal is the reward: unbeaten guardians stay hidden.
                         Image("\(world.assetKey)_boss").resizable().scaledToFit()
-                    } else {
+                    } else if cleared {
                         Image(systemName: "shield.fill")
                             .font(.system(size: 44))
                             .foregroundStyle(.white.opacity(0.5))
+                    } else {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 52, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.25))
                     }
                 }
                 .frame(maxHeight: .infinity)
-                .saturation(cleared ? 1 : 0)
-                .opacity(cleared ? 1 : 0.3)
                 .overlay(alignment: .topTrailing) {
                     if cleared {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(Theme.Color.correct)
-                            .background(Circle().fill(.white).frame(width: 16, height: 16))
-                    } else {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.white.opacity(0.45))
+                        Text("DEFEATED")
+                            .font(Theme.Font.label(17)).tracking(1.5)
+                            .foregroundStyle(Color(red: 0.9, green: 0.16, blue: 0.14))
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(Capsule().fill(.black.opacity(0.45)))
+                            .rotationEffect(.degrees(4))
                     }
                 }
-                Text(cleared ? (selected ? defeatDate(world) : world.bossName) : "???")
-                    .font(Theme.Font.label(11))
-                    .foregroundStyle(cleared
-                        ? (selected ? Theme.Color.accent : .white)
-                        : .white.opacity(0.4))
-                    .lineLimit(1).minimumScaleFactor(0.65)
+                if cleared {
+                    Text(selected ? defeatDate(world) : world.bossName)
+                        .font(Theme.Font.label(17))
+                        .foregroundStyle(selected ? Theme.Color.accent : .white)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                }
             }
             .padding(.horizontal, 6).padding(.vertical, 10)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -234,14 +225,14 @@ struct PlayerProfileView: View {
         let fluentCount = (profile?.facts ?? []).filter { $0.stage >= .fluency }.count
         return HStack(spacing: 12) {
             statTile {
-                StarGlyph(filled: true, size: 26)
+                StarGlyph(filled: true, size: 32)
             } value: {
                 "\(profile?.questStars ?? 0)"
             } label: {
                 "stars earned"
             }
             statTile {
-                Image(systemName: "flame.fill").font(.system(size: 26))
+                Image(systemName: "flame.fill").font(.system(size: 32))
                     .foregroundStyle(Theme.Color.accent)
             } value: {
                 "\(profile?.streakDays ?? 0)"
@@ -249,7 +240,7 @@ struct PlayerProfileView: View {
                 "day streak"
             }
             statTile {
-                Image(systemName: "diamond.fill").font(.system(size: 22))
+                Image(systemName: "diamond.fill").font(.system(size: 27))
                     .foregroundStyle(Theme.Color.accent)
             } value: {
                 "\(profile?.totalXP ?? 0)"
@@ -259,15 +250,15 @@ struct PlayerProfileView: View {
             // The learning number, kid-framed.
             VStack(spacing: 5) {
                 Text("\(fluentCount) of \(FactUniverse.count)")
-                    .font(Theme.Font.number(24)).foregroundStyle(.white)
+                    .font(Theme.Font.number(30)).foregroundStyle(.white)
                 ProgressView(value: Double(fluentCount), total: Double(FactUniverse.count))
                     .tint(Theme.Color.accent)
                     .padding(.horizontal, 18)
                 Text("facts I know")
-                    .font(Theme.Font.label(12)).foregroundStyle(.white.opacity(0.6))
+                    .font(Theme.Font.label(16)).foregroundStyle(.white.opacity(0.6))
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 92)
+            .frame(height: 118)
             .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.07)))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.08)))
         }
@@ -278,12 +269,12 @@ struct PlayerProfileView: View {
         VStack(spacing: 5) {
             HStack(spacing: 8) {
                 icon()
-                Text(value()).font(Theme.Font.number(28)).foregroundStyle(.white)
+                Text(value()).font(Theme.Font.number(36)).foregroundStyle(.white)
             }
-            Text(label()).font(Theme.Font.label(12)).foregroundStyle(.white.opacity(0.6))
+            Text(label()).font(Theme.Font.label(16)).foregroundStyle(.white.opacity(0.65))
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 92)
+        .frame(height: 118)
         .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.07)))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.08)))
     }

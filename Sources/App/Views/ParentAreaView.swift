@@ -29,27 +29,32 @@ struct ParentAreaView: View {
     @State private var startOverTarget: Profile?
 
     private let avatars = AvatarCatalog.keys
+    @State private var howOpen = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: Theme.Metric.gap) {
-                    profilesCard
-                    settingsCard
-                    howItWorksCard
-                    developerCard
-                    DashboardView()
-                }
-                .padding(Theme.Metric.pad)
-                .frame(maxWidth: 760).frame(maxWidth: .infinity)
-            }
-            .background(Theme.Color.bg)
-            .navigationTitle("Parents")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        ZStack {
+            // Dimmed map behind the card; tap outside to dismiss.
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+            card
+                .frame(maxWidth: 1180, maxHeight: 850)
+                .padding(.horizontal, 40)
+                .padding(.vertical, 30)
+            if showGate { gateOverlay.zIndex(5) }
         }
-        .sheet(isPresented: $showGate) {
-            ParentGateView(onPass: { showGate = false; pending?(); pending = nil },
-                           onCancel: { showGate = false; pending = nil })
+        .presentationBackground(.clear)
+        .onAppear {
+            // Screenshot hooks (simulator verification only).
+            let args = ProcessInfo.processInfo.arguments
+            if args.contains("-openGate") { showGate = true }
+            if args.contains("-openHow") { howOpen = true }
+            if args.contains("-testStartOver") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    if let p = profiles.first(where: { $0.isActive }) { service.startOver(p) }
+                    dismiss()
+                }
+            }
         }
         .sheet(isPresented: $showCert) { CertificateView(name: activeName) }
         .fullScreenCover(item: $testLaunch) { sel in
@@ -90,13 +95,138 @@ struct ParentAreaView: View {
 
     private func gated(_ action: @escaping () -> Void) { pending = action; showGate = true }
 
+    /// Uppercase tracked section header with a small tinted icon — the parent-area
+    /// counterpart of the kid modals' header style.
+    private func sectionHeader(_ title: String, _ icon: String) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Theme.Color.primary)
+            Text(title.uppercased())
+                .font(Theme.Font.label(13)).tracking(1.5)
+                .foregroundStyle(Theme.Color.inkSoft)
+        }
+    }
+
     private var activeName: String { profiles.first(where: { $0.isActive })?.name ?? "Champion" }
+
+    // MARK: The modal card — controls on the left, dashboard on the right
+
+    private var card: some View {
+        VStack(spacing: 0) {
+            Text("Parent Area")
+                .font(Theme.Font.display(30)).foregroundStyle(Theme.Color.ink)
+                .padding(.top, 28).padding(.bottom, 24)
+            HStack(alignment: .top, spacing: Theme.Metric.gap) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: Theme.Metric.gap) {
+                        profilesCard
+                        settingsCard
+                        howItWorksCard
+                        developerCard
+                    }
+                    .padding(.bottom, Theme.Metric.pad)
+                }
+                .frame(width: 350)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: Theme.Metric.gap) {
+                        identityHeader
+                        DashboardView()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, Theme.Metric.pad)
+                }
+            }
+            .padding(.horizontal, Theme.Metric.pad)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(red: 0.93, green: 0.95, blue: 0.98),
+                    in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
+            .strokeBorder(.white.opacity(0.25), lineWidth: 1.5))
+        .overlay(alignment: .topLeading) { ModalCloseButton { dismiss() }.padding(14) }
+        .compositingGroup()   // flatten so the shadow hugs the card, not every inner view
+        .shadow(color: .black.opacity(0.5), radius: 30, y: 10)
+    }
+
+    /// Who the dashboard is about: the active child's avatar, name, grade, and
+    /// three at-a-glance capsules echoing his trophy room.
+    private var identityHeader: some View {
+        let active = profiles.first(where: { $0.isActive })
+        let known = (active?.facts ?? []).filter { $0.stage >= .fluency }.count
+        return HStack(spacing: 14) {
+            AvatarBadge(key: active?.avatarSymbol ?? avatars[0], size: 64)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(active?.name ?? "Champion")
+                    .font(Theme.Font.display(26)).foregroundStyle(Theme.Color.ink)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                if let g = active?.grade, !g.isEmpty {
+                    Text(g == "Pre-K" || g == "K" ? "Going into \(g)" : "Going into grade \(g)")
+                        .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.inkSoft)
+                }
+            }
+            Spacer(minLength: 12)
+            statCapsule("star.fill", "\(active?.questStars ?? 0) stars", Theme.Color.accent)
+            statCapsule("flame.fill", "\(active?.streakDays ?? 0)-day streak",
+                        Color(red: 0.93, green: 0.42, blue: 0.13))
+            statCapsule("bolt.fill", "\(known) of \(FactUniverse.count) facts", Theme.Color.primary)
+        }
+        .padding(Theme.Metric.pad)
+        .frame(maxWidth: 720)
+        .cardSurface()
+    }
+
+    private func statCapsule(_ icon: String, _ text: String, _ tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).font(.system(size: 13, weight: .semibold))
+            Text(text).font(Theme.Font.label(14))
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(tint.opacity(0.1), in: Capsule())
+    }
+
+    /// The year-of-birth gate as a small centered card over its own scrim.
+    private var gateOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.45).ignoresSafeArea()
+                .onTapGesture { showGate = false; pending = nil }
+            ParentGateView(onPass: { showGate = false; pending?(); pending = nil },
+                           onCancel: { showGate = false; pending = nil })
+                .background(Theme.Color.surface,
+                            in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .compositingGroup()
+                .shadow(color: .black.opacity(0.45), radius: 24, y: 8)
+        }
+        .transition(.opacity)
+    }
 
     // MARK: How progress works (parent explainer)
 
     private var howItWorksCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("How progress works").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) { howOpen.toggle() }
+            } label: {
+                HStack {
+                    sectionHeader("How progress works", "questionmark.circle.fill")
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.Color.inkSoft)
+                        .rotationEffect(.degrees(howOpen ? 0 : -90))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if howOpen { explainRows }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Theme.Metric.pad).cardSurface()
+    }
+
+    @ViewBuilder
+    private var explainRows: some View {
             explainRow("star.fill",
                        "Every day is one QUEST: the app picks the facts for today's star and drills each one up its ladder (2 multiple-choice + 3 typed), mixed with review of everything learned so far. The quest ends when the star slams in — roughly 4–12 minutes, longer in bigger worlds.")
             explainRow("map.fill",
@@ -105,9 +235,6 @@ struct ParentAreaView: View {
                        "5 stars wake the BOSS: a timed round of that world's facts, pass at 85%, free retries. Beating it clears the world and reveals the next. 7 worlds = the trophy.")
             explainRow("flame.fill",
                        "The map flame lights when today's quest is done, and the number is his day streak. One missed day is forgiven; two in a row resets the streak. Extra play the same day continues to the next star. Mastery (for the certificate) still requires fast answers on 2 different days — that part can't be rushed.")
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Theme.Metric.pad).cardSurface()
     }
 
     private func explainRow(_ icon: String, _ text: String) -> some View {
@@ -131,8 +258,7 @@ struct ParentAreaView: View {
     private var devCardLocked: some View {
         Button { gated { devUnlocked = true } } label: {
             HStack {
-                Label("Developer / Testing", systemImage: "lock.fill")
-                    .font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+                sectionHeader("Developer / Testing", "lock.fill")
                 Spacer()
                 Image(systemName: "chevron.right").foregroundStyle(Theme.Color.inkSoft)
             }
@@ -145,7 +271,7 @@ struct ParentAreaView: View {
 
     private var devCardOpen: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Developer / Testing").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+            sectionHeader("Developer / Testing", "hammer.fill")
 
             Picker("World", selection: $testWorld) {
                 ForEach(WorldCatalog.worlds, id: \.index) { w in
@@ -192,7 +318,7 @@ struct ParentAreaView: View {
     private var profilesCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Profiles").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+                sectionHeader("Players", "person.2.fill")
                 Spacer()
                 Button { gated { showAdd = true } } label: { Label("Add", systemImage: "plus.circle.fill") }
                     .font(Theme.Font.label(14))
@@ -203,20 +329,20 @@ struct ParentAreaView: View {
         .padding(Theme.Metric.pad).cardSurface()
     }
 
+    /// Management only — no stats here; the dashboard's identity header owns those.
     private func profileRow(_ p: Profile) -> some View {
-        HStack(spacing: 12) {
-            AvatarBadge(key: p.avatarSymbol, size: 40)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(p.name).font(Theme.Font.label(16)).foregroundStyle(Theme.Color.ink)
-                Text("\(p.masteredCount)/\(FactUniverse.count) mastered · \(p.totalXP) XP")
-                    .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
+        HStack(spacing: 10) {
+            AvatarBadge(key: p.avatarSymbol, size: 32)
+            Text(p.name).font(Theme.Font.label(16)).foregroundStyle(Theme.Color.ink)
+                .lineLimit(1)
+            if p.isActive {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.Color.primary)
+                    .accessibilityLabel("Active player")
             }
             Spacer()
-            if p.isActive {
-                Text("ACTIVE").font(Theme.Font.label(11)).tracking(1)
-                    .foregroundStyle(.white).padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(Capsule().fill(Theme.Color.correct))
-            } else {
+            if !p.isActive {
                 Button("Switch") { gated { service.switchTo(p) } }.font(Theme.Font.label(13)).buttonStyle(.bordered)
             }
             Menu {
@@ -238,7 +364,7 @@ struct ParentAreaView: View {
     private var settingsCard: some View {
         let active = profiles.first(where: { $0.isActive })
         return VStack(alignment: .leading, spacing: 12) {
-            Text("Settings").font(Theme.Font.label(15)).foregroundStyle(Theme.Color.inkSoft)
+            sectionHeader("Settings", "gearshape.fill")
             if let a = active {
                 Toggle("Sound effects", isOn: Binding(get: { a.soundOn }, set: { a.soundOn = $0; Feedback.soundEnabled = $0 }))
                 Toggle("Speed Round unlocked", isOn: Binding(get: { a.speedRoundUnlocked }, set: { a.speedRoundUnlocked = $0 }))
@@ -282,7 +408,8 @@ struct ParentGateView: View {
             NumberPadView(enterEnabled: entry.count == 4,
                           onDigit: { d in if entry.count < 4 { entry.append(String(d)) } },
                           onDelete: { _ = entry.popLast() },
-                          onEnter: check)
+                          onEnter: check,
+                          keyTint: Theme.Color.primary)
             Button("Cancel", action: onCancel).font(Theme.Font.label()).padding(.top, 4)
         }
         .padding(Theme.Metric.pad)

@@ -214,6 +214,23 @@ struct WorldStars: View {
     }
 }
 
+/// The chunky orange close key used by all modal cards (upper-left corner).
+struct ModalCloseButton: View {
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 24, weight: .heavy))
+                .foregroundStyle(.white)
+                .frame(width: 58, height: 58)
+        }
+        .buttonStyle(ChunkyKeyStyle(base: Theme.Color.accent,
+                                    deep: Theme.Color.accent.shaded(by: -0.4),
+                                    corner: 20))
+        .accessibilityLabel("Close")
+    }
+}
+
 /// A world map node badge (art) or a palette fallback circle.
 struct WorldNodeBadge: View {
     let theme: WorldTheme

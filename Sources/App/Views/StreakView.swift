@@ -38,28 +38,14 @@ struct StreakView: View {
 
     private var card: some View {
         VStack(spacing: 16) {
-            ZStack {
-                hero
-                HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 24, weight: .heavy))
-                            .foregroundStyle(.white)
-                            .frame(width: 58, height: 58)
-                    }
-                    .buttonStyle(ChunkyKeyStyle(base: Theme.Color.primary,
-                                                deep: Theme.Color.primary.shaded(by: -0.35),
-                                                corner: 20))
-                    .accessibilityLabel("Close")
-                    Spacer()
-                }
-            }
+            hero
             calendar
                 .frame(maxHeight: .infinity)
             Text("One rest day never breaks your streak.")
                 .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.55))
         }
         .padding(Theme.Metric.pad)
+        .overlay(alignment: .topLeading) { ModalCloseButton { dismiss() }.padding(14) }
         .background(Self.sheetBG, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
             .strokeBorder(.white.opacity(0.12), lineWidth: 1.5))

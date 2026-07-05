@@ -8,13 +8,13 @@ enum AvatarCatalog {
 
     static let fallbacks: [String: (symbol: String, color: Color)] = [
         "avatar1": ("figure.hiking",   Color(red: 0.36, green: 0.68, blue: 0.35)),   // explorer green
-        "avatar2": ("pawprint.fill",   Color(red: 0.95, green: 0.55, blue: 0.20)),   // fox orange
-        "avatar3": ("flame.fill",      Color(red: 0.85, green: 0.30, blue: 0.25)),   // dragon red
+        "avatar2": ("map.fill",        Color(red: 0.95, green: 0.55, blue: 0.20)),   // treasure hunter orange
+        "avatar3": ("sailboat.fill",   Color(red: 0.85, green: 0.30, blue: 0.25)),   // pirate red
         "avatar4": ("wand.and.stars",  Color(red: 0.58, green: 0.42, blue: 0.88)),   // wizard purple
         "avatar5": ("shield.fill",     Color(red: 0.30, green: 0.50, blue: 0.95)),   // knight blue
-        "avatar6": ("airplane",        Color(red: 0.18, green: 0.65, blue: 0.62)),   // pilot teal
-        "avatar7": ("bolt.fill",       Color(red: 0.95, green: 0.72, blue: 0.20)),   // storm gold
-        "avatar8": ("moon.stars.fill", Color(red: 0.36, green: 0.38, blue: 0.75)),   // owl indigo
+        "avatar6": ("airplane",        Color(red: 0.18, green: 0.65, blue: 0.62)),   // sky pilot teal
+        "avatar7": ("crown.fill",      Color(red: 0.95, green: 0.72, blue: 0.20)),   // champion gold
+        "avatar8": ("moon.stars.fill", Color(red: 0.36, green: 0.38, blue: 0.75)),   // ninja indigo
     ]
 }
 
@@ -57,20 +57,29 @@ struct AvatarCarousel: View {
 
     var body: some View {
         GeometryReader { geo in
+            let centerX = geo.frame(in: .global).midX
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 28) {
+                // Negative spacing tucks the neighbors behind the front avatar;
+                // zIndex keeps the one nearest center on top (dock effect).
+                HStack(spacing: -itemSize * 0.22) {
                     ForEach(AvatarCatalog.keys, id: \.self) { key in
-                        AvatarBadge(key: key, size: itemSize)
-                            .scrollTransition(axis: .horizontal) { view, phase in
-                                view.scaleEffect(phase.isIdentity ? 1.0 : 0.68)
-                                    .opacity(phase.isIdentity ? 1 : 0.5)
-                            }
-                            .overlay {
-                                if key == selected {
-                                    Circle().strokeBorder(Theme.Color.accent, lineWidth: 4)
-                                        .shadow(color: Theme.Color.accent.opacity(0.6), radius: 8)
+                        // Continuous magnification by distance from the carousel
+                        // center, like the macOS Dock: big up front, small behind.
+                        GeometryReader { cell in
+                            let d = abs(cell.frame(in: .global).midX - centerX)
+                            let t = min(d / (itemSize * 1.5), 1)
+                            AvatarBadge(key: key, size: itemSize)
+                                .overlay {
+                                    if key == selected {
+                                        Circle().strokeBorder(Theme.Color.accent, lineWidth: 4)
+                                            .shadow(color: Theme.Color.accent.opacity(0.6), radius: 8)
+                                    }
                                 }
-                            }
+                                .scaleEffect(1.25 - 0.55 * t)
+                                .opacity(1 - 0.4 * t)
+                        }
+                        .frame(width: itemSize, height: itemSize)
+                        .zIndex(zRank(key))
                     }
                 }
                 .scrollTargetLayout()
@@ -86,15 +95,14 @@ struct AvatarCarousel: View {
             }
             .onAppear { position = selected }
         }
-        .frame(height: itemSize + 24)
-        .overlay(alignment: .bottom) {
-            HStack(spacing: 7) {
-                ForEach(AvatarCatalog.keys, id: \.self) { key in
-                    Circle().fill(key == selected ? Theme.Color.accent : .white.opacity(0.3))
-                        .frame(width: key == selected ? 9 : 6, height: key == selected ? 9 : 6)
-                }
-            }
-            .offset(y: 18)
-        }
+        .frame(height: itemSize * 1.25 + 16)
+    }
+
+    /// Cells closest to the current position draw on top of their neighbors.
+    private func zRank(_ key: String) -> Double {
+        let keys = AvatarCatalog.keys
+        guard let sel = keys.firstIndex(of: position ?? selected),
+              let idx = keys.firstIndex(of: key) else { return 0 }
+        return -Double(abs(idx - sel))
     }
 }

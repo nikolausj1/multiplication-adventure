@@ -12,12 +12,16 @@ struct RootView: View {
         // Demo/verify launches jump straight in — no splash delaying screenshots.
         && !ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("-autostart") || $0.hasPrefix("-demo") })
 
+    // Demo/verify launches suppress the first-run gate — but only until a
+    // "Start over" re-arms it mid-session (state, not a constant, for that reason).
+    @State private var gateSuppressed = ProcessInfo.processInfo.arguments
+        .contains { ($0.hasPrefix("-autostart") && $0 != "-autostartOnboarding") || $0.hasPrefix("-demo") }
+
     private var needsOnboarding: Bool {
-        let args = ProcessInfo.processInfo.arguments
-        if args.contains("-autostartOnboarding") { return !(activeProfiles.first?.onboarded ?? false) }
-        // Other demo/verify launches skip the first-run gate entirely.
-        let skip = args.contains { ($0.hasPrefix("-autostart") && $0 != "-autostartOnboarding") || $0.hasPrefix("-demo") }
-        if skip { return false }
+        if ProcessInfo.processInfo.arguments.contains("-autostartOnboarding") {
+            return !(activeProfiles.first?.onboarded ?? false)
+        }
+        if gateSuppressed { return false }
         return !(activeProfiles.first?.onboarded ?? true)
     }
 
@@ -38,9 +42,23 @@ struct RootView: View {
         .animation(.easeOut(duration: 0.5), value: needsOnboarding)
         .onAppear {
             guard showSplash else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-                withAnimation(.easeOut(duration: 0.6)) { showSplash = false }
+            scheduleSplashDismiss()
+        }
+        .onChange(of: activeProfiles.first?.onboarded) { _, onboarded in
+            // "Start over" flips the active profile back to un-onboarded mid-session:
+            // the whole first-run moment plays again — splash, then onboarding.
+            guard onboarded == false else { return }
+            gateSuppressed = false
+            if Art.exists("splash") {
+                showSplash = true
+                scheduleSplashDismiss()
             }
+        }
+    }
+
+    private func scheduleSplashDismiss() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            withAnimation(.easeOut(duration: 0.6)) { showSplash = false }
         }
     }
 }
