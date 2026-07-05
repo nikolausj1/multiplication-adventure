@@ -83,6 +83,9 @@ struct AvatarCarousel: View {
                     }
                 }
                 .scrollTargetLayout()
+                // Headroom for the 1.25x front scale (+ ring/glow): the scroll
+                // view clips at its content height, so pad inside it.
+                .padding(.vertical, itemSize * 0.16)
             }
             .contentMargins(.horizontal, max(0, (geo.size.width - itemSize) / 2), for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
@@ -95,7 +98,7 @@ struct AvatarCarousel: View {
             }
             .onAppear { position = selected }
         }
-        .frame(height: itemSize * 1.25 + 16)
+        .frame(height: itemSize * 1.32 + 16)
     }
 
     /// Cells closest to the current position draw on top of their neighbors.

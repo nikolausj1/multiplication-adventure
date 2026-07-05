@@ -11,7 +11,8 @@ struct OnboardingView: View {
     @State private var step: Step = .name
     @State private var name = ""
     @State private var grade = ""
-    @State private var avatarKey = "avatar1"
+    // Default to the middle slot so the carousel opens visually symmetric.
+    @State private var avatarKey = AvatarCatalog.keys[AvatarCatalog.keys.count / 2]
     @FocusState private var nameFocused: Bool
 
     private let grades = ["Pre-K", "K", "1", "2", "3", "4", "5"]
@@ -53,21 +54,13 @@ struct OnboardingView: View {
         }
     }
 
+    // Solid night-sky backdrop: the world map (and splash art that shows it)
+    // stays a surprise until onboarding finishes.
     private var backdrop: some View {
-        ZStack {
-            Color.black
-            if Art.exists("splash") {
-                Color.clear
-                    .overlay(Image("splash").resizable().scaledToFill())
-                    .clipped()
-                    .opacity(0.35)
-            } else {
-                LinearGradient(colors: [Theme.Color.primary.shaded(by: -0.5), .black],
-                               startPoint: .top, endPoint: .bottom)
-            }
-            Color.black.opacity(0.3)
-        }
-        .ignoresSafeArea()
+        LinearGradient(colors: [Color(red: 0.11, green: 0.12, blue: 0.30),
+                                Color(red: 0.05, green: 0.05, blue: 0.14)],
+                       startPoint: .top, endPoint: .bottom)
+            .ignoresSafeArea()
     }
 
     private var header: some View {
@@ -160,27 +153,27 @@ struct OnboardingView: View {
             Text("Pick your explorer!")
                 .font(Theme.Font.display(30)).foregroundStyle(.white)
                 .shadow(radius: 4)
-            AvatarCarousel(selected: $avatarKey, itemSize: 150)
+            AvatarCarousel(selected: $avatarKey, itemSize: 230)
             nextButton
                 .padding(.top, 20)
         }
     }
 
     private var readyPage: some View {
-        VStack(spacing: 20) {
-            AvatarBadge(key: avatarKey, size: 130)
-                .shadow(color: Theme.Color.accent.opacity(0.4), radius: 16)
+        VStack(spacing: 24) {
+            AvatarBadge(key: avatarKey, size: 230)
+                .shadow(color: Theme.Color.accent.opacity(0.4), radius: 20)
             Text("You're ready, \(name.trimmingCharacters(in: .whitespaces))!")
-                .font(Theme.Font.display(34)).foregroundStyle(.white)
+                .font(Theme.Font.display(46)).foregroundStyle(.white)
                 .shadow(radius: 4)
             Text("Seven worlds. Seven guardians. Let's go!")
-                .font(Theme.Font.body(18)).foregroundStyle(.white.opacity(0.85))
+                .font(Theme.Font.body(24)).foregroundStyle(.white.opacity(0.85))
             Button {
                 finish()
             } label: {
                 Text("Start the adventure!")
-                    .font(Theme.Font.display(22))
-                    .padding(.horizontal, 36).padding(.vertical, 16)
+                    .font(Theme.Font.display(28))
+                    .padding(.horizontal, 48).padding(.vertical, 20)
             }
             .buttonStyle(ChunkyKeyStyle(base: Theme.Color.accent,
                                         deep: Theme.Color.accent.shaded(by: -0.35),
@@ -193,8 +186,8 @@ struct OnboardingView: View {
             advance()
         } label: {
             Text("Next")
-                .font(Theme.Font.display(20))
-                .padding(.horizontal, 44).padding(.vertical, 13)
+                .font(Theme.Font.display(26))
+                .padding(.horizontal, 64).padding(.vertical, 18)
         }
         .buttonStyle(ChunkyKeyStyle(base: Theme.Color.correct,
                                     deep: Theme.Color.correct.shaded(by: -0.35),
