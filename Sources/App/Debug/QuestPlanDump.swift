@@ -45,7 +45,13 @@ enum QuestPlanDump {
             print("\n━━━ SESSION \(session) — \(world) ━━━")
             var n = 0
             while vm.stage != .finished, n < 400 {
-                guard let q = vm.current else { break }
+                // Completion can land with the queue already exhausted — resolve
+                // the pending slam/finish before checking for a next question.
+                if vm.pendingStarEarned != nil { vm.starEarnedDismissed(); continue }
+                guard let q = vm.current else {
+                    if vm.stage == .feedback { vm.next(); continue }
+                    break
+                }
                 n += 1
                 // Learner model tuned to the target kid: ×0/×1 rules instant,
                 // 2/5/10s known; 3/4/11s warm up quickly; 6/7/8/9/12s stay slow
@@ -71,6 +77,7 @@ enum QuestPlanDump {
             print("→ \(vm.totalAnswered) answers, ~\(Int((vm.elapsed / 60).rounded())) min, "
                   + "star \(vm.starEarnedThisSession ? "EARNED" : "not earned"), "
                   + "world \(service.currentWorldIdx() + 1) stars \(service.starsInCurrentWorld())/5")
+            fflush(stdout)
             simDate += 86_400   // next day
         }
         exit(0)

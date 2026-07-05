@@ -97,6 +97,12 @@ final class SessionViewModel {
     var elapsed: TimeInterval { now().timeIntervalSince(sessionStart) }
     /// Review serves per fact this session (cap 2 — a small pool must not cycle).
     private var reviewCounts: [FactID: Int] = [:]
+    /// Novelty budget: at most this many BRAND-NEW facts introduced per session
+    /// (ten names remembered beats forty-four forgotten). Leftover sub-fluent
+    /// facts from earlier days don't count; once spent, the clock fills with
+    /// reps and reviews instead of introductions.
+    private let newFactBudget = 12
+    private var newIntroduced = 0
 
     /// The Quest Meter: EVERY answer moves it — the session clock is the main
     /// component (60%), today's ladder work the rest (40%). Monotonic via
@@ -173,6 +179,7 @@ final class SessionViewModel {
             built = quest.queue
             questBatch = quest.batch
             questCharge = Self.charge(of: quest.batch, service: service)
+            newIntroduced = quest.batch.filter { !service.isIntroduced($0) }.count
         }
         self.queue = built
         self.originalCount = built.count
@@ -348,7 +355,8 @@ final class SessionViewModel {
                 // chain the next frontier batch; then pure review rounds.
                 var more = service.questExtension(batch: questBatch)
                 if more.isEmpty, elapsed < floorSeconds {
-                    let chained = service.chainBatch(exclude: Set(questBatch))
+                    let chained = service.chainBatch(exclude: Set(questBatch),
+                                                     maxFresh: newFactBudget - newIntroduced)
                     if chained.batch.isEmpty {
                         let capped = Set(reviewCounts.filter { $0.value >= 2 }.keys)
                         more = service.reviewRound(reviewExclude: capped)
@@ -356,6 +364,7 @@ final class SessionViewModel {
                             reviewCounts[q.fact, default: 0] += 1
                         }
                     } else {
+                        newIntroduced += chained.batch.filter { !service.isIntroduced($0) }.count
                         questBatch += chained.batch
                         questCharge = Self.charge(of: questBatch, service: service)
                         more = chained.queue

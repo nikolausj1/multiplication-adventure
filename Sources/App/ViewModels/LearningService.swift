@@ -141,9 +141,10 @@ struct LearningService {
 
     /// The next facts up the GLOBAL curriculum: leftovers (introduced, sub-fluent)
     /// first, then fresh — drip-mixed across the two nearest active tables so a
-    /// batch never runs one table.
+    /// batch never runs one table. `maxFresh` is the novelty budget's remaining
+    /// allowance: leftovers are free, brand-new introductions are rationed.
     private func frontierBatch(byID: [FactID: FactSnapshot], exclude: Set<FactID>,
-                               size: Int) -> [FactID] {
+                               size: Int, maxFresh: Int = .max) -> [FactID] {
         let remaining = FactUniverse.allFacts.filter {
             !exclude.contains($0) && (byID[$0]?.stage ?? .recognition) < .fluency
         }
@@ -151,17 +152,21 @@ struct LearningService {
         let slots = Array(Set(remaining.map { Curriculum.slot(of: $0) }).sorted().prefix(2))
         let window = Self.dripOrder(remaining.filter { slots.contains(Curriculum.slot(of: $0)) })
         let leftovers = window.filter { byID[$0]?.introduced ?? false }
-        let fresh = window.filter { !(byID[$0]?.introduced ?? false) }
+        let fresh = window.filter { !(byID[$0]?.introduced ?? false) }.prefix(max(0, maxFresh))
         return Array((leftovers + fresh).prefix(size))
     }
 
+    /// Whether a fact has ever been served (the novelty budget counts the rest).
+    func isIntroduced(_ id: FactID) -> Bool { fact(id)?.introduced ?? false }
+
     /// Mid-session: the batch is done but the clock isn't — chain the next
     /// frontier batch (full ladder: cards then typed) with a few fresh reviews.
-    func chainBatch(exclude: Set<FactID>, now: Date = .now)
+    /// `maxFresh` = how many brand-new facts the session may still introduce.
+    func chainBatch(exclude: Set<FactID>, maxFresh: Int = .max, now: Date = .now)
         -> (queue: [PlannedQuestion], batch: [FactID]) {
         let snaps = facts().map(\.snapshot)
         let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
-        let batch = frontierBatch(byID: byID, exclude: exclude, size: 3)
+        let batch = frontierBatch(byID: byID, exclude: exclude, size: 3, maxFresh: maxFresh)
         guard !batch.isEmpty else { return ([], []) }
         var rng = SplitMix64(seed: UInt64(bitPattern: Int64(now.timeIntervalSince1970)) &+ 51)
         let queue = assembleQuest(batch: batch, byID: byID, snaps: snaps, now: now,
