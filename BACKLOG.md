@@ -3,8 +3,11 @@
 Ideas and deferred work, roughly ordered by value. Nothing here blocks launch.
 
 ## Assets pending
-- **Avatar art** — 8 portraits for imagesets `avatar1`…`avatar8` (prompts
-  delivered 2026-07-05); drop into Assets.xcassets, zero code changes.
+- **Avatar art 7 + 8** — avatar1–6 installed 2026-07-05 (explorer, treasure
+  hunter, pirate, wizard, knight, sky pilot). Still missing: avatar7 golden
+  champion, avatar8 night ninja (prompts delivered; crown/moon placeholders
+  ship meanwhile). Drop `avatar7.png`/`avatar8.png` in `_inbox/` → install
+  as imagesets, zero code changes.
 
 ## Features
 - **Boss idle videos** — replace boss stills with seamless idle loops (Kling
