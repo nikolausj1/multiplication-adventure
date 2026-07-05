@@ -408,3 +408,35 @@ other operations (division/addition), iCloud sync.
 
 In the final week of summer, the parent asks "what is 8 times 7," and without counting,
 without finger math, without a pause, the child says "56."
+
+---
+
+## 17. Adaptive Quest era (2026-07-04) — supersedes fixed pacing above
+
+Where earlier sections conflict with this, this wins:
+
+- **Adaptive ladder:** a fast correct answer tests out — 1 fast card clears
+  Recognition, 2 fast typed clear Recall. Slow-correct walks the full ladder
+  (2 cards + 3 typed). "Fast" = the adaptive fluency threshold, so testing out
+  tightens as he speeds up. Stale pre-planned reps are skipped at serve time.
+- **Worlds re-cut (fresh profile required):** W1 Highland = 0/1/2/10s (10 facts),
+  W2 Cove = 5/11s (11), W3 Jungle = 3/4s (15), W4 Desert = 9s (9), W5 Frozen =
+  6s (10), W6 Volcano = 7/8s (23), W7 Sky = 12s (13). Star batches round-robin
+  across a world's tables (dripOrder) so stars mix instead of running one table.
+- **Sessions are time-railed:** end = star earned + ≥12 min; mercy ceiling
+  ~20 min (star charge rolls over). Early worlds may end sooner via the
+  exhaustion escape (material truly spent) — replaying for another star the
+  same day is allowed and expected there.
+- **Backfill:** batch done before the clock → pull next facts forward as
+  card-only previews (only facts a fast card cannot promote — exactly one star
+  per session), plus fluent+ weak-first reviews capped at 2 serves/session.
+- **One star per session, celebrated at completion:** the star chip is frozen
+  until the slam; the slam fires at quest completion (bar full → gold glow →
+  slam → wrap). The meter renormalizes each session (always starts empty).
+- **Missing factor:** fluent+ facts, 1-in-5, never ×0 facts (unanswerable).
+- **Bar colors:** blue warm-up → green cards → gold train; color always matches
+  the input mode; jolt at transitions; gold glow + jolt at completion.
+- **Boss fights:** one shot per question (no re-queue); fight ends the instant
+  HP hits zero; questions exhausted with HP left = held off.
+- **Debug:** `-dumpQuestPlan` simulates 10 days through the real engine (see
+  SampleSessions.md); `-questFloorSeconds/-questCeilingSeconds` shorten demos.

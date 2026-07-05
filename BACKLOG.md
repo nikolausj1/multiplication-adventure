@@ -2,6 +2,11 @@
 
 Ideas and deferred work, roughly ordered by value. Nothing here blocks launch.
 
+## Open decisions
+- **Hard-table review boost** — ×6/×7/×8 facts get ~1.5× priority in review
+  selection so they resurface more often once introduced (user's son's weak
+  tables). Proposed 2026-07-04, awaiting go.
+
 ## Features
 - **Boss idle videos** — replace boss stills with seamless idle loops (Kling
   image-to-video, start=end frame on chroma green/magenta → HEVC-alpha →
@@ -24,10 +29,9 @@ Ideas and deferred work, roughly ordered by value. Nothing here blocks launch.
 - **Re-listen to sfx_milestone** — trimmed from a 10s render; may want a re-cut.
 
 ## Pre-launch logistics (parent tasks)
-- **Sign with the paid Apple Developer team** (account confirmed 2026-07-04) —
-  set the team in project.yml (`DEVELOPMENT_TEAM: <team id>`), deploy once by
-  cable; signing then lasts a year. Optional: TestFlight for cable-free updates
-  (needs an App Store Connect app record; internal testing only, no review).
+- ~~Sign with the paid team~~ DONE 2026-07-04: team 6A4J2GTB6F in project.yml,
+  deployed to dad's iPad Pro (fresh profile, adaptive engine). Son's iPad still
+  needs the one-time cable/trust/Developer-Mode dance, or TestFlight later.
 - **Real-iPad shakedown** — sounds at hardware volume, haptics, touch targets.
 - **Fresh profile before day 1** — wipe dev/test data on the son's iPad.
 - **Watch the first real boss fight** — CRITICAL! visual lands? 85% pass bar
