@@ -6,11 +6,6 @@ Ideas and deferred work, roughly ordered by value. Nothing here blocks launch.
 - **Avatar art** — 8 portraits for imagesets `avatar1`…`avatar8` (prompts
   delivered 2026-07-05); drop into Assets.xcassets, zero code changes.
 
-## Open decisions
-- **Hard-table review boost** — ×6/×7/×8 facts get ~1.5× priority in review
-  selection so they resurface more often once introduced (user's son's weak
-  tables). Proposed 2026-07-04, awaiting go.
-
 ## Features
 - **Boss idle videos** — replace boss stills with seamless idle loops (Kling
   image-to-video, start=end frame on chroma green/magenta → HEVC-alpha →
