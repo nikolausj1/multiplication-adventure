@@ -215,8 +215,8 @@ struct LearningService {
         var queue: [PlannedQuestion] = []
         let reviews = snaps
             .filter { $0.introduced && $0.stage >= .fluency && !reviewExclude.contains($0.id) }
-            .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
-                    > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
+            .sorted { Self.reviewWeight($0, now: now, threshold: threshold)
+                    > Self.reviewWeight($1, now: now, threshold: threshold) }
             .prefix(10)
         for s in reviews {
             let prompt = OrientedPrompt(fact: s.id, swapped: (rng.next() & 1) == 1)
@@ -232,6 +232,14 @@ struct LearningService {
             }
         }
         return Self.antiRepeat(queue)
+    }
+
+    /// Review priority with the hard-table boost: ×6/×7/×8 facts (his weak
+    /// tables) weigh 1.5× so they dominate reviews — and boss picks — once met.
+    static func reviewWeight(_ s: FactSnapshot, now: Date, threshold: Double) -> Double {
+        let p = PriorityCalculator.priority(of: s, now: now, fluencyThreshold: threshold)
+        let hard = [6, 7, 8].contains(s.id.a) || [6, 7, 8].contains(s.id.b)
+        return hard ? p * 1.5 : p
     }
 
     /// No answer three times in a row, and repeats spaced out — kills the
@@ -305,9 +313,15 @@ struct LearningService {
         for id in batch {
             let s = byID[id]
             let stage = s?.stage ?? .recognition
-            if stage == .recognition || !(s?.introduced ?? false) {
+            // ×0/×1 are RULE facts — no answer cards (patronizing), straight to
+            // keypad; one fast typed answer still tests out of recognition.
+            let trivial = id.a <= 1
+            if !trivial, stage == .recognition || !(s?.introduced ?? false) {
                 let mcLeft = max(0, 2 - (s?.recognitionStreak ?? 0))
                 mcReps.append((0..<mcLeft).map { _ in question(id, format: .recognition, movement: .core) })
+                typedReps.append((0..<3).map { _ in question(id, format: .recall, movement: .core) })
+            } else if trivial, stage < .fluency {
+                mcReps.append([])
                 typedReps.append((0..<3).map { _ in question(id, format: .recall, movement: .core) })
             } else {
                 mcReps.append([])
@@ -323,8 +337,8 @@ struct LearningService {
         let batchSet = Set(batch)
         let reviewSnaps = snaps
             .filter { $0.introduced && $0.stage >= .fluency && !batchSet.contains($0.id) }
-            .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
-                    > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
+            .sorted { Self.reviewWeight($0, now: now, threshold: threshold)
+                    > Self.reviewWeight($1, now: now, threshold: threshold) }
             .prefix(reviewTarget)
         var reviews = reviewSnaps.map { s in
             if s.stage >= .fluency, s.id.a != 0, fluentTotal >= Self.missingFactorMinFluent,
@@ -410,8 +424,8 @@ struct LearningService {
         let threshold = currentThreshold()
         var rng = SplitMix64(seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)))
         let weakest = snaps
-            .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
-                    > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
+            .sorted { Self.reviewWeight($0, now: now, threshold: threshold)
+                    > Self.reviewWeight($1, now: now, threshold: threshold) }
             .prefix(8).map(\.id)
         var rest = snaps.map(\.id).filter { !weakest.contains($0) }
         rest.shuffle(using: &rng)

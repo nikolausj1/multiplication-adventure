@@ -266,7 +266,16 @@ final class SessionViewModel {
         }
         // Stars are session trophies now (awarded at completion) — a fact going
         // fluent is still its own magic moment.
-        if result.becameFluent { Feedback.fire(.milestone) }
+        if result.becameFluent {
+            Feedback.fire(.milestone)
+            // Adaptive budget: a fact cleared in ≤3 flawless answers was already
+            // known — refund its novelty slot so the frontier keeps reaching
+            // until it finds material that actually makes him work.
+            if let s = service.fact(q.fact)?.snapshot,
+               s.totalAttempts <= 3, s.totalCorrect == s.totalAttempts {
+                newIntroduced = max(0, newIntroduced - 1)
+            }
+        }
         if isQuest { questCharge = Self.charge(of: questBatch, service: service) }
         updateMeter()
         if let c = result.celebration {
