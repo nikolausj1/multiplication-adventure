@@ -18,6 +18,10 @@ enum QuestPlanDump {
 
         var simDate = Date.now
         var exposures: [FactID: Int] = [:]   // carried across days (memory of meetings)
+        // -dumpSlow: a correct-but-DELIBERATE kid — right answers, but nothing
+        // under 3.2s, so no speed-based test-outs ever fire. This is the case
+        // the fast-learner model masked (the real-world W1 grind).
+        let slow = ProcessInfo.processInfo.arguments.contains("-dumpSlow")
 
         for session in 1...10 {
             // Boss-ready (5 sockets filled)? Fight it first, as the kid would.
@@ -61,11 +65,12 @@ enum QuestPlanDump {
                 let hard = [6, 7, 8, 9, 12].contains(q.fact.a) || [6, 7, 8, 9, 12].contains(q.fact.b)
                 let seen = exposures[q.fact, default: 0]
                 exposures[q.fact] = seen + 1
-                let rt: Double = q.missingFactor ? 6.0
+                let base: Double = q.missingFactor ? 6.0
                     : trivial ? 2.0
                     : easy ? 2.5
                     : hard ? (seen < 2 ? 9.0 : seen < 5 ? 5.0 : seen < 8 ? 3.4 : 2.4)
                     : (seen < 2 ? 6.0 : seen < 4 ? 3.2 : 2.2)
+                let rt = slow ? max(base, 3.2) : base
                 let tag = q.format == .recognition ? "C " : (q.missingFactor ? "MF" : "K ")
                 print(String(format: "%3d [%@] %@", n, tag, q.displayText))
                 simDate += rt + 1.2   // answer + feedback beat

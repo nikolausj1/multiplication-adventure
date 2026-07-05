@@ -275,7 +275,8 @@ struct LearningService {
         var rng = SplitMix64(seed: UInt64(bitPattern: Int64(now.timeIntervalSince1970)) &+ 33)
         var queue: [PlannedQuestion] = []
         let reviews = snaps
-            .filter { $0.introduced && $0.stage >= .fluency && !reviewExclude.contains($0.id) }
+            .filter { $0.introduced && $0.stage >= .fluency && !reviewExclude.contains($0.id)
+                    && min($0.id.a, $0.id.b) > 1 }   // rule facts (×0/×1) never need review
             .sorted { Self.reviewWeight($0, now: now, threshold: threshold)
                     > Self.reviewWeight($1, now: now, threshold: threshold) }
             .prefix(10)
@@ -354,10 +355,11 @@ struct LearningService {
         return Double(done) / 5.0
     }
 
-    /// Missing-factor review: 1-in-5 for fluent facts, 1-in-3 once MASTERED —
-    /// the better his grasp, the more the format mixes it up. Never ×0 facts.
+    /// Missing-factor review: 1-in-3 for fluent-or-better facts, and 1-in-4 for
+    /// batch reps once a recall fact shows grasp (2 straight correct) — the
+    /// better his grasp, the more the format mixes it up. Never ×0 facts.
     /// Static so a debug launch arg can force it for previews.
-    static var missingFactorDenominator: UInt64 = 5
+    static var missingFactorDenominator: UInt64 = 3
     static let missingFactorMinFluent = 5
 
     /// Builds the quest in three phases so the input mode never thrashes:
@@ -402,8 +404,14 @@ struct LearningService {
                 typedReps.append((0..<3).map { _ in question(id, format: .recall, movement: .core) })
             } else {
                 mcReps.append([])
-                let left = max(1, 3 - (s?.recallCorrect ?? 0))
-                typedReps.append((0..<left).map { _ in question(id, format: .recall, movement: .core) })
+                let rc = s?.recallCorrect ?? 0
+                let left = max(1, 3 - rc)
+                // Grasp shown (2 straight correct): 1-in-4 remaining reps flip
+                // to missing-factor — variety without new-fact load.
+                typedReps.append((0..<left).map { _ in
+                    let mf = rc >= 2 && id.a != 0 && rng.next() % 4 == 0
+                    return question(id, format: .recall, movement: .core, missingFactor: mf)
+                })
             }
         }
 
@@ -413,7 +421,8 @@ struct LearningService {
         // recognition-stage reviews would be cards ambushing a keypad phase.
         let batchSet = Set(batch)
         let reviewSnaps = snaps
-            .filter { $0.introduced && $0.stage >= .fluency && !batchSet.contains($0.id) }
+            .filter { $0.introduced && $0.stage >= .fluency && !batchSet.contains($0.id)
+                    && min($0.id.a, $0.id.b) > 1 }   // rule facts (×0/×1) never need review
             .sorted { Self.reviewWeight($0, now: now, threshold: threshold)
                     > Self.reviewWeight($1, now: now, threshold: threshold) }
             .prefix(reviewTarget)

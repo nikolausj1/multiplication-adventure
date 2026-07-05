@@ -46,6 +46,15 @@ public enum PromotionEngine {
             f.box = promoted.box
             f.dueDate = promoted.due
 
+            // ×0/×1 are RULES, not facts: one correct answer (any speed) proves
+            // the rule — no ladder grind for material the rule already covers.
+            // Mastery still needs fast answers across days, like everything else.
+            if min(f.id.a, f.id.b) <= 1, f.stage < .fluency {
+                advance(&f, to: .fluency)
+                return Outcome(snapshot: f, promotedStage: true,
+                               becameMastered: false, lapsed: false)
+            }
+
             switch f.stage {
             // Adaptive ladder: a fast correct answer tests OUT of reps he doesn't
             // need — one snappy card clears recognition, two snappy typed answers

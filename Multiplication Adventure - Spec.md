@@ -460,3 +460,26 @@ Where earlier sections conflict with this, this wins:
   star day via `SessionRecord.starEarned`; dot = practiced).
 - Parent gate = year of birth (18–100). Dashboard: Weekly Overview with
   last-week deltas + times-table proficiency rows.
+
+### 17.3 First-world pacing (2026-07-05) — the correct-but-slow kid
+
+The fast-learner sim masked a real-play failure: every escape hatch (test-outs,
+budget refunds) required FAST answers, so a kid who answers correctly but
+deliberately ground through 12 minutes of ×0s on day one. Four fixes, verified
+with the new `-dumpSlow` learner (correct, never under 3.2s):
+
+- **×0/×1 are rules, not facts:** one correct answer (any speed) promotes the
+  fact straight to fluent (PromotionEngine). Rule facts are also excluded from
+  review pools — "anything × 0" never needs maintenance. Mastery still
+  requires fast answers across 2 days, unchanged.
+- **Scaled floor:** while >50% of the session's answers come from ×0/×1/×2,
+  the quest may complete at 6 minutes instead of 12. Day one lands ~7 min.
+- **Missing-factor earlier and oftener:** 1-in-3 for fluent-or-better reviews
+  (was 1-in-5 fluent / 1-in-3 mastered), plus 1-in-4 of remaining batch reps
+  once a recall fact shows grasp (2 straight correct). Never ×0 facts.
+- **Hot-streak budget bonus:** budget spent at ≥90% accuracy (≥10 answers)
+  grants one +4 novelty extension per session.
+
+Slow-kid shape now: day 1 ≈ 7 min (rule-table blitz, star earned), W1
+consolidation days ≈ 12–14 min, W2 ≈ 9–10 min settling back toward the floor
+as the review pool diversifies.

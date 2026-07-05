@@ -116,6 +116,13 @@ final class SessionViewModel {
     /// reps and reviews instead of introductions.
     private let newFactBudget = 12
     private var newIntroduced = 0
+    /// Hot-streak bonus: budget spent at ≥90% accuracy unlocks one +4 extension
+    /// (a cruising day shouldn't stall on reviews when he's clearly absorbing).
+    private var budgetBonusGranted = false
+    private var effectiveBudget: Int { newFactBudget + (budgetBonusGranted ? 4 : 0) }
+    /// Answers on rule-table facts (×0/×1/×2) this session — while they dominate,
+    /// the habit floor shortens (day one shouldn't stretch on zeros).
+    private var trivialAnswered = 0
 
     /// The Quest Meter: EVERY answer moves it — the session clock is the main
     /// component (60%), today's ladder work the rest (40%). Monotonic via
@@ -125,7 +132,13 @@ final class SessionViewModel {
     /// Complete = clock satisfied AND nothing left mid-ladder. Ceiling days
     /// complete via the mercy path in next() (star still earned).
     var questComplete: Bool {
-        isQuest ? (elapsed >= floorSeconds && batchDone) : stage == .finished
+        isQuest ? (elapsed >= effectiveFloorSeconds && batchDone) : stage == .finished
+    }
+    /// The habit floor, scaled: while >50% of answers come from the rule tables
+    /// (×0/×1/×2), the quest may complete at 6 minutes instead of the full floor.
+    private var effectiveFloorSeconds: TimeInterval {
+        guard totalAnswered >= 6, trivialAnswered * 2 > totalAnswered else { return floorSeconds }
+        return min(floorSeconds, 6 * 60)
     }
     private var batchDone: Bool {
         questBatch.allSatisfy { service.ladderProgress($0) >= 1 }
@@ -134,7 +147,7 @@ final class SessionViewModel {
     private func updateMeter() {
         guard isQuest else { return }
         let workC = questBatch.isEmpty ? 1.0 : questCharge
-        let floorC = min(1.0, elapsed / max(floorSeconds, 1))
+        let floorC = min(1.0, elapsed / max(effectiveFloorSeconds, 1))
         meterHighWater = max(meterHighWater, 0.4 * workC + 0.6 * floorC)
         questMeter = meterHighWater
     }
@@ -261,6 +274,7 @@ final class SessionViewModel {
                                     countsTime: !q.missingFactor)
         touched.insert(q.fact)
         totalAnswered += 1
+        if isQuest, min(q.fact.a, q.fact.b) <= 2 { trivialAnswered += 1 }
         if correct { correctCount += 1 }
         combo = correct ? combo + 1 : 0
         responseTimes.append(rt)
@@ -404,9 +418,15 @@ final class SessionViewModel {
                 // Miss recovery for in-flight facts first; then (clock unmet)
                 // chain the next frontier batch; then pure review rounds.
                 var more = service.questExtension(batch: questBatch)
-                if more.isEmpty, elapsed < floorSeconds {
+                if more.isEmpty, elapsed < effectiveFloorSeconds {
+                    // Hot streak: budget gone but he's ≥90% accurate on a real
+                    // sample — grant one +4 bonus so the frontier keeps moving.
+                    if !budgetBonusGranted, newIntroduced >= newFactBudget,
+                       totalAnswered >= 10, accuracy >= 0.9 {
+                        budgetBonusGranted = true
+                    }
                     let chained = service.chainBatch(exclude: Set(questBatch),
-                                                     maxFresh: newFactBudget - newIntroduced)
+                                                     maxFresh: effectiveBudget - newIntroduced)
                     if chained.batch.isEmpty {
                         let capped = Set(reviewCounts.filter { $0.value >= 2 }.keys)
                         more = service.reviewRound(reviewExclude: capped)
