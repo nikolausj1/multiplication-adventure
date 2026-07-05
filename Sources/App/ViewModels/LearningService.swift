@@ -283,7 +283,7 @@ struct LearningService {
         for s in reviews {
             let prompt = OrientedPrompt(fact: s.id, swapped: (rng.next() & 1) == 1)
             if s.stage >= .fluency, s.id.a != 0, fluentTotal >= Self.missingFactorMinFluent,
-               rng.next() % (s.stage == .mastered ? 3 : Self.missingFactorDenominator) == 0 {
+               rng.next() % (s.stage == .mastered ? 2 : Self.missingFactorDenominator) == 0 {
                 queue.append(PlannedQuestion(prompt: prompt, format: .recall,
                                              movement: .review, options: nil,
                                              timed: false, missingFactor: true))
@@ -355,10 +355,10 @@ struct LearningService {
         return Double(done) / 5.0
     }
 
-    /// Missing-factor review: 1-in-3 for fluent-or-better facts, and 1-in-4 for
-    /// batch reps once a recall fact shows grasp (2 straight correct) — the
-    /// better his grasp, the more the format mixes it up. Never ×0 facts.
-    /// Static so a debug launch arg can force it for previews.
+    /// Missing-factor mix, scaled to grasp: 1-in-3 of learning reps once a
+    /// recall fact shows grasp (2 straight correct), 1-in-3 of fluent reviews,
+    /// 1-in-2 once MASTERED — the better he knows it, the more the format
+    /// mixes it up. Never ×0 facts. Static so a debug launch arg can force it.
     static var missingFactorDenominator: UInt64 = 3
     static let missingFactorMinFluent = 5
 
@@ -406,10 +406,10 @@ struct LearningService {
                 mcReps.append([])
                 let rc = s?.recallCorrect ?? 0
                 let left = max(1, 3 - rc)
-                // Grasp shown (2 straight correct): 1-in-4 remaining reps flip
+                // Grasp shown (2 straight correct): 1-in-3 remaining reps flip
                 // to missing-factor — variety without new-fact load.
                 typedReps.append((0..<left).map { _ in
-                    let mf = rc >= 2 && id.a != 0 && rng.next() % 4 == 0
+                    let mf = rc >= 2 && id.a != 0 && rng.next() % 3 == 0
                     return question(id, format: .recall, movement: .core, missingFactor: mf)
                 })
             }
@@ -428,7 +428,7 @@ struct LearningService {
             .prefix(reviewTarget)
         var reviews = reviewSnaps.map { s in
             if s.stage >= .fluency, s.id.a != 0, fluentTotal >= Self.missingFactorMinFluent,
-               rng.next() % (s.stage == .mastered ? 3 : Self.missingFactorDenominator) == 0 {
+               rng.next() % (s.stage == .mastered ? 2 : Self.missingFactorDenominator) == 0 {
                 return question(s.id, format: .recall, movement: .review, missingFactor: true)
             }
             return question(s.id, format: s.stage == .mastered ? .fluency : s.stage, movement: .review)
