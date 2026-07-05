@@ -120,13 +120,17 @@ final class SessionViewModel {
     /// (a cruising day shouldn't stall on reviews when he's clearly absorbing).
     private var budgetBonusGranted = false
     private var effectiveBudget: Int { newFactBudget + (budgetBonusGranted ? 4 : 0) }
-    /// Answers on rule-table facts (×0/×1/×2) this session — while they dominate,
-    /// the habit floor shortens (day one shouldn't stretch on zeros).
-    private var trivialAnswered = 0
+    /// Decided ONCE at build time: a day whose batch is mostly rule-table facts
+    /// (×0/×1/×2) runs on the short floor. A per-answer fraction oscillated as
+    /// real facts chained in, and every floor re-lengthening froze the bar at
+    /// its high-water mark — the "first questions matter more" illusion.
+    private var shortFloorDay = false
 
-    /// The Quest Meter: EVERY answer moves it — the session clock is the main
-    /// component (60%), today's ladder work the rest (40%). Monotonic via
-    /// high-water mark; hits 1.0 exactly at quest completion.
+    /// The Quest Meter: near-LINEAR by design — the active clock is 90% of it,
+    /// today's ladder work a 10% garnish. (A work-heavy blend made the first
+    /// few answers leap the bar ~30% and then stall — quick test-outs maxed
+    /// the work term instantly, which read as "early questions matter more".)
+    /// Monotonic via high-water mark; snaps to 1.0 at quest completion.
     private(set) var questMeter: Double = 0
     private var meterHighWater: Double = 0
     /// Complete = clock satisfied AND nothing left mid-ladder. Ceiling days
@@ -134,11 +138,10 @@ final class SessionViewModel {
     var questComplete: Bool {
         isQuest ? (elapsed >= effectiveFloorSeconds && batchDone) : stage == .finished
     }
-    /// The habit floor, scaled: while >50% of answers come from the rule tables
-    /// (×0/×1/×2), the quest may complete at 6 minutes instead of the full floor.
+    /// The habit floor, scaled: a rule-table day (batch mostly ×0/×1/×2) may
+    /// complete at 6 minutes instead of the full floor.
     private var effectiveFloorSeconds: TimeInterval {
-        guard totalAnswered >= 6, trivialAnswered * 2 > totalAnswered else { return floorSeconds }
-        return min(floorSeconds, 6 * 60)
+        shortFloorDay ? min(floorSeconds, 6 * 60) : floorSeconds
     }
     private var batchDone: Bool {
         questBatch.allSatisfy { service.ladderProgress($0) >= 1 }
@@ -148,7 +151,7 @@ final class SessionViewModel {
         guard isQuest else { return }
         let workC = questBatch.isEmpty ? 1.0 : questCharge
         let floorC = min(1.0, elapsed / max(effectiveFloorSeconds, 1))
-        meterHighWater = max(meterHighWater, 0.4 * workC + 0.6 * floorC)
+        meterHighWater = max(meterHighWater, 0.1 * workC + 0.9 * floorC)
         questMeter = meterHighWater
     }
 
@@ -213,6 +216,8 @@ final class SessionViewModel {
             let quest = service.buildDailyQuest()
             built = quest.queue
             questBatch = quest.batch
+            shortFloorDay = !quest.batch.isEmpty
+                && quest.batch.filter { min($0.a, $0.b) <= 2 }.count * 2 > quest.batch.count
             questCharge = Self.charge(of: quest.batch, service: service)
             newIntroduced = carriedNew + quest.batch.filter { !service.isIntroduced($0) }.count
         }
@@ -274,7 +279,6 @@ final class SessionViewModel {
                                     countsTime: !q.missingFactor)
         touched.insert(q.fact)
         totalAnswered += 1
-        if isQuest, min(q.fact.a, q.fact.b) <= 2 { trivialAnswered += 1 }
         if correct { correctCount += 1 }
         combo = correct ? combo + 1 : 0
         responseTimes.append(rt)
@@ -488,6 +492,9 @@ final class SessionViewModel {
     /// is full and gold — and the wrap follows its dismissal.
     private func completeQuest() {
         if !questEndPending {
+            // The finale contract: the bar is FULL when the star slams in —
+            // even on mercy-ceiling days where the ladder work isn't 100%.
+            meterHighWater = 1; questMeter = 1
             service.clearPausedQuest()   // completed — nothing left to resume
             earnedStarIndex = service.awardQuestStar()
             starEarnedThisSession = earnedStarIndex != nil

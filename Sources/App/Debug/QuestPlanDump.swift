@@ -72,7 +72,8 @@ enum QuestPlanDump {
                     : (seen < 2 ? 6.0 : seen < 4 ? 3.2 : 2.2)
                 let rt = slow ? max(base, 3.2) : base
                 let tag = q.format == .recognition ? "C " : (q.missingFactor ? "MF" : "K ")
-                print(String(format: "%3d [%@] %@", n, tag, q.displayText))
+                print(String(format: "%3d [%@] %@  bar %3.0f%%", n, tag, q.displayText,
+                             vm.questMeter * 100))
                 simDate += rt + 1.2   // answer + feedback beat
                 vm.answer(q.expectedAnswer, simulatedRT: rt)
                 vm.pendingCelebration = nil
