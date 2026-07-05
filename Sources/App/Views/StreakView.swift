@@ -24,26 +24,46 @@ struct StreakView: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
-            HStack {
-                Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 26)).foregroundStyle(.white.opacity(0.7))
-                        .contentShape(Rectangle())
+        ZStack {
+            // Dimmed map behind the card; tap outside to dismiss.
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+            card
+                .frame(maxWidth: 880)
+                .padding(.vertical, 26)
+        }
+        .presentationBackground(.clear)
+    }
+
+    private var card: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                hero
+                HStack {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 24, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .frame(width: 58, height: 58)
+                    }
+                    .buttonStyle(ChunkyKeyStyle(base: Theme.Color.primary,
+                                                deep: Theme.Color.primary.shaded(by: -0.35),
+                                                corner: 20))
+                    .accessibilityLabel("Close")
+                    Spacer()
                 }
-                .accessibilityLabel("Close")
             }
-            hero
             calendar
+                .frame(maxHeight: .infinity)
             Text("One rest day never breaks your streak.")
                 .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.55))
-            Spacer(minLength: 0)
         }
         .padding(Theme.Metric.pad)
-        .frame(minWidth: 840, minHeight: 900)
-        .background(Self.sheetBG)
-        .presentationBackground(Self.sheetBG)
+        .background(Self.sheetBG, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
+            .strokeBorder(.white.opacity(0.12), lineWidth: 1.5))
+        .shadow(color: .black.opacity(0.5), radius: 30, y: 10)
     }
 
     private var hero: some View {
@@ -85,14 +105,23 @@ struct StreakView: View {
                 .disabled(!canGoForward)
             }
             let symbols = cal.veryShortWeekdaySymbols
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 9), count: 7),
-                      spacing: 9) {
+            HStack(spacing: 9) {
                 ForEach(0..<7, id: \.self) { i in
                     Text(symbols[(i + cal.firstWeekday - 1) % 7])
                         .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity)
                 }
-                ForEach(Array(monthCells.enumerated()), id: \.offset) { _, day in
-                    dayTile(day)
+            }
+            // The grid stretches to fill whatever height the card gives it.
+            GeometryReader { geo in
+                let cells = monthCells
+                let rows = max(1, Int(ceil(Double(cells.count) / 7)))
+                let tileH = max(56, (geo.size.height - CGFloat(rows - 1) * 9) / CGFloat(rows))
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 9), count: 7),
+                          spacing: 9) {
+                    ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
+                        dayTile(day, height: tileH)
+                    }
                 }
             }
         }
@@ -103,7 +132,7 @@ struct StreakView: View {
 
     /// A chunky day tile: gold + flame on star days, dot on practiced days.
     @ViewBuilder
-    private func dayTile(_ day: Date?) -> some View {
+    private func dayTile(_ day: Date?, height: CGFloat = 78) -> some View {
         if let day {
             let key = cal.startOfDay(for: day)
             let isToday = cal.isDateInToday(day)
@@ -127,7 +156,7 @@ struct StreakView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 78)
+            .frame(height: height)
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(star
@@ -142,7 +171,7 @@ struct StreakView: View {
                                   lineWidth: isToday ? 2.5 : 1)
             }
         } else {
-            Color.clear.frame(height: 78)
+            Color.clear.frame(height: height)
         }
     }
 
