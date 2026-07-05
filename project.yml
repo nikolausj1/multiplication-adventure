@@ -18,6 +18,7 @@ settings:
     INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
     INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
     INFOPLIST_KEY_UIRequiresFullScreen: "YES"
+    INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: "NO"   # offline app, no custom crypto — skips TestFlight compliance prompt
 
 targets:
   LevelUpMath:
