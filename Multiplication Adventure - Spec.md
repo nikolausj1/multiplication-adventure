@@ -450,3 +450,13 @@ Where earlier sections conflict with this, this wins:
 - **Never the same fact twice in a row** (planner passes + serve-time net).
 - **X = pause for the day** (resume clock/bar/budget; map shows CONTINUE
   QUEST!); session clock counts active screen time only.
+
+### 17.2 Identity & onboarding (2026-07-05)
+- First-run onboarding: name → grade (Pre-K–5, info-only) → avatar carousel →
+  go. `Profile.onboarded`; parent-area "Start over" re-runs it.
+- Avatars: imagesets `avatar1`…`avatar8` (art pending; themed SF fallbacks live).
+- Player chip → kid profile (trophy room: rename, avatar, rank, guardian
+  portraits, stars/streak/XP). Flame chip → streak month calendar (flame =
+  star day via `SessionRecord.starEarned`; dot = practiced).
+- Parent gate = year of birth (18–100). Dashboard: Weekly Overview with
+  last-week deltas + times-table proficiency rows.

@@ -2,6 +2,10 @@
 
 Ideas and deferred work, roughly ordered by value. Nothing here blocks launch.
 
+## Assets pending
+- **Avatar art** — 8 portraits for imagesets `avatar1`…`avatar8` (prompts
+  delivered 2026-07-05); drop into Assets.xcassets, zero code changes.
+
 ## Open decisions
 - **Hard-table review boost** — ×6/×7/×8 facts get ~1.5× priority in review
   selection so they resurface more often once introduced (user's son's weak
