@@ -47,15 +47,19 @@ enum QuestPlanDump {
             while vm.stage != .finished, n < 400 {
                 guard let q = vm.current else { break }
                 n += 1
-                // Learner model: ×0/×1 rules instant; 2/5/10 tables known-fast;
-                // anything else slow on the first two meetings, quick after.
+                // Learner model tuned to the target kid: ×0/×1 rules instant,
+                // 2/5/10s known; 3/4/11s warm up quickly; 6/7/8/9/12s stay slow
+                // for many exposures (his weak tables).
                 let trivial = q.fact.a <= 1 || q.fact.b <= 1
                 let easy = [2, 5, 10].contains(q.fact.a) && [2, 5, 10].contains(q.fact.b)
+                let hard = [6, 7, 8, 9, 12].contains(q.fact.a) || [6, 7, 8, 9, 12].contains(q.fact.b)
                 let seen = exposures[q.fact, default: 0]
                 exposures[q.fact] = seen + 1
-                let rt: Double = q.missingFactor ? 4.5
-                    : (trivial || easy) ? 1.8
-                    : (seen < 2 ? 6.0 : 2.6)
+                let rt: Double = q.missingFactor ? 6.0
+                    : trivial ? 2.0
+                    : easy ? 2.5
+                    : hard ? (seen < 2 ? 9.0 : seen < 5 ? 5.0 : seen < 8 ? 3.4 : 2.4)
+                    : (seen < 2 ? 6.0 : seen < 4 ? 3.2 : 2.2)
                 let tag = q.format == .recognition ? "C " : (q.missingFactor ? "MF" : "K ")
                 print(String(format: "%3d [%@] %@", n, tag, q.displayText))
                 simDate += rt + 1.2   // answer + feedback beat
