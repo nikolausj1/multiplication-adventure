@@ -7,8 +7,8 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var context
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
 
-    private enum Step: Int, CaseIterable { case name, grade, avatar, ready }
-    @State private var step: Step = .name
+    private enum Step: Int, CaseIterable { case welcome, name, grade, avatar, ready }
+    @State private var step: Step = .welcome
     @State private var name = ""
     @State private var grade = ""
     // Default to the middle slot so the carousel opens visually symmetric.
@@ -25,6 +25,7 @@ struct OnboardingView: View {
                 Spacer(minLength: 12)
                 Group {
                     switch step {
+                    case .welcome: welcomePage
                     case .name:   namePage
                     case .grade:  gradePage
                     case .avatar: avatarPage
@@ -41,7 +42,6 @@ struct OnboardingView: View {
             }
             .padding(Theme.Metric.pad)
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .animation(Theme.Motion.snappy, value: step)
         .onAppear {
             // Debug: jump straight to a step for screenshots.
@@ -72,11 +72,11 @@ struct OnboardingView: View {
                     .font(.system(size: 22, weight: .bold)).foregroundStyle(.white)
                     .frame(width: 44, height: 44).darkPlate(corner: 22)
             }
-            .opacity(step == .name ? 0 : 1)
-            .disabled(step == .name)
-            // Progress: one capsule segment per step.
+            .opacity(step == .welcome ? 0 : 1)
+            .disabled(step == .welcome)
+            // Progress: one capsule segment per step (welcome doesn't count).
             HStack(spacing: 6) {
-                ForEach(Step.allCases, id: \.rawValue) { s in
+                ForEach(Step.allCases.filter { $0 != .welcome }, id: \.rawValue) { s in
                     Capsule()
                         .fill(s.rawValue <= step.rawValue ? Theme.Color.accent : .white.opacity(0.2))
                         .frame(height: 8)
@@ -87,6 +87,29 @@ struct OnboardingView: View {
     }
 
     // MARK: Pages
+
+    /// A calm landing beat after the splash — the keyboard shouldn't be the
+    /// first thing that greets a new player.
+    private var welcomePage: some View {
+        VStack(spacing: 24) {
+            Text("Ready for an adventure?")
+                .font(Theme.Font.display(44)).foregroundStyle(.white)
+                .shadow(radius: 4)
+            Text("Seven worlds of multiplication are waiting for a hero.")
+                .font(Theme.Font.body(22)).foregroundStyle(.white.opacity(0.85))
+            Button {
+                advance()
+            } label: {
+                Text("Let's get started!")
+                    .font(Theme.Font.display(28))
+                    .padding(.horizontal, 48).padding(.vertical, 20)
+            }
+            .buttonStyle(ChunkyKeyStyle(base: Theme.Color.correct,
+                                        deep: Theme.Color.correct.shaded(by: -0.35),
+                                        corner: Theme.Metric.corner))
+            .padding(.top, 12)
+        }
+    }
 
     private var namePage: some View {
         VStack(spacing: 22) {
