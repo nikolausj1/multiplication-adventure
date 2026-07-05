@@ -290,20 +290,35 @@ final class SessionViewModel {
         // question — no retries, or victory would be grindable.
         if !correct, bossWorldIndex == nil {
             var at = min(index + 4, queue.count)
+            var retry = q
             if q.format == .recognition {
                 var boundary = index + 1
                 while boundary < queue.count, queue[boundary].format == .recognition {
                     boundary += 1
                 }
                 at = min(at, boundary)
+                if at <= index + 1 {
+                    // No room left in the card block: retry as a typed question
+                    // a beat later (the reveal just showed him the answer) —
+                    // never the same card twice in a row, never a card ambushing
+                    // a keypad phase.
+                    retry = PlannedQuestion(prompt: q.prompt, format: .recall,
+                                            movement: q.movement, options: nil,
+                                            timed: false)
+                    at = min(index + 2, queue.count)
+                }
             } else {
+                at = max(at, min(index + 2, queue.count))
                 while at > 0, at < queue.count,
                       queue[at].format == .recognition,
                       queue[at - 1].format == .recognition {
                     at += 1
                 }
             }
-            queue.insert(q, at: at)
+            // Nothing to space against (missed the very last question): skip the
+            // in-session retry — the fact stays sub-fluent, so extensions or
+            // tomorrow's batch re-serve it anyway. Never twice in a row.
+            if at >= index + 2 { queue.insert(retry, at: at) }
         }
         stage = .feedback
         feedbackGen += 1
@@ -347,8 +362,10 @@ final class SessionViewModel {
     /// real work (extensions → next frontier batch → review rounds).
     func next() {
         guard stage == .feedback else { return }
+        let servedFact = current?.fact
         index += 1
         skipStaleReps()
+        dedupeAdjacent(servedFact)
         lastSelected = nil
 
         // Boss dies the moment his HP empties — instant victory, no leftover
@@ -381,6 +398,7 @@ final class SessionViewModel {
                 }
                 if more.isEmpty { completeQuest() } else {   // floor met or truly dry
                     queue.append(contentsOf: more)
+                    dedupeAdjacent(servedFact)   // guard the seam too
                     stage = .asking; beginQuestion()
                 }
                 return
@@ -389,6 +407,24 @@ final class SessionViewModel {
             finish(); return
         }
         stage = .asking; beginQuestion()
+    }
+
+    /// Serve-time net: never the same fact twice in a row. Planners avoid it,
+    /// but dynamic inserts, chained batches, and single-fact tails can't always.
+    /// Swaps stay format- and warmup-compatible so phase blocks survive.
+    private func dedupeAdjacent(_ last: FactID?) {
+        guard let last, index < queue.count, queue[index].fact == last else { return }
+        var j = index + 1
+        while j < queue.count,
+              !(queue[j].fact != last
+                && (queue[j].format == .recognition) == (queue[index].format == .recognition)
+                && (queue[j].movement == .warmup) == (queue[index].movement == .warmup)) { j += 1 }
+        if j < queue.count {
+            queue.swapAt(index, j)
+        } else if index + 1 < queue.count, queue.last?.fact != last {
+            // No swap candidate: defer the duplicate to the end of the queue.
+            queue.append(queue.remove(at: index))
+        }
     }
 
     /// Testing out makes pre-planned ladder reps stale: once a fact reaches

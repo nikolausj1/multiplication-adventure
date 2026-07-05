@@ -221,7 +221,7 @@ struct LearningService {
         for s in reviews {
             let prompt = OrientedPrompt(fact: s.id, swapped: (rng.next() & 1) == 1)
             if s.stage >= .fluency, s.id.a != 0, fluentTotal >= Self.missingFactorMinFluent,
-               rng.next() % Self.missingFactorDenominator == 0 {
+               rng.next() % (s.stage == .mastered ? 3 : Self.missingFactorDenominator) == 0 {
                 queue.append(PlannedQuestion(prompt: prompt, format: .recall,
                                              movement: .review, options: nil,
                                              timed: false, missingFactor: true))
@@ -247,6 +247,18 @@ struct LearningService {
     /// so phase blocks (and the bar's color contract) survive.
     static func antiRepeat(_ q: [PlannedQuestion]) -> [PlannedQuestion] {
         var qs = q
+        guard qs.count > 1 else { return qs }
+        // Pass 1: never the same fact twice in a row (best-effort swap forward
+        // within the same format+movement so phase blocks survive).
+        for i in 1..<qs.count where qs[i].fact == qs[i - 1].fact {
+            var j = i + 1
+            while j < qs.count,
+                  !(qs[j].fact != qs[i - 1].fact
+                    && (qs[j].format == .recognition) == (qs[i].format == .recognition)
+                    && (qs[j].movement == .warmup) == (qs[i].movement == .warmup)) { j += 1 }
+            if j < qs.count { qs.swapAt(i, j) }
+        }
+        // Pass 2: never the same answer three times in a row.
         guard qs.count > 2 else { return qs }
         for i in 2..<qs.count {
             guard qs[i].expectedAnswer == qs[i - 1].expectedAnswer,
@@ -254,7 +266,8 @@ struct LearningService {
             var j = i + 1
             while j < qs.count,
                   !(qs[j].format == qs[i].format && qs[j].movement == qs[i].movement
-                    && qs[j].expectedAnswer != qs[i].expectedAnswer) { j += 1 }
+                    && qs[j].expectedAnswer != qs[i].expectedAnswer
+                    && qs[j].fact != qs[i - 1].fact) { j += 1 }
             if j < qs.count { qs.swapAt(i, j) }
         }
         return qs
@@ -280,9 +293,9 @@ struct LearningService {
         return Double(done) / 5.0
     }
 
-    /// Missing-factor review: 1 question in `missingFactorDenominator` (fluent-or-
-    /// better facts, once a handful are fluent). Static so a debug launch arg can
-    /// force it for previews.
+    /// Missing-factor review: 1-in-5 for fluent facts, 1-in-3 once MASTERED —
+    /// the better his grasp, the more the format mixes it up. Never ×0 facts.
+    /// Static so a debug launch arg can force it for previews.
     static var missingFactorDenominator: UInt64 = 5
     static let missingFactorMinFluent = 5
 
@@ -317,7 +330,10 @@ struct LearningService {
             // keypad; one fast typed answer still tests out of recognition.
             let trivial = id.a <= 1
             if !trivial, stage == .recognition || !(s?.introduced ?? false) {
-                let mcLeft = max(0, 2 - (s?.recognitionStreak ?? 0))
+                // ONE card per fact per serving (never the same card twice in a
+                // row) — the recognition streak also accrues from typed answers,
+                // so the ladder loses nothing.
+                let mcLeft = (s?.recognitionStreak ?? 0) >= 2 ? 0 : 1
                 mcReps.append((0..<mcLeft).map { _ in question(id, format: .recognition, movement: .core) })
                 typedReps.append((0..<3).map { _ in question(id, format: .recall, movement: .core) })
             } else if trivial, stage < .fluency {
@@ -342,7 +358,7 @@ struct LearningService {
             .prefix(reviewTarget)
         var reviews = reviewSnaps.map { s in
             if s.stage >= .fluency, s.id.a != 0, fluentTotal >= Self.missingFactorMinFluent,
-               rng.next() % Self.missingFactorDenominator == 0 {
+               rng.next() % (s.stage == .mastered ? 3 : Self.missingFactorDenominator) == 0 {
                 return question(s.id, format: .recall, movement: .review, missingFactor: true)
             }
             return question(s.id, format: s.stage == .mastered ? .fluency : s.stage, movement: .review)
