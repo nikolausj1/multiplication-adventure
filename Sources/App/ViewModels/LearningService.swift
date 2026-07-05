@@ -84,8 +84,9 @@ struct LearningService {
     func applyDemoProgress(complete: Bool) {
         let p = activeProfile()
         let now = Date()
-        // Bosses count as beaten for the demo-cleared worlds.
+        // Bosses count as beaten for the demo-cleared worlds; stars match.
         for w in 0..<WorldCatalog.count where complete || w <= 2 { p.markWorldCleared(w) }
+        p.questStars = complete ? 5 * WorldCatalog.count : 17   // 3 cleared + 2 in world 4
         for f in p.facts {
             let w = WorldCatalog.worldIndex(ofFact: f.id)
             if complete || w <= 2 {
@@ -126,49 +127,59 @@ struct LearningService {
     /// cumulative review. The session ends when the star lands (see the VM), so
     /// "one quest ≈ one star" by construction. When the world is boss-pending
     /// (all fluent), returns a classic review session and an empty batch.
-    func buildQuestSession(now: Date = .now, seed: UInt64? = nil)
+    func buildDailyQuest(now: Date = .now, seed: UInt64? = nil)
         -> (queue: [PlannedQuestion], batch: [FactID]) {
-        let p = activeProfile()
         let snaps = facts().map(\.snapshot)
         let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
-        let idx = WorldProgress.currentIndex(snapshots: snaps, cleared: p.clearedWorlds)
-        let worldFacts = Self.dripOrder(WorldCatalog.facts(inWorld: idx))
-        let fluentCount = worldFacts.filter { (byID[$0]?.stage ?? .recognition) >= .fluency }.count
-        let total = worldFacts.count
-
-        // Boss-pending (or all worlds cleared): review-only session, no batch.
-        // Mastered facts still get the occasional inverse form here — this is the
-        // Master Quest era's main diet.
-        guard total > 0, fluentCount < total else {
-            var qs = SessionPlanner.plan(snapshots: snaps, now: now,
-                                         seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)),
-                                         clearedWorlds: p.clearedWorlds)
-            let fluent = Set(snaps.filter { $0.stage >= .fluency }.map(\.id))
-            if fluent.count >= Self.missingFactorMinFluent {
-                var mfRng = SplitMix64(seed: (seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970))) &+ 7)
-                qs = qs.map { q in
-                    guard q.movement != .warmup, fluent.contains(q.fact), q.fact.a != 0,
-                          mfRng.next() % Self.missingFactorDenominator == 0 else { return q }
-                    return PlannedQuestion(prompt: q.prompt, format: .recall, movement: q.movement,
-                                           options: nil, timed: false, missingFactor: true)
-                }
-            }
-            return (Self.antiRepeat(qs), [])
-        }
-
-        let filledStars = WorldStars.filled(fluent: fluentCount, total: total)
-        let nextThreshold = Int(ceil(Double(total) * Double(filledStars + 1) / Double(WorldStars.starCount)))
-        let needed = max(1, nextThreshold - fluentCount)
-
-        // Today's batch: half-climbed leftovers first, then fresh facts in slot order.
-        let notFluent = worldFacts.filter { (byID[$0]?.stage ?? .recognition) < .fluency }
-        let leftovers = notFluent.filter { byID[$0]?.introduced ?? false }
-        let fresh = notFluent.filter { !(byID[$0]?.introduced ?? false) }
-        let batch = Array((leftovers + fresh).prefix(needed))
-
+        let batch = frontierBatch(byID: byID, exclude: [], size: 4)
         var rng = SplitMix64(seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)))
+        // Empty batch (everything fluent) still builds: warm-up + review + MF —
+        // the Master Quest era's diet.
         let queue = assembleQuest(batch: batch, byID: byID, snaps: snaps, now: now, rng: &rng)
         return (queue, batch)
+    }
+
+    /// The next facts up the GLOBAL curriculum: leftovers (introduced, sub-fluent)
+    /// first, then fresh — drip-mixed across the two nearest active tables so a
+    /// batch never runs one table.
+    private func frontierBatch(byID: [FactID: FactSnapshot], exclude: Set<FactID>,
+                               size: Int) -> [FactID] {
+        let remaining = FactUniverse.allFacts.filter {
+            !exclude.contains($0) && (byID[$0]?.stage ?? .recognition) < .fluency
+        }
+        guard !remaining.isEmpty else { return [] }
+        let slots = Array(Set(remaining.map { Curriculum.slot(of: $0) }).sorted().prefix(2))
+        let window = Self.dripOrder(remaining.filter { slots.contains(Curriculum.slot(of: $0)) })
+        let leftovers = window.filter { byID[$0]?.introduced ?? false }
+        let fresh = window.filter { !(byID[$0]?.introduced ?? false) }
+        return Array((leftovers + fresh).prefix(size))
+    }
+
+    /// Mid-session: the batch is done but the clock isn't — chain the next
+    /// frontier batch (full ladder: cards then typed) with a few fresh reviews.
+    func chainBatch(exclude: Set<FactID>, now: Date = .now)
+        -> (queue: [PlannedQuestion], batch: [FactID]) {
+        let snaps = facts().map(\.snapshot)
+        let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
+        let batch = frontierBatch(byID: byID, exclude: exclude, size: 3)
+        guard !batch.isEmpty else { return ([], []) }
+        var rng = SplitMix64(seed: UInt64(bitPattern: Int64(now.timeIntervalSince1970)) &+ 51)
+        let queue = assembleQuest(batch: batch, byID: byID, snaps: snaps, now: now,
+                                  rng: &rng, reviewTarget: 6, includeWarmup: false)
+        return (queue, batch)
+    }
+
+    // MARK: Stars & worlds (session trophies — decoupled from fluency)
+
+    func starsInCurrentWorld() -> Int { activeProfile().starsInCurrentWorld }
+    func currentWorldIdx() -> Int { activeProfile().currentWorldIndex }
+
+    /// Award the completed session's star; returns its 0-based socket, or nil
+    /// when the world is full (boss pending). Persisted immediately.
+    func awardQuestStar() -> Int? {
+        let socket = activeProfile().awardQuestStar()
+        try? context.save()
+        return socket
     }
 
     /// The world's facts in "drip order": round-robin across the world's tables
@@ -187,47 +198,18 @@ struct LearningService {
         return out
     }
 
-    /// The session clock isn't done but the day's batch is: pull the NEXT facts
-    /// forward as card-only previews (capped safely below fluent — tomorrow's
-    /// star stays tomorrow's), woven with weak-fact reviews. Empty only when
-    /// there is truly nothing left to practice (day-1 exhaustion escape).
-    func questBackfill(exclude: Set<FactID>, reviewExclude: Set<FactID> = [],
-                       now: Date = .now) -> [PlannedQuestion] {
-        let p = activeProfile()
+    /// A pure review round: fills remaining session clock when no new facts are
+    /// left to chain (the all-fluent endgame). Weak-first, fluent+ only, MF mixed
+    /// in; the per-session serve cap (reviewExclude) stops a small pool cycling.
+    func reviewRound(reviewExclude: Set<FactID> = [], now: Date = .now) -> [PlannedQuestion] {
         let snaps = facts().map(\.snapshot)
-        let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
-        let idx = WorldProgress.currentIndex(snapshots: snaps, cleared: p.clearedWorlds)
         let threshold = FluencyThreshold.current(
             recentFluencyTimes: snaps.flatMap { $0.stage >= .fluency ? $0.recentTimes : [] })
         let fluentTotal = snaps.filter { $0.stage >= .fluency }.count
         var rng = SplitMix64(seed: UInt64(bitPattern: Int64(now.timeIntervalSince1970)) &+ 33)
-
-        // Preview facts: next up the mountain, 2 cards each — but only facts a
-        // fast card CANNOT promote to fluent (no surprise second star). A fact
-        // at recall 1+/3 is one fast answer from fluent, so it waits for its batch.
-        let pulled = Self.dripOrder(WorldCatalog.facts(inWorld: idx))
-            .filter { id in
-                guard !exclude.contains(id) else { return false }
-                guard let s = byID[id], s.introduced else { return true }   // fresh
-                return s.stage == .recognition || (s.stage == .recall && s.recallCorrect == 0)
-            }
-            .prefix(3)
         var queue: [PlannedQuestion] = []
-        for id in pulled {
-            for _ in 0..<2 {
-                let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
-                queue.append(PlannedQuestion(
-                    prompt: prompt, format: .recognition, movement: .core,
-                    options: DistractorGenerator.options(for: prompt, seed: rng.next()),
-                    timed: false))
-            }
-        }
-        // Weak-first reviews keep the gold stretch honest work. Fluent+ only
-        // (sub-fluent facts belong to batches), and the per-session serve cap
-        // (reviewExclude) stops a small pool from cycling endlessly.
-        let excluded = exclude.union(pulled).union(reviewExclude)
         let reviews = snaps
-            .filter { $0.introduced && $0.stage >= .fluency && !excluded.contains($0.id) }
+            .filter { $0.introduced && $0.stage >= .fluency && !reviewExclude.contains($0.id) }
             .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
                     > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
             .prefix(10)
@@ -390,19 +372,10 @@ struct LearningService {
     /// The current fast-answer bar (boss crit-hits compare against this).
     func fluencyThresholdNow() -> Double { currentThreshold() }
 
-    /// Fluent-progress of the current world (for wrap-screen "how close am I" UI).
+    /// Session-start snapshot: the adventure's current world (boss-count based)
+    /// plus GLOBAL fluency (worlds no longer own facts — the wrap shows global gains).
     func currentWorldStat() -> (index: Int, fluent: Int, total: Int) {
-        let snaps = facts().map(\.snapshot)
-        let idx = WorldProgress.currentIndex(snapshots: snaps, cleared: activeProfile().clearedWorlds)
-        let stat = WorldProgress.stats(snapshots: snaps)[safe: idx]
-        return (idx, stat?.fluentPlus ?? 0, stat?.total ?? 0)
-    }
-
-    /// Fluent-progress of a specific world (the in-session ring pins the world the
-    /// session started in, even if it clears mid-session).
-    func worldStat(at index: Int) -> (fluent: Int, total: Int) {
-        let stat = WorldProgress.stats(snapshots: facts().map(\.snapshot))[safe: index]
-        return (stat?.fluentPlus ?? 0, stat?.total ?? 0)
+        (activeProfile().currentWorldIndex, fluentPlusCount(), FactUniverse.count)
     }
 
     /// Dev/testing: a session of a specific world's facts forced into one format,
@@ -422,20 +395,27 @@ struct LearningService {
         }
     }
 
-    /// The world's boss challenge: a timed round over that world's own facts.
-    /// 10–16 questions (small worlds repeat facts in fresh orientations).
+    /// The world's boss challenge: a timed gauntlet over what he's actually been
+    /// training (worlds no longer own facts) — his weakest introduced facts plus
+    /// a shuffled spread of the rest. 10–16 questions; small pools repeat facts
+    /// in fresh orientations.
     func buildBossSession(worldIndex: Int, now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
-        let ids = WorldCatalog.facts(inWorld: worldIndex)
-        guard !ids.isEmpty else { return [] }
+        let snaps = facts().map(\.snapshot).filter { $0.introduced && $0.stage >= .recall }
+        guard !snaps.isEmpty else { return [] }
+        let threshold = currentThreshold()
         var rng = SplitMix64(seed: seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970)))
-        let target = min(max(ids.count, 10), 16)
-        var picks: [FactID] = []
-        while picks.count < target {
-            var round = ids
-            round.shuffle(using: &rng)
-            picks.append(contentsOf: round.prefix(target - picks.count))
-        }
-        return picks.map { id in
+        let weakest = snaps
+            .sorted { PriorityCalculator.priority(of: $0, now: now, fluencyThreshold: threshold)
+                    > PriorityCalculator.priority(of: $1, now: now, fluencyThreshold: threshold) }
+            .prefix(8).map(\.id)
+        var rest = snaps.map(\.id).filter { !weakest.contains($0) }
+        rest.shuffle(using: &rng)
+        var picks = Array(weakest) + rest.prefix(8)
+        let target = min(max(picks.count, 10), 16)
+        var i = 0
+        while picks.count < target { picks.append(picks[i]); i += 1 }   // small pools repeat
+        picks.shuffle(using: &rng)
+        return picks.prefix(16).map { id in
             let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
             return PlannedQuestion(prompt: prompt, format: .fluency, movement: .core,
                                    options: nil, timed: true)

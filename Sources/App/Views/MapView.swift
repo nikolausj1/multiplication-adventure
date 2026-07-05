@@ -22,9 +22,8 @@ struct MapView: View {
 
     private var profile: Profile? { activeProfiles.first }
     private var snapshots: [FactSnapshot] { (profile?.facts ?? []).map(\.snapshot) }
-    private var stats: [WorldStat] { WorldProgress.stats(snapshots: snapshots) }
     private var clearedSet: Set<Int> { profile?.clearedWorlds ?? [] }
-    private var currentIndex: Int { WorldProgress.currentIndex(snapshots: snapshots, cleared: clearedSet) }
+    private var currentIndex: Int { profile?.currentWorldIndex ?? 0 }
     /// The anytime Speed Round is a parent-enabled extra; the boss challenge is
     /// the built-in timed moment.
     private var canSpeedRound: Bool { profile?.speedRoundUnlocked ?? false }
@@ -198,9 +197,9 @@ struct MapView: View {
         let unlocked = world.index <= currentIndex
         let cleared = clearedSet.contains(world.index)
         let isCurrent = world.index == currentIndex
-        let stat = stats[safe: world.index]
-        // All facts fluent but boss unbeaten → the node IS the boss fight.
-        let bossReady = isCurrent && !cleared && (stat.map { $0.total > 0 && $0.fluentPlus == $0.total } ?? false)
+        let starsHere = isCurrent ? (profile?.starsInCurrentWorld ?? 0) : (cleared ? 5 : 0)
+        // Five sockets filled but boss unbeaten → the node IS the boss fight.
+        let bossReady = isCurrent && !cleared && starsHere == WorldStars.starCount
         VStack(spacing: 5) {
             Button {
                 if bossReady { sessionWorld = WorldSelection(id: world.index, boss: true) }
@@ -230,10 +229,9 @@ struct MapView: View {
             .modifier(Shake(animatableData: world.index == shakeTarget ? shakePhase : 0))
 
             if unlocked {
-                // Star progress — the loud, game-style "how close am I" indicator.
-                // A cleared world always wears all five.
-                WorldStars(fluent: cleared ? (stat?.total ?? 1) : (stat?.fluentPlus ?? 0),
-                           total: stat?.total ?? 1)
+                // Star sockets — one star per completed quest; cleared worlds
+                // always wear all five.
+                WorldStars(filled: starsHere)
                     .padding(.top, 2)
                 Text(world.name)
                     .font(Theme.Font.label(13)).foregroundStyle(.white)
@@ -250,9 +248,9 @@ struct MapView: View {
                                        startPoint: .top, endPoint: .bottom)))
                     .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
             } else if isCurrent, !cleared {
-                let remaining = stat.map { $0.total - $0.fluentPlus } ?? 0
-                let started = (stat?.fluentPlus ?? 0) > 0
-                Text(started && remaining > 0 ? "\(remaining) TO GO!" : "TAP TO PLAY")
+                let remaining = WorldStars.starCount - starsHere
+                Text(starsHere > 0 && remaining > 0
+                     ? "\(remaining) STAR\(remaining == 1 ? "" : "S") TO THE BOSS!" : "TAP TO PLAY")
                     .font(Theme.Font.label(10)).tracking(1)
                     .foregroundStyle(.white).padding(.horizontal, 9).padding(.vertical, 3)
                     .background(Capsule().fill(Theme.Color.primary))
@@ -323,7 +321,7 @@ struct MapView: View {
     /// reveal on the newly reachable world.
     private func checkUnlockReveal() {
         let now = currentIndex
-        if now > baselineCurrent, !(stats[safe: now]?.cleared ?? false) {
+        if now > baselineCurrent, !clearedSet.contains(now) {
             revealWorld = now
         }
         baselineCurrent = now

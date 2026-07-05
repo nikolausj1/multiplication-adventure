@@ -195,26 +195,16 @@ struct StarGlyph: View {
     }
 }
 
-/// World progress as stars (game-style): each star is ~1/5 of the world's facts
-/// reaching fluent. Filled stars are gold; empty sockets stay visibly waiting.
+/// World progress as stars (game-style): one star per completed daily quest,
+/// five sockets per world. Filled stars are gold; empty sockets visibly wait.
 struct WorldStars: View {
-    let fluent: Int
-    let total: Int
+    let filled: Int
     var size: CGFloat = 15
     var spacing: CGFloat = 3
 
     static let starCount = 5
 
-    /// Stars earned: star k fills when fluent ≥ ⌈total·k/5⌉ (all 5 ⇔ all fluent).
-    static func filled(fluent: Int, total: Int) -> Int {
-        guard total > 0 else { return 0 }
-        return (1...starCount).last(where: {
-            fluent >= Int(ceil(Double(total) * Double($0) / Double(starCount)))
-        }) ?? 0
-    }
-
     var body: some View {
-        let filled = Self.filled(fluent: fluent, total: total)
         HStack(spacing: spacing) {
             ForEach(0..<Self.starCount, id: \.self) { i in
                 StarGlyph(filled: i < filled, size: size)

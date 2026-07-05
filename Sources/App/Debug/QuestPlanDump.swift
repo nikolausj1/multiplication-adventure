@@ -20,10 +20,11 @@ enum QuestPlanDump {
         var exposures: [FactID: Int] = [:]   // carried across days (memory of meetings)
 
         for session in 1...10 {
-            // Boss-ready? Fight it first (as the kid would) so worlds advance.
-            let stat = service.currentWorldStat()
-            if stat.total > 0, stat.fluent == stat.total {
-                let boss = SessionViewModel(service: service, boss: true, worldIndex: stat.index)
+            // Boss-ready (5 sockets filled)? Fight it first, as the kid would.
+            let worldIdx = service.currentWorldIdx()
+            if service.starsInCurrentWorld() == 5,
+               !service.activeProfile().clearedWorlds.contains(worldIdx) {
+                let boss = SessionViewModel(service: service, boss: true, worldIndex: worldIdx)
                 boss.now = { simDate }
                 boss.sessionStart = simDate
                 while boss.stage != .finished {
@@ -33,9 +34,9 @@ enum QuestPlanDump {
                     boss.pendingCelebration = nil
                     if boss.stage == .feedback { boss.next() }
                 }
-                let bossName = WorldCatalog.worlds[safe: stat.index]?.bossName ?? "Boss"
+                let bossName = WorldCatalog.worlds[safe: worldIdx]?.bossName ?? "Boss"
                 print("\n⚔️  BOSS FIGHT: \(bossName) — "
-                      + (boss.bossPassed ? "DEFEATED, world \(stat.index + 1) cleared!" : "held off"))
+                      + (boss.bossPassed ? "DEFEATED, world \(worldIdx + 1) cleared!" : "held off"))
             }
             let vm = SessionViewModel(service: service)
             vm.now = { simDate }
@@ -63,10 +64,9 @@ enum QuestPlanDump {
                 if vm.stage == .feedback { vm.next() }
                 if vm.pendingStarEarned != nil { vm.starEarnedDismissed() }
             }
-            let stars = WorldStars.filled(fluent: vm.worldFluent, total: vm.worldTotal)
             print("→ \(vm.totalAnswered) answers, ~\(Int((vm.elapsed / 60).rounded())) min, "
                   + "star \(vm.starEarnedThisSession ? "EARNED" : "not earned"), "
-                  + "world \(vm.worldStatBefore.index + 1) stars \(stars)/5")
+                  + "world \(service.currentWorldIdx() + 1) stars \(service.starsInCurrentWorld())/5")
             simDate += 86_400   // next day
         }
         exit(0)

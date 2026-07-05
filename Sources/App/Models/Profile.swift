@@ -26,6 +26,11 @@ final class Profile {
     /// beating its boss (not merely by reaching full fluency), so this is explicit state.
     var clearedWorldsMask: Int = 0
 
+    /// Total daily-quest stars earned. Stars are SESSION trophies (a completed
+    /// ~10-minute quest), decoupled from fluency counts: 5 stars fill a world's
+    /// sockets, its boss unlocks, beating the boss opens the next world.
+    var questStars: Int = 0
+
     // Per-profile data (cascade so deleting a profile cleans everything up).
     @Relationship(deleteRule: .cascade, inverse: \Fact.profile) var facts: [Fact] = []
     @Relationship(deleteRule: .cascade, inverse: \SessionRecord.profile) var sessions: [SessionRecord] = []
@@ -57,6 +62,23 @@ final class Profile {
     }
 
     func markWorldCleared(_ index: Int) { clearedWorldsMask |= (1 << index) }
+
+    /// The adventure's current world: one past the last beaten boss.
+    var currentWorldIndex: Int { min(clearedWorlds.count, WorldCatalog.count - 1) }
+
+    /// Stars showing in the current world's sockets (0...5). Caps at 5 until the
+    /// boss falls, so a world can never hold more stars than sockets.
+    var starsInCurrentWorld: Int {
+        max(0, min(5, questStars - 5 * clearedWorlds.count))
+    }
+
+    /// Award the day's quest star. Returns the 0-based socket it fills, or nil
+    /// when the current world is full (boss pending — fight it for more sockets!).
+    func awardQuestStar() -> Int? {
+        guard starsInCurrentWorld < 5 else { return nil }
+        questStars += 1
+        return starsInCurrentWorld - 1
+    }
 
     /// Records practice on `date` and returns the new streak length. One missed day
     /// is forgiven (summer grace); two or more in a row resets to 1. Progress itself

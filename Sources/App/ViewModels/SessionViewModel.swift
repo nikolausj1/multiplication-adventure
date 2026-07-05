@@ -55,13 +55,10 @@ final class SessionViewModel {
 
     /// Current-world fluency at session start, so the wrap can show today's gains.
     let worldStatBefore: (index: Int, fluent: Int, total: Int)
-    /// Live ring: fluent count of the session's world, updated after every answer.
-    private(set) var worldFluent = 0
-    /// What the header star chip shows — frozen at session start so the star
-    /// appears NOWHERE before the slam ceremony (updated at quest completion).
-    private(set) var shownWorldFluent = 0
-    var worldTotal: Int { worldStatBefore.total }
-    /// The ring only makes sense in a regular progression session.
+    /// What the header star chip shows — current world's sockets, frozen at
+    /// session start so the new star appears NOWHERE before the slam ceremony.
+    private(set) var shownStars = 0
+    /// The star chip only makes sense in a regular quest session.
     let showsWorldRing: Bool
 
     /// Set for a world-boss challenge run; the wrap uses `bossPassed` for its verdict.
@@ -76,16 +73,17 @@ final class SessionViewModel {
         max(1, Int(ceil(Double(originalCount) * LearningService.bossPassAccuracy)))
     }
 
-    /// Star Quest state: today's batch of facts being drilled to fluent. Empty for
-    /// boss/speed/test runs and boss-pending review days.
+    /// Daily Quest state: the facts being drilled this session (frontier batches
+    /// chain as earlier ones finish). The star is a SESSION trophy — awarded at
+    /// completion (time floor + in-flight work done), decoupled from fluency.
     private(set) var questBatch: [FactID] = []
     private(set) var starEarnedThisSession = false
-    /// 0-based index of the star earned this session; slams at quest completion.
+    /// 0-based socket of the star awarded at completion; slams before the wrap.
     private var earnedStarIndex: Int?
     private var questEndPending = false   // slam showing; finish() on its dismissal
-    /// Ladder charge of today's star in [0, 1] — drives the top progress bar.
+    /// Ladder completion of today's batch facts in [0, 1] (the meter's work part).
     private(set) var questCharge: Double = 0
-    var isQuest: Bool { !questBatch.isEmpty }
+    let isQuest: Bool
 
     /// Session rails are TIME, not question counts — "a good day's practice" is
     /// ~12 minutes whether he's sprinting ×10s in July or grinding ×8s in August.
@@ -97,30 +95,28 @@ final class SessionViewModel {
     /// Injectable clock (the -dumpQuestPlan simulator advances virtual time).
     var now: () -> Date = { .now }
     var elapsed: TimeInterval { now().timeIntervalSince(sessionStart) }
-    /// Facts already pulled forward this session (each gets its preview once).
-    private var backfilled = Set<FactID>()
     /// Review serves per fact this session (cap 2 — a small pool must not cycle).
     private var reviewCounts: [FactID: Int] = [:]
-    /// Star charge at session start — the bar is renormalized to THIS session's
-    /// journey, so every day starts empty and fills completely on its own merit.
-    private var startCharge: Double = 0
 
-    /// The Quest Meter: EVERY answer moves it — star-ladder work jumps (70%
-    /// weight), everything else advances the session-clock component (30%).
-    /// Monotonic via high-water mark; hits 1.0 exactly at quest completion.
+    /// The Quest Meter: EVERY answer moves it — the session clock is the main
+    /// component (60%), today's ladder work the rest (40%). Monotonic via
+    /// high-water mark; hits 1.0 exactly at quest completion.
     private(set) var questMeter: Double = 0
     private var meterHighWater: Double = 0
+    /// Complete = clock satisfied AND nothing left mid-ladder. Ceiling days
+    /// complete via the mercy path in next() (star still earned).
     var questComplete: Bool {
-        isQuest ? (starEarnedThisSession && elapsed >= floorSeconds)
-                : stage == .finished
+        isQuest ? (elapsed >= floorSeconds && batchDone) : stage == .finished
+    }
+    private var batchDone: Bool {
+        questBatch.allSatisfy { service.ladderProgress($0) >= 1 }
     }
 
     private func updateMeter() {
         guard isQuest else { return }
-        let raw = starEarnedThisSession ? 1.0 : questCharge
-        let starC = startCharge < 1 ? max(0, (raw - startCharge) / (1 - startCharge)) : 1
+        let workC = questBatch.isEmpty ? 1.0 : questCharge
         let floorC = min(1.0, elapsed / max(floorSeconds, 1))
-        meterHighWater = max(meterHighWater, 0.7 * starC + 0.3 * floorC)
+        meterHighWater = max(meterHighWater, 0.4 * workC + 0.6 * floorC)
         questMeter = meterHighWater
     }
 
@@ -162,9 +158,9 @@ final class SessionViewModel {
         self.critThreshold = service.fluencyThresholdNow()
         self.auto = auto
         self.worldStatBefore = service.currentWorldStat()
-        self.worldFluent = worldStatBefore.fluent
-        self.shownWorldFluent = worldStatBefore.fluent
-        self.showsWorldRing = !speedRound && !boss && testFormat == nil && worldStatBefore.total > 0
+        self.shownStars = service.starsInCurrentWorld()
+        self.isQuest = !speedRound && !boss && testFormat == nil
+        self.showsWorldRing = isQuest
         let built: [PlannedQuestion]
         if boss {
             built = service.buildBossSession(worldIndex: worldIndex)
@@ -173,12 +169,10 @@ final class SessionViewModel {
         } else if speedRound {
             built = service.buildSpeedSession()
         } else {
-            let quest = service.buildQuestSession()
+            let quest = service.buildDailyQuest()
             built = quest.queue
             questBatch = quest.batch
-            let charge = Self.charge(of: quest.batch, service: service)
-            questCharge = charge
-            startCharge = charge   // bar measures THIS session's journey
+            questCharge = Self.charge(of: quest.batch, service: service)
         }
         self.queue = built
         self.originalCount = built.count
@@ -186,7 +180,7 @@ final class SessionViewModel {
         self.masteredBefore = service.activeProfile().masteredCount
         questionStart = .now
         if built.isEmpty { stage = .finished }   // e.g. Speed Round with no fluent facts yet
-        updateMeter()   // rollover days start the meter pre-filled where yesterday ended
+        updateMeter()
         updatePhase()   // meter opens already wearing round 1's color (no jolt)
     }
 
@@ -197,9 +191,9 @@ final class SessionViewModel {
         return batch.map { service.ladderProgress($0) }.reduce(0, +) / Double(batch.count)
     }
 
-    /// Progress: star charge on quest days; queue progress otherwise.
+    /// Progress: the quest meter on quest days; queue progress otherwise.
     var progress: Double {
-        if isQuest { return starEarnedThisSession ? 1 : questCharge }
+        if isQuest { return questMeter }
         return originalCount == 0 ? 1 : min(1, Double(distinctServed) / Double(originalCount))
     }
     private var distinctServed: Int { min(index, originalCount) }
@@ -263,19 +257,9 @@ final class SessionViewModel {
         } else {
             Feedback.fire(correct ? .correct : .wrong, combo: combo)
         }
-        if result.becameFluent {
-            let filledBefore = WorldStars.filled(fluent: worldFluent, total: worldTotal)
-            worldFluent = service.worldStat(at: worldStatBefore.index).fluent
-            let filledNow = WorldStars.filled(fluent: worldFluent, total: worldTotal)
-            Feedback.fire(.milestone)   // magic shimmer layered over the coin
-            // Crossing the star threshold just surges the meter; the slam is the
-            // FINALE — it fires at quest completion (see completeQuest), after
-            // the bar is full and gold. Quest Complete is what the slam means.
-            if filledNow > filledBefore, showsWorldRing {
-                starEarnedThisSession = true
-                earnedStarIndex = filledNow - 1
-            }
-        }
+        // Stars are session trophies now (awarded at completion) — a fact going
+        // fluent is still its own magic moment.
+        if result.becameFluent { Feedback.fire(.milestone) }
         if isQuest { questCharge = Self.charge(of: questBatch, service: service) }
         updateMeter()
         if let c = result.celebration {
@@ -342,8 +326,9 @@ final class SessionViewModel {
     /// Debug (launch-arg): show the star-earned overlay without earning one.
     func debugShowStar(_ index: Int) { pendingStarEarned = index }
 
-    /// Advance after the neutral-soft reveal. Quest days end when the star has
-    /// landed (and the review floor is met); heavy-miss days extend, then roll over.
+    /// Advance after the neutral-soft reveal. A quest ends when the clock is
+    /// satisfied AND nothing is left mid-ladder; until then it keeps chaining
+    /// real work (extensions → next frontier batch → review rounds).
     func next() {
         guard stage == .feedback else { return }
         index += 1
@@ -356,22 +341,27 @@ final class SessionViewModel {
             finish(); return
         }
         if isQuest {
-            if questComplete { completeQuest(); return }        // star + time floor
-            if elapsed >= ceilingSeconds { completeQuest(); return }   // mercy: star rolls over
+            if elapsed >= ceilingSeconds { completeQuest(); return }   // mercy: star still earned
+            if questComplete { completeQuest(); return }   // clock + in-flight work done
             if index >= queue.count {
-                // Miss recovery first; then pull tomorrow's material forward
-                // (card previews + weak reviews) to fill the session clock.
+                // Miss recovery for in-flight facts first; then (clock unmet)
+                // chain the next frontier batch; then pure review rounds.
                 var more = service.questExtension(batch: questBatch)
-                if more.isEmpty {
-                    let capped = Set(reviewCounts.filter { $0.value >= 2 }.keys)
-                    more = service.questBackfill(exclude: Set(questBatch).union(backfilled),
-                                                 reviewExclude: capped)
-                    backfilled.formUnion(more.filter { $0.format == .recognition }.map(\.fact))
-                    for q in more where q.movement == .review {
-                        reviewCounts[q.fact, default: 0] += 1
+                if more.isEmpty, elapsed < floorSeconds {
+                    let chained = service.chainBatch(exclude: Set(questBatch))
+                    if chained.batch.isEmpty {
+                        let capped = Set(reviewCounts.filter { $0.value >= 2 }.keys)
+                        more = service.reviewRound(reviewExclude: capped)
+                        for q in more where q.movement == .review {
+                            reviewCounts[q.fact, default: 0] += 1
+                        }
+                    } else {
+                        questBatch += chained.batch
+                        questCharge = Self.charge(of: questBatch, service: service)
+                        more = chained.queue
                     }
                 }
-                if more.isEmpty { completeQuest() } else {      // truly out of material
+                if more.isEmpty { completeQuest() } else {   // floor met or truly dry
                     queue.append(contentsOf: more)
                     stage = .asking; beginQuestion()
                 }
@@ -395,10 +385,15 @@ final class SessionViewModel {
         }
     }
 
-    /// Quest over. If a star was earned, the slam overlay is the finale — the
-    /// bar is already full and gold — and the wrap follows its dismissal.
+    /// Quest complete: award the day's star (nil socket = boss pending, no star
+    /// to give until the boss falls). The slam overlay is the finale — the bar
+    /// is full and gold — and the wrap follows its dismissal.
     private func completeQuest() {
-        shownWorldFluent = worldFluent   // the chip may now show what he earned
+        if !questEndPending {
+            earnedStarIndex = service.awardQuestStar()
+            starEarnedThisSession = earnedStarIndex != nil
+            shownStars = service.starsInCurrentWorld()
+        }
         if let star = earnedStarIndex, !questEndPending, auto != .wrap {
             questEndPending = true
             pendingStarEarned = star
@@ -407,24 +402,15 @@ final class SessionViewModel {
         }
     }
 
-    /// Stop early — full credit for what was done (§6); an earned star still
-    /// gets its slam on the way out.
-    func stop() {
-        guard stage != .finished else { return }
-        if isQuest, earnedStarIndex != nil, !questEndPending {
-            stage = .feedback   // ensure a consistent state under the overlay
-            completeQuest()
-        } else {
-            finish()
-        }
-    }
+    /// Stop early — full credit for the facts practiced, but a quit session
+    /// earns no star. (§6: progress is never destroyed; trophies are earned.)
+    func stop() { if stage != .finished { finish() } }
 
     private func finish() {
         stage = .finished
-        shownWorldFluent = worldFluent
         if auto == .wrap { pendingStarEarned = nil }   // demo autoplay: don't trap the wrap
-        // Strict flame: dev jumps never count; quests count when the star landed or
-        // real time was put in; boss and speed runs always count.
+        // Strict flame: dev jumps never count; quests count when the day's star
+        // landed or real time was put in; boss and speed runs always count.
         let practiced = !isTest && (starEarnedThisSession || bossWorldIndex != nil
                                     || isSpeed || elapsed >= 480)
         endCelebration = service.finishSession(

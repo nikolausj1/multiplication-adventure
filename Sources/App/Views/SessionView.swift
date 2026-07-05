@@ -113,7 +113,7 @@ struct SessionView: View {
                     .frame(maxWidth: .infinity)
             }
             if vm.showsWorldRing {
-                StarChip(fluent: vm.shownWorldFluent, total: vm.worldTotal)
+                StarChip(filled: vm.shownStars)
             }
             // Always present so the header never reflows — dim until it ignites at 3.
             ComboChip(combo: vm.combo)
@@ -246,17 +246,16 @@ private struct ComboChip: View {
     }
 }
 
-/// Live world stars in the session header. When fluency crosses a star threshold
-/// mid-session, the newest star slams in with a bounce and a sparkle burst.
+/// The world's star sockets in the session header. Frozen until the quest
+/// completes — then the new star arrives with a bounce and a sparkle burst
+/// (right after the full-screen slam).
 private struct StarChip: View {
-    let fluent: Int
-    let total: Int
+    let filled: Int
 
     @State private var shownFilled: Int = 0
     @State private var earnPulse = false
 
     var body: some View {
-        let filled = WorldStars.filled(fluent: fluent, total: total)
         HStack(spacing: 4) {
             ForEach(0..<WorldStars.starCount, id: \.self) { i in
                 StarGlyph(filled: i < filled, size: 16)

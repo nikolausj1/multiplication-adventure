@@ -88,19 +88,17 @@ struct WrapView: View {
         }
     }
 
-    /// The "why am I replaying this world" answer: a visible bar, today's gains, and
-    /// one line that explains the loop (facts drip in daily; fluent-all clears it).
+    /// The "what did today count for" answer: the world's star sockets, today's
+    /// real gains, and one line that explains the loop (star per quest, 5 → boss).
     @ViewBuilder
     private var worldProgressCard: some View {
-        let cleared = activeProfiles.first?.clearedWorlds ?? []
-        let stats = WorldProgress.stats(snapshots: snapshots)
-        let idx = WorldProgress.currentIndex(snapshots: snapshots, cleared: cleared)
-        let s = stats[safe: idx]
-        let fluent = s?.fluentPlus ?? 0
-        let inTraining = max(0, (s?.introduced ?? 0) - fluent)
-        let total = max(s?.total ?? 1, 1)
+        let profile = activeProfiles.first
+        let cleared = profile?.clearedWorlds ?? []
+        let idx = profile?.currentWorldIndex ?? 0
+        let stars = profile?.starsInCurrentWorld ?? 0
         let name = WorldCatalog.worlds[safe: idx]?.name ?? "this world"
-        let gained = max(0, fluent - (vm.worldStatBefore.index == idx ? vm.worldStatBefore.fluent : 0))
+        let fluentNow = snapshots.filter { $0.stage >= .fluency }.count
+        let gained = max(0, fluentNow - vm.worldStatBefore.fluent)
         let allCleared = cleared.count == WorldCatalog.count
 
         VStack(spacing: 8) {
@@ -143,32 +141,22 @@ struct WrapView: View {
                 HStack {
                     Text(name).font(Theme.Font.label(15)).foregroundStyle(.white)
                     Spacer()
-                    Text("\(fluent)/\(total) facts fluent")
+                    Text("\(fluentNow)/\(FactUniverse.count) facts fluent")
                         .font(Theme.Font.label(14)).foregroundStyle(.white.opacity(0.8))
                 }
-                WorldStars(fluent: fluent, total: total, size: 26, spacing: 8)
+                WorldStars(filled: stars, size: 26, spacing: 8)
                     .padding(.vertical, 2)
-                if vm.isQuest {
-                    if vm.starEarnedThisSession {
-                        Label("Quest complete — you're done for today!", systemImage: "flame.fill")
-                            .font(Theme.Font.label(15)).foregroundStyle(Theme.Color.accent)
-                    } else {
-                        Text("Today's star is \(Int(vm.questCharge * 100))% charged — finish it tomorrow!")
-                            .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.accent)
-                            .multilineTextAlignment(.center)
-                    }
+                if vm.isQuest, vm.starEarnedThisSession {
+                    Label("Quest complete — star earned!", systemImage: "flame.fill")
+                        .font(Theme.Font.label(15)).foregroundStyle(Theme.Color.accent)
                 }
                 if gained > 0 {
                     Text("+\(gained) new fluent fact\(gained == 1 ? "" : "s") today!")
                         .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
-                } else if inTraining > 0 {
-                    Text("\(inTraining) fact\(inTraining == 1 ? "" : "s") in training — every correct answer moves them toward fluent.")
-                        .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
-                        .multilineTextAlignment(.center)
                 }
-                Text(fluent == total
-                     ? "All 5 stars earned — the BOSS CHALLENGE is waiting on the map. Beat it to clear \(name)!"
-                     : "One quest ≈ one star. Earn all 5 to unlock the \(name) boss challenge.")
+                Text(stars == WorldStars.starCount
+                     ? "All 5 stars — the BOSS CHALLENGE is waiting on the map. Beat it to open the next world!"
+                     : "Every quest earns a star. Fill all 5 to summon the \(name) boss.")
                     .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
             }
