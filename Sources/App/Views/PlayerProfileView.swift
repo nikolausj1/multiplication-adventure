@@ -48,9 +48,9 @@ struct PlayerProfileView: View {
     private var card: some View {
         VStack(spacing: 18) {
             hero
+            statTiles
             guardians
                 .frame(maxHeight: .infinity)
-            statTiles
         }
         .padding(Theme.Metric.pad)
         .overlay(alignment: .topLeading) { ModalCloseButton { onClose() }.padding(14) }
