@@ -14,15 +14,24 @@ public struct PlannedQuestion: Sendable, Equatable {
     /// Inverse form ("a × ? = product"): the typed answer is the hidden factor.
     /// Served only as review for mastered facts — division readiness in disguise.
     public var missingFactor: Bool = false
+    /// Verification form ("a × b = shownValue — true or false?"): the child taps
+    /// TRUE/FALSE. Review-only variety for known facts; guessable, so it never
+    /// promotes (see PromotionEngine verifyOnly). `shownValue` may be wrong.
+    public var trueFalse: Bool = false
+    public var shownValue: Int = 0
 
     public var fact: FactID { prompt.fact }
 
-    /// What the child must type/tap to be correct.
-    public var expectedAnswer: Int { missingFactor ? prompt.secondFactor : prompt.answer }
+    /// What the child must type/tap to be correct (True=1, False=0 for TF).
+    public var expectedAnswer: Int {
+        if trueFalse { return shownValue == prompt.answer ? 1 : 0 }
+        return missingFactor ? prompt.secondFactor : prompt.answer
+    }
 
-    /// The plaque text, e.g. "3 × 4" or "3 × ? = 12".
+    /// The plaque text, e.g. "3 × 4", "3 × ? = 12", or "3 × 4 = 12".
     public var displayText: String {
-        missingFactor ? "\(prompt.firstFactor) × ? = \(prompt.answer)" : prompt.text
+        if trueFalse { return "\(prompt.firstFactor) × \(prompt.secondFactor) = \(shownValue)" }
+        return missingFactor ? "\(prompt.firstFactor) × ? = \(prompt.answer)" : prompt.text
     }
 }
 

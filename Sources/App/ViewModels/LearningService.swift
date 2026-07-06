@@ -310,6 +310,9 @@ struct LearningService {
                 queue.append(PlannedQuestion(prompt: prompt, format: .recall,
                                              movement: .review, options: nil,
                                              timed: false, missingFactor: true))
+            } else if s.stage >= .fluency, fluentTotal >= Self.trueFalseMinFluent,
+                      rng.next() % Self.trueFalseDenominator == 0 {
+                queue.append(trueFalseQuestion(s.id, movement: .review, seed: rng.next()))
             } else {
                 queue.append(PlannedQuestion(
                     prompt: prompt, format: s.stage == .mastered ? .fluency : s.stage,
@@ -385,6 +388,30 @@ struct LearningService {
     static var missingFactorDenominator: UInt64 = 3
     static let missingFactorMinFluent = 5
 
+    /// True/False verification: 1-in-4 of non-MF fluent reviews, once enough
+    /// facts are fluent (so it stays sparse early, ramping up as review takes
+    /// over). Guessable — never promotes; a wrong one flags the fact.
+    static var trueFalseDenominator: UInt64 = 4
+    static let trueFalseMinFluent = 8
+
+    /// A "a × b = shownValue — true or false?" review question: roughly half are
+    /// true, half show a plausible distractor. Seeded so it's deterministic.
+    private func trueFalseQuestion(_ id: FactID, movement: SessionMovement, seed: UInt64) -> PlannedQuestion {
+        var rng = SplitMix64(seed: seed)
+        let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
+        let shownTrue = (rng.next() & 1) == 0
+        let shown: Int
+        if shownTrue {
+            shown = prompt.answer
+        } else {
+            let wrong = DistractorGenerator.options(for: prompt, seed: rng.next())
+                .filter { $0 != prompt.answer && $0 >= 0 }
+            shown = wrong.first ?? (prompt.answer + 1)
+        }
+        return PlannedQuestion(prompt: prompt, format: .recognition, movement: movement,
+                               options: nil, timed: false, trueFalse: true, shownValue: shown)
+    }
+
     /// Builds the quest in three phases so the input mode never thrashes:
     /// WARM-UP (typed review) → MEET (all multiple-choice for today's new facts)
     /// → TRAIN (typed: batch reps woven with cumulative review).
@@ -449,10 +476,14 @@ struct LearningService {
             .sorted { Self.reviewWeight($0, now: now, threshold: threshold)
                     > Self.reviewWeight($1, now: now, threshold: threshold) }
             .prefix(reviewTarget)
-        var reviews = reviewSnaps.map { s in
+        var reviews = reviewSnaps.map { s -> PlannedQuestion in
             if s.stage >= .fluency, s.id.a != 0, fluentTotal >= Self.missingFactorMinFluent,
                rng.next() % (s.stage == .mastered ? 2 : Self.missingFactorDenominator) == 0 {
                 return question(s.id, format: .recall, movement: .review, missingFactor: true)
+            }
+            if s.stage >= .fluency, fluentTotal >= Self.trueFalseMinFluent,
+               rng.next() % Self.trueFalseDenominator == 0 {
+                return trueFalseQuestion(s.id, movement: .review, seed: rng.next())
             }
             return question(s.id, format: s.stage == .mastered ? .fluency : s.stage, movement: .review)
         }.makeIterator()
@@ -576,7 +607,8 @@ struct LearningService {
     }
 
     func record(prompt: OrientedPrompt, format: MasteryStage, correct: Bool,
-                responseTime: Double, countsTime: Bool = true, now: Date = .now) -> AnswerResult {
+                responseTime: Double, countsTime: Bool = true,
+                verifyOnly: Bool = false, now: Date = .now) -> AnswerResult {
         let p = activeProfile()
         guard let factRow = fact(prompt.fact) else {
             return AnswerResult(correct: correct, xp: 0, becameFluent: false,
@@ -589,7 +621,7 @@ struct LearningService {
         let outcome = PromotionEngine.apply(to: factRow.snapshot, correct: correct,
                                             responseTime: responseTime,
                                             fluencyThreshold: threshold, now: now,
-                                            countsTime: countsTime)
+                                            countsTime: countsTime, verifyOnly: verifyOnly)
         factRow.apply(outcome.snapshot)
 
         let frac = Double(masteredCount()) / Double(FactUniverse.count)

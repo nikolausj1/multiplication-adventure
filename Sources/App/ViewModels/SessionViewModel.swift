@@ -183,7 +183,9 @@ final class SessionViewModel {
     private(set) var questPhase: QuestPhase?
 
     private func updatePhase() {
-        guard isQuest, bossWorldIndex == nil, let q = current else { return }
+        // True/False is phase-neutral: it slots into the running phase without a
+        // colour flip or jolt (its own TRUE/FALSE keys make the input obvious).
+        guard isQuest, bossWorldIndex == nil, let q = current, !q.trueFalse else { return }
         let raw: QuestPhase = q.movement == .warmup ? .warmup
             : (q.format == .recognition ? .meet : .train)
         if let old = questPhase, raw != old { Feedback.fire(.phaseJolt) }
@@ -274,7 +276,7 @@ final class SessionViewModel {
         guard auto != .off else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self, self.stage == .asking, let q = self.current else { return }
-            self.answer(q.prompt.answer)
+            self.answer(q.expectedAnswer)   // expectedAnswer handles MF + True/False
             if self.auto == .wrap {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in self?.next() }
             }
@@ -289,7 +291,8 @@ final class SessionViewModel {
         // Inverse-form answers are naturally slower; keep them out of the speed baseline.
         let result = service.record(prompt: q.prompt, format: q.format,
                                     correct: correct, responseTime: rt,
-                                    countsTime: !q.missingFactor)
+                                    countsTime: !q.missingFactor && !q.trueFalse,
+                                    verifyOnly: q.trueFalse)
         touched.insert(q.fact)
         totalAnswered += 1
         if correct { correctCount += 1 }
@@ -305,7 +308,8 @@ final class SessionViewModel {
             if correct {
                 hotStreak += 1
                 if hotStreak % Self.hotStreakStep == 0 { hotStreakReached = hotStreak }
-                wasFast = !q.missingFactor && FluencyThreshold.isFast(rt, threshold: critThreshold)
+                wasFast = !q.missingFactor && !q.trueFalse
+                    && FluencyThreshold.isFast(rt, threshold: critThreshold)
                 if let m = hotStreakReached { rewardBonus += (m / Self.hotStreakStep) * 10 }
                 if wasFast { rewardBonus += 5 }
                 service.applyRewardBonus(xp: rewardBonus, streakLength: hotStreak, speedBonus: wasFast)

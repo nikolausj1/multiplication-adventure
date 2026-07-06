@@ -328,7 +328,10 @@ private struct QuestionContainer: View {
     var body: some View {
         let inFeedback = vm.stage == .feedback
         VStack(spacing: 24) {
-            if question.format == .recognition {
+            if question.trueFalse {
+                TrueFalseView(question: question, showFeedback: inFeedback,
+                              selected: vm.lastSelected, onSelect: { vm.answer($0) })
+            } else if question.format == .recognition {
                 MultipleChoiceView(question: question, showFeedback: inFeedback,
                                    selected: vm.lastSelected, onSelect: { vm.answer($0) })
             } else {

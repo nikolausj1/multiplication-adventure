@@ -24,13 +24,30 @@ public enum PromotionEngine {
         responseTime: Double,
         fluencyThreshold: Double,
         now: Date,
-        countsTime: Bool = true
+        countsTime: Bool = true,
+        verifyOnly: Bool = false
     ) -> Outcome {
         var f = s
         f.introduced = true
         f.totalAttempts += 1
         f.lastSeen = now
         let priorStage = f.stage
+
+        // Verification (True/False) is guessable: a correct answer records the
+        // attempt but never advances the ladder or box; a wrong one flags the
+        // fact (resurfaces sooner via a box demote + error stamp) without the
+        // harsher stage knockdown a produced answer would get.
+        if verifyOnly {
+            if correct {
+                f.totalCorrect += 1
+            } else {
+                f.lastErrorDate = now
+                let demoted = LeitnerScheduler.demote(box: f.box, from: now)
+                f.box = demoted.box
+                f.dueDate = demoted.due
+            }
+            return Outcome(snapshot: f, promotedStage: false, becameMastered: false, lapsed: false)
+        }
 
         if correct {
             f.totalCorrect += 1
