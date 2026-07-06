@@ -300,22 +300,26 @@ final class SessionViewModel {
         // speed flourish on the same answer.
         hotStreakReached = nil
         wasFast = false
+        var rewardBonus = 0   // streak-milestone + speed XP folded into this answer
         if bossWorldIndex == nil {
             if correct {
                 hotStreak += 1
                 if hotStreak % Self.hotStreakStep == 0 { hotStreakReached = hotStreak }
                 wasFast = !q.missingFactor && FluencyThreshold.isFast(rt, threshold: critThreshold)
+                if let m = hotStreakReached { rewardBonus += (m / Self.hotStreakStep) * 10 }
+                if wasFast { rewardBonus += 5 }
+                service.applyRewardBonus(xp: rewardBonus, streakLength: hotStreak, speedBonus: wasFast)
             } else {
                 hotStreak = 0
             }
         }
         responseTimes.append(rt)
-        xpEarned += result.xp
+        xpEarned += result.xp + rewardBonus
 
         lastCorrect = correct
         lastSelected = value
         lastCorrectAnswer = q.prompt.answer
-        lastXP = result.xp
+        lastXP = result.xp + rewardBonus
         justMastered = result.becameMastered
         if bossWorldIndex != nil {
             // Boss fights have their own soundscape: hits instead of coins.

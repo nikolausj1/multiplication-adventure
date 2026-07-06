@@ -39,6 +39,11 @@ final class Profile {
     /// Bitmask of worlds whose dramatic title reveal has played (first entry).
     var seenWorldIntrosMask: Int = 0
 
+    /// Longest in-session correct streak ever reached (a chase-able trophy stat).
+    var bestStreak: Int = 0
+    /// Lifetime count of speed bonuses earned (fast correct answers).
+    var speedBonusCount: Int = 0
+
     /// Paused daily quest (X = pause, not quit, for the rest of the day):
     /// re-entering the world resumes the clock, meter, and novelty budget.
     /// Expires at midnight — tomorrow is always a fresh quest.

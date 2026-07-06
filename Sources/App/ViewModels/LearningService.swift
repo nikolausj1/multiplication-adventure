@@ -83,6 +83,8 @@ struct LearningService {
         profile.bestSpeedAvg = 0
         profile.questStars = 0
         profile.seenWorldIntrosMask = 0
+        profile.bestStreak = 0
+        profile.speedBonusCount = 0
         profile.pausedQuestDate = nil
         profile.pausedQuestElapsed = 0
         profile.pausedQuestMeter = 0
@@ -113,6 +115,8 @@ struct LearningService {
         for w in 0..<WorldCatalog.count where complete || w <= 2 { p.markWorldCleared(w) }
         p.questStars = complete ? WorldCatalog.starsPerWorld * WorldCatalog.count
                                 : WorldCatalog.starsPerWorld * 3 + 2   // 3 cleared + 2 in world 4
+        p.bestStreak = complete ? 41 : 18
+        p.speedBonusCount = complete ? 620 : 214
         for f in p.facts {
             let w = WorldCatalog.worldIndex(ofFact: f.id)
             if complete || w <= 2 {
@@ -253,6 +257,18 @@ struct LearningService {
         let socket = activeProfile().awardQuestStar()
         try? context.save()
         return socket
+    }
+
+    /// Celebration bonuses on a correct answer: streak-milestone + speed XP go
+    /// straight to the running total, and the lifetime best-streak / speed-bonus
+    /// tallies advance. Called per correct quest answer (bonus may be 0 — this
+    /// still keeps `bestStreak` current).
+    func applyRewardBonus(xp: Int, streakLength: Int, speedBonus: Bool) {
+        let p = activeProfile()
+        if xp > 0 { p.totalXP += xp }
+        if streakLength > p.bestStreak { p.bestStreak = streakLength }
+        if speedBonus { p.speedBonusCount += 1 }
+        try? context.save()
     }
 
     /// The world's facts in "drip order": round-robin across the world's tables
