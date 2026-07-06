@@ -25,6 +25,10 @@ struct RootView: View {
         return !(activeProfiles.first?.onboarded ?? true)
     }
 
+    /// After onboarding, the chosen avatar flies from the ready page to its
+    /// home in the map's player chip (upper left).
+    @State private var flightKey: String?
+
     var body: some View {
         ZStack {
             MapView()
@@ -32,6 +36,10 @@ struct RootView: View {
                 OnboardingView()
                     .transition(.opacity)
                     .zIndex(10)
+            }
+            if let key = flightKey {
+                AvatarFlight(key: key) { flightKey = nil }
+                    .zIndex(15)
             }
             if showSplash {
                 SplashView()
@@ -41,10 +49,20 @@ struct RootView: View {
         }
         .animation(.easeOut(duration: 0.5), value: needsOnboarding)
         .onAppear {
+            // Screenshot hook (simulator verification only).
+            if ProcessInfo.processInfo.arguments.contains("-demoFlight") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    flightKey = activeProfiles.first?.avatarSymbol ?? "avatar1"
+                }
+            }
             guard showSplash else { return }
             scheduleSplashDismiss()
         }
-        .onChange(of: activeProfiles.first?.onboarded) { _, onboarded in
+        .onChange(of: activeProfiles.first?.onboarded) { old, onboarded in
+            // Onboarding just finished: the avatar flies to the player chip.
+            if old == false, onboarded == true {
+                flightKey = activeProfiles.first?.avatarSymbol
+            }
             // "Start over" flips the active profile back to un-onboarded mid-session:
             // the whole first-run moment plays again — splash, then onboarding.
             guard onboarded == false else { return }
@@ -59,6 +77,32 @@ struct RootView: View {
     private func scheduleSplashDismiss() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
             withAnimation(.easeOut(duration: 0.6)) { showSplash = false }
+        }
+    }
+}
+
+/// The onboarding-finale hand-off: the chosen avatar sails from the ready
+/// page's hero spot to the player chip in the map's upper-left corner, so the
+/// kid sees "that's me, and that's where I live now."
+private struct AvatarFlight: View {
+    let key: String
+    let done: () -> Void
+    @State private var arrived = false
+
+    var body: some View {
+        GeometryReader { geo in
+            AvatarBadge(key: key, size: arrived ? 40 : 230)
+                .shadow(color: .black.opacity(0.35), radius: arrived ? 3 : 14,
+                        y: arrived ? 2 : 6)
+                .position(arrived
+                          ? CGPoint(x: 57, y: 64)   // the player chip's avatar
+                          : CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.33))
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.75).delay(0.15)) { arrived = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.05) { done() }
         }
     }
 }

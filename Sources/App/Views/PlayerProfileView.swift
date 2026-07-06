@@ -6,7 +6,11 @@ import SwiftData
 /// the seven guardians (tap a defeated one for its conquest date), and chunky
 /// stat tiles along the bottom.
 struct PlayerProfileView: View {
-    @Environment(\.dismiss) private var dismiss
+    /// Shown as an in-hierarchy overlay (NOT a fullScreenCover): the cover's
+    /// hosting layer ignores ignoresSafeArea(.keyboard) and shoves the card
+    /// around when the name field focuses. In the normal hierarchy the
+    /// keyboard changes nothing.
+    var onClose: () -> Void = {}
     @Environment(\.modelContext) private var context
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
 
@@ -23,13 +27,22 @@ struct PlayerProfileView: View {
         ZStack {
             Color.black.opacity(0.6)
                 .ignoresSafeArea()
-                .onTapGesture { dismiss() }
+                .onTapGesture { onClose() }
             card
                 .frame(maxWidth: 920)
                 .padding(.vertical, 26)
         }
-        .presentationBackground(.clear)
+        // Keyboard must not move the GUI — the name field is in the card's
+        // top row and stays visible on its own.
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .onAppear {
+            // Screenshot hook (simulator verification only).
+            if ProcessInfo.processInfo.arguments.contains("-editName") {
+                draftName = profile?.name ?? ""
+                editingName = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { nameFocused = true }
+            }
+        }
     }
 
     private var card: some View {
@@ -40,7 +53,7 @@ struct PlayerProfileView: View {
             statTiles
         }
         .padding(Theme.Metric.pad)
-        .overlay(alignment: .topLeading) { ModalCloseButton { dismiss() }.padding(14) }
+        .overlay(alignment: .topLeading) { ModalCloseButton { onClose() }.padding(14) }
         .background(Self.sheetBG, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
             .strokeBorder(.white.opacity(0.12), lineWidth: 1.5))

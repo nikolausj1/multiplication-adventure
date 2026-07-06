@@ -11,6 +11,9 @@ struct SessionView: View {
     var testFormat: MasteryStage? = nil
 
     @State private var vm: SessionViewModel?
+    /// First-ever visit to this world: hold the questions and let the kid take
+    /// in the place — full backdrop, world title, tap to begin.
+    @State private var showWorldIntro = false
     private var theme: WorldTheme { .forWorld(worldIndex) }
 
     var body: some View {
@@ -42,8 +45,20 @@ struct SessionView: View {
                     CelebrationOverlay(celebration: celebration) { vm.celebrationDismissed() }
                         .transition(.opacity).zIndex(10)
                 }
-            } else {
+            } else if !showWorldIntro {
                 ProgressView().tint(.white)
+            }
+            if showWorldIntro {
+                WorldIntroOverlay(theme: theme, worldNumber: worldIndex + 1,
+                                  name: WorldCatalog.worlds[safe: worldIndex]?.name ?? "") {
+                    withAnimation(.easeInOut(duration: 0.5)) { showWorldIntro = false }
+                    let service = LearningService(context: context)
+                    service.activeProfile().markWorldIntroSeen(worldIndex)
+                    try? context.save()
+                    buildVM()   // clock and first question start when the curtain lifts
+                }
+                .zIndex(20)
+                .transition(.opacity)
             }
         }
         .environment(\.worldTheme, theme)
@@ -53,17 +68,27 @@ struct SessionView: View {
             if phase == .active { vm?.clockRun() } else { vm?.clockPause() }
         }
         .onAppear {
-            if vm == nil {
-                let args = ProcessInfo.processInfo.arguments
-                let mode: SessionViewModel.AutoMode = args.contains("-demoWrap") ? .wrap
-                    : (args.contains("-demoFeedback") ? .feedback : .off)
-                vm = SessionViewModel(service: LearningService(context: context),
-                                      speedRound: speedRound, boss: boss, auto: mode,
-                                      worldIndex: worldIndex, testFormat: testFormat)
-                if args.contains("-demoStar") {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { vm?.debugShowStar(2) }
-                }
+            guard vm == nil, !showWorldIntro else { return }
+            let args = ProcessInfo.processInfo.arguments
+            let isQuest = !speedRound && !boss && testFormat == nil
+            if isQuest, args.contains("-forceWorldIntro")
+                || !LearningService(context: context).activeProfile().hasSeenWorldIntro(worldIndex) {
+                showWorldIntro = true   // vm builds when the curtain lifts
+                return
             }
+            buildVM()
+        }
+    }
+
+    private func buildVM() {
+        let args = ProcessInfo.processInfo.arguments
+        let mode: SessionViewModel.AutoMode = args.contains("-demoWrap") ? .wrap
+            : (args.contains("-demoFeedback") ? .feedback : .off)
+        vm = SessionViewModel(service: LearningService(context: context),
+                              speedRound: speedRound, boss: boss, auto: mode,
+                              worldIndex: worldIndex, testFormat: testFormat)
+        if args.contains("-demoStar") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { vm?.debugShowStar(2) }
         }
     }
 
@@ -324,5 +349,55 @@ private struct QuestionContainer: View {
         }
         .onAppear { vm.beginQuestion() }
         .animation(Theme.Motion.snappy, value: vm.stage)
+    }
+}
+
+/// The dramatic first-entry reveal: the world's art breathes for a beat with
+/// its title front and center — no questions until the kid taps.
+private struct WorldIntroOverlay: View {
+    let theme: WorldTheme
+    let worldNumber: Int
+    let name: String
+    let onBegin: () -> Void
+
+    @State private var appeared = false
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            WorldBackdrop(theme: theme, darken: 0.18)
+            VStack(spacing: 16) {
+                Text("WORLD \(worldNumber)")
+                    .font(Theme.Font.label(24)).tracking(7)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .shadow(color: .black.opacity(0.7), radius: 6, y: 2)
+                Text(name)
+                    .font(Theme.Font.display(72))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.7), radius: 14, y: 5)
+                    .scaleEffect(appeared ? 1 : 1.18)
+            }
+            .opacity(appeared ? 1 : 0)
+            VStack {
+                Spacer()
+                Text("TAP TO BEGIN")
+                    .font(Theme.Font.label(18)).tracking(4)
+                    .foregroundStyle(.white.opacity(pulse ? 0.9 : 0.45))
+                    .shadow(color: .black.opacity(0.7), radius: 6, y: 2)
+                    .padding(.bottom, 46)
+                    .opacity(appeared ? 1 : 0)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            Feedback.fire(.keyTap)
+            onBegin()
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 1.0)) { appeared = true }
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
     }
 }

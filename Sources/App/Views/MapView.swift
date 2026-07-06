@@ -76,7 +76,19 @@ struct MapView: View {
                 .environment(\.worldTheme, .forWorld(sel.id))
         }
         .fullScreenCover(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
-        .fullScreenCover(isPresented: $showProfile) { PlayerProfileView() }
+        // In-hierarchy overlay, NOT a cover: the cover's hosting layer fights
+        // the keyboard (see PlayerProfileView) — here the GUI stays frozen.
+        // The map subtree has no text input of its own, so it ignores the
+        // keyboard wholesale; without this the inset still squeezes the card.
+        .overlay {
+            if showProfile {
+                PlayerProfileView(onClose: {
+                    withAnimation(.easeOut(duration: 0.2)) { showProfile = false }
+                })
+                .transition(.opacity)
+            }
+        }
+        .ignoresSafeArea(.keyboard)
         .fullScreenCover(isPresented: $showStreak) { StreakView() }
         .sheet(isPresented: $showCertificate) { CertificateView(name: profile?.name ?? "Champion") }
         .onAppear {
@@ -119,7 +131,7 @@ struct MapView: View {
         HStack(alignment: .top) {
             // Player chip: dark glass to match the session plates. Tapping it
             // opens the kid's trophy-room profile.
-            Button { showProfile = true } label: {
+            Button { withAnimation(.easeOut(duration: 0.2)) { showProfile = true } } label: {
                 HStack(spacing: 10) {
                     AvatarBadge(key: profile?.avatarSymbol ?? "avatar1", size: 40)
                     VStack(alignment: .leading, spacing: 1) {

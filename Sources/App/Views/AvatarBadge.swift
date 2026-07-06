@@ -6,6 +6,11 @@ import SwiftUI
 enum AvatarCatalog {
     static let keys = (1...8).map { "avatar\($0)" }
 
+    /// Carousel display order: the explorer front and center flanked by the
+    /// treasure hunter and pirate; knight and champion anchor the ends.
+    static let carouselOrder = ["avatar5", "avatar8", "avatar2", "avatar1",
+                                "avatar3", "avatar4", "avatar6", "avatar7"]
+
     static let fallbacks: [String: (symbol: String, color: Color)] = [
         "avatar1": ("figure.hiking",   Color(red: 0.36, green: 0.68, blue: 0.35)),   // explorer green
         "avatar2": ("map.fill",        Color(red: 0.95, green: 0.55, blue: 0.20)),   // treasure hunter orange
@@ -62,7 +67,7 @@ struct AvatarCarousel: View {
                 // Negative spacing tucks the neighbors behind the front avatar;
                 // zIndex keeps the one nearest center on top (dock effect).
                 HStack(spacing: -itemSize * 0.22) {
-                    ForEach(AvatarCatalog.keys, id: \.self) { key in
+                    ForEach(AvatarCatalog.carouselOrder, id: \.self) { key in
                         // Continuous magnification by distance from the carousel
                         // center, like the macOS Dock: big up front, small behind.
                         GeometryReader { cell in
@@ -103,7 +108,7 @@ struct AvatarCarousel: View {
 
     /// Cells closest to the current position draw on top of their neighbors.
     private func zRank(_ key: String) -> Double {
-        let keys = AvatarCatalog.keys
+        let keys = AvatarCatalog.carouselOrder
         guard let sel = keys.firstIndex(of: position ?? selected),
               let idx = keys.firstIndex(of: key) else { return 0 }
         return -Double(abs(idx - sel))

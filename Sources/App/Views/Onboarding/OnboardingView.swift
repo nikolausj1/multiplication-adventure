@@ -11,8 +11,8 @@ struct OnboardingView: View {
     @State private var step: Step = .welcome
     @State private var name = ""
     @State private var grade = ""
-    // Default to the middle slot so the carousel opens visually symmetric.
-    @State private var avatarKey = AvatarCatalog.keys[AvatarCatalog.keys.count / 2]
+    // The explorer opens front and center (carouselOrder puts him mid-row).
+    @State private var avatarKey = "avatar1"
     @FocusState private var nameFocused: Bool
 
     private let grades = ["Pre-K", "K", "1", "2", "3", "4", "5"]

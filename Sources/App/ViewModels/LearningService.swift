@@ -82,6 +82,7 @@ struct LearningService {
         profile.clearedWorldsMask = 0
         profile.bestSpeedAvg = 0
         profile.questStars = 0
+        profile.seenWorldIntrosMask = 0
         profile.pausedQuestDate = nil
         profile.pausedQuestElapsed = 0
         profile.pausedQuestMeter = 0

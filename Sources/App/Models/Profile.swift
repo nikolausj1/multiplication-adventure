@@ -36,6 +36,9 @@ final class Profile {
     /// sockets, its boss unlocks, beating the boss opens the next world.
     var questStars: Int = 0
 
+    /// Bitmask of worlds whose dramatic title reveal has played (first entry).
+    var seenWorldIntrosMask: Int = 0
+
     /// Paused daily quest (X = pause, not quit, for the rest of the day):
     /// re-entering the world resumes the clock, meter, and novelty budget.
     /// Expires at midnight — tomorrow is always a fresh quest.
@@ -75,6 +78,9 @@ final class Profile {
     }
 
     func markWorldCleared(_ index: Int) { clearedWorldsMask |= (1 << index) }
+
+    func hasSeenWorldIntro(_ index: Int) -> Bool { seenWorldIntrosMask & (1 << index) != 0 }
+    func markWorldIntroSeen(_ index: Int) { seenWorldIntrosMask |= (1 << index) }
 
     /// The adventure's current world: one past the last beaten boss.
     var currentWorldIndex: Int { min(clearedWorlds.count, WorldCatalog.count - 1) }
