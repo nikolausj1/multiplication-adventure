@@ -1,11 +1,17 @@
 import SwiftUI
 import SwiftData
 
+extension Notification.Name {
+    /// Posted by the parent area's "Start over" so the root re-runs onboarding.
+    static let startOverRequested = Notification.Name("startOverRequested")
+}
+
 /// The app root — the adventure map is the home/hub (§3/§6: the child never picks
 /// what to study; one tap on the current world starts a session that knows what's next).
 /// A brief full-art splash covers launch; first run (or after "Start over") the
 /// onboarding flow sits between splash and map until the profile is set up.
 struct RootView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
 
     @State private var showSplash = Art.exists("splash")
@@ -17,7 +23,12 @@ struct RootView: View {
     @State private var gateSuppressed = ProcessInfo.processInfo.arguments
         .contains { ($0.hasPrefix("-autostart") && $0 != "-autostartOnboarding") || $0.hasPrefix("-demo") }
 
+    /// Forced on by "Start over" so onboarding shows even if the @Query hasn't
+    /// yet reflected the wiped profile; cleared when onboarding completes.
+    @State private var forceOnboarding = false
+
     private var needsOnboarding: Bool {
+        if forceOnboarding { return true }
         if ProcessInfo.processInfo.arguments.contains("-autostartOnboarding") {
             return !(activeProfiles.first?.onboarded ?? false)
         }
@@ -58,10 +69,23 @@ struct RootView: View {
             guard showSplash else { return }
             scheduleSplashDismiss()
         }
+        // "Start over" (parent area) posts this explicitly. Relying on the
+        // @Query onboarded-flip alone was fragile: the query can stay stale
+        // across the parent cover's dismissal, so onboarding never re-armed
+        // and the map showed with a wiped profile. This forces it, regardless.
+        .onReceive(NotificationCenter.default.publisher(for: .startOverRequested)) { _ in
+            forceOnboarding = true
+            gateSuppressed = false
+            if Art.exists("splash") {
+                showSplash = true
+                scheduleSplashDismiss()
+            }
+        }
         .onChange(of: activeProfiles.first?.onboarded) { old, onboarded in
             // Onboarding just finished: the avatar flies to the player chip.
-            if old == false, onboarded == true {
-                flightKey = activeProfiles.first?.avatarSymbol
+            if onboarded == true {
+                forceOnboarding = false
+                if old == false { flightKey = activeProfiles.first?.avatarSymbol }
             }
             // "Start over" flips the active profile back to un-onboarded mid-session:
             // the whole first-run moment plays again — splash, then onboarding.

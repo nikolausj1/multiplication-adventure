@@ -50,10 +50,7 @@ struct ParentAreaView: View {
             if args.contains("-openGate") { showGate = true }
             if args.contains("-openHow") { howOpen = true }
             if args.contains("-testStartOver") {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    if let p = profiles.first(where: { $0.isActive }) { service.startOver(p) }
-                    dismiss()
-                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { performStartOver(profiles.first(where: { $0.isActive })) }
             }
         }
         .sheet(isPresented: $showCert) { CertificateView(name: activeName) }
@@ -85,12 +82,22 @@ struct ParentAreaView: View {
         .alert("Start over?", isPresented: Binding(get: { startOverTarget != nil },
                                                    set: { if !$0 { startOverTarget = nil } })) {
             Button("Start over", role: .destructive) {
-                if let t = startOverTarget { service.startOver(t) }
+                let t = startOverTarget
                 startOverTarget = nil
-                dismiss()   // onboarding takes over the map
+                performStartOver(t)
             }
             Button("Cancel", role: .cancel) { startOverTarget = nil }
         } message: { Text("Wipes progress AND name, avatar, and grade — the app begins again with the first-time setup. It cannot be undone.") }
+    }
+
+    /// Wipe identity + progress, tell the root to re-run onboarding, then close.
+    /// The notification (not the @Query onboarded-flip) is what re-arms the gate:
+    /// the query can stay stale across this cover's dismissal.
+    private func performStartOver(_ profile: Profile?) {
+        guard let profile else { return }
+        service.startOver(profile)
+        NotificationCenter.default.post(name: .startOverRequested, object: nil)
+        dismiss()
     }
 
     private func gated(_ action: @escaping () -> Void) { pending = action; showGate = true }
