@@ -85,16 +85,17 @@ final class Profile {
     /// The adventure's current world: one past the last beaten boss.
     var currentWorldIndex: Int { min(clearedWorlds.count, WorldCatalog.count - 1) }
 
-    /// Stars showing in the current world's sockets (0...5). Caps at 5 until the
-    /// boss falls, so a world can never hold more stars than sockets.
+    /// Stars showing in the current world's sockets. Caps at the per-world total
+    /// until the boss falls, so a world never holds more stars than sockets.
     var starsInCurrentWorld: Int {
-        max(0, min(5, questStars - 5 * clearedWorlds.count))
+        let per = WorldCatalog.starsPerWorld
+        return max(0, min(per, questStars - per * clearedWorlds.count))
     }
 
     /// Award the day's quest star. Returns the 0-based socket it fills, or nil
     /// when the current world is full (boss pending — fight it for more sockets!).
     func awardQuestStar() -> Int? {
-        guard starsInCurrentWorld < 5 else { return nil }
+        guard starsInCurrentWorld < WorldCatalog.starsPerWorld else { return nil }
         questStars += 1
         return starsInCurrentWorld - 1
     }

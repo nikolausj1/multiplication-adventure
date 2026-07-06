@@ -237,9 +237,9 @@ struct ParentAreaView: View {
             explainRow("star.fill",
                        "Every day is one QUEST: the app picks the facts for today's star and drills each one up its ladder (2 multiple-choice + 3 typed), mixed with review of everything learned so far. The quest ends when the star slams in — roughly 4–12 minutes, longer in bigger worlds.")
             explainRow("map.fill",
-                       "Each world has 5 stars ≈ one star per day. A hard day rolls over (\"star 80% charged — finish tomorrow\") with no penalty.")
+                       "Each world has \(WorldStars.starCount) stars ≈ one star per day. A hard day rolls over (\"star 80% charged — finish tomorrow\") with no penalty.")
             explainRow("flag.checkered",
-                       "5 stars wake the BOSS: a timed round of that world's facts, pass at 85%, free retries. Beating it clears the world and reveals the next. 7 worlds = the trophy.")
+                       "\(WorldStars.starCount) stars wake the BOSS: a timed round of that world's facts, pass at 85%, free retries. Beating it clears the world and reveals the next. 7 worlds = the trophy.")
             explainRow("flame.fill",
                        "The map flame lights when today's quest is done, and the number is his day streak. One missed day is forgiven; two in a row resets the streak. Extra play the same day continues to the next star. Mastery (for the certificate) still requires fast answers on 2 different days — that part can't be rushed.")
     }

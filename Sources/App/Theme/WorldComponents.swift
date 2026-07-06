@@ -196,13 +196,13 @@ struct StarGlyph: View {
 }
 
 /// World progress as stars (game-style): one star per completed daily quest,
-/// five sockets per world. Filled stars are gold; empty sockets visibly wait.
+/// N sockets per world. Filled stars are gold; empty sockets visibly wait.
 struct WorldStars: View {
     let filled: Int
     var size: CGFloat = 15
     var spacing: CGFloat = 3
 
-    static let starCount = 5
+    static let starCount = WorldCatalog.starsPerWorld
 
     var body: some View {
         HStack(spacing: spacing) {

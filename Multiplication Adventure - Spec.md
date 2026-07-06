@@ -483,3 +483,14 @@ with the new `-dumpSlow` learner (correct, never under 3.2s):
 Slow-kid shape now: day 1 ≈ 7 min (rule-table blitz, star earned), W1
 consolidation days ≈ 12–14 min, W2 ≈ 9–10 min settling back toward the floor
 as the review pool diversifies.
+
+### 17.4 Four stars per world (2026-07-06)
+
+Reduced from 5 → 4 daily-quest stars to fill a world before its boss. Pure
+pacing: stars are session trophies decoupled from fact mastery, so this only
+brings the boss climax ~20% more often and shortens map completion by ~a week
+(28 stars + 7 bosses = 35 sessions vs. 42) — the adaptive engine keeps drilling
+weak facts regardless, and the mastery certificate is unaffected. Single source
+of truth: `WorldCatalog.starsPerWorld`; `WorldStars.starCount` and `Profile`'s
+socket math both read it. Existing mid-progress profiles harmlessly become
+boss-ready in their current world (a free unlock; no data loss).

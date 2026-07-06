@@ -111,7 +111,8 @@ struct LearningService {
         p.seenWorldIntrosMask = (1 << WorldCatalog.count) - 1   // and never the reveal
         // Bosses count as beaten for the demo-cleared worlds; stars match.
         for w in 0..<WorldCatalog.count where complete || w <= 2 { p.markWorldCleared(w) }
-        p.questStars = complete ? 5 * WorldCatalog.count : 17   // 3 cleared + 2 in world 4
+        p.questStars = complete ? WorldCatalog.starsPerWorld * WorldCatalog.count
+                                : WorldCatalog.starsPerWorld * 3 + 2   // 3 cleared + 2 in world 4
         for f in p.facts {
             let w = WorldCatalog.worldIndex(ofFact: f.id)
             if complete || w <= 2 {

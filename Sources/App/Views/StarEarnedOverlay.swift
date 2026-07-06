@@ -78,7 +78,7 @@ struct StarEarnedOverlay: View {
 
     private var remainingText: String {
         let left = WorldStars.starCount - (newStarIndex + 1)
-        if left == 0 { return "All 5 stars — the BOSS CHALLENGE is unlocked on the map!" }
+        if left == 0 { return "All \(WorldStars.starCount) stars — the BOSS CHALLENGE is unlocked on the map!" }
         return left == 1 ? "1 more star to the BOSS CHALLENGE!"
                          : "\(left) more stars to the BOSS CHALLENGE!"
     }

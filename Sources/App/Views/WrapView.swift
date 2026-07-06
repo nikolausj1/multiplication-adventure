@@ -155,8 +155,8 @@ struct WrapView: View {
                         .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
                 }
                 Text(stars == WorldStars.starCount
-                     ? "All 5 stars — the BOSS CHALLENGE is waiting on the map. Beat it to open the next world!"
-                     : "Every quest earns a star. Fill all 5 to summon the \(name) boss.")
+                     ? "All \(WorldStars.starCount) stars — the BOSS CHALLENGE is waiting on the map. Beat it to open the next world!"
+                     : "Every quest earns a star. Fill all \(WorldStars.starCount) to summon the \(name) boss.")
                     .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
             }

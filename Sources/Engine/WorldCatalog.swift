@@ -52,6 +52,11 @@ public enum WorldCatalog {
 
     public static var count: Int { worlds.count }
 
+    /// Daily-quest stars that fill a world before its boss unlocks. Pure pacing:
+    /// stars are session trophies, decoupled from fact mastery, so this only
+    /// sets how many sessions land between boss fights.
+    public static let starsPerWorld = 4
+
     /// Which world introduces a given fact (the world owning the fact's curriculum slot).
     public static func worldIndex(ofFact fact: FactID) -> Int {
         let slot = Curriculum.slot(of: fact)

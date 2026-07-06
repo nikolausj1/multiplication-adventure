@@ -217,8 +217,8 @@ struct MapView: View {
         let unlocked = world.index <= currentIndex
         let cleared = clearedSet.contains(world.index)
         let isCurrent = world.index == currentIndex
-        let starsHere = isCurrent ? (profile?.starsInCurrentWorld ?? 0) : (cleared ? 5 : 0)
-        // Five sockets filled but boss unbeaten → the node IS the boss fight.
+        let starsHere = isCurrent ? (profile?.starsInCurrentWorld ?? 0) : (cleared ? WorldStars.starCount : 0)
+        // All sockets filled but boss unbeaten → the node IS the boss fight.
         let bossReady = isCurrent && !cleared && starsHere == WorldStars.starCount
         VStack(spacing: 5) {
             Button {
