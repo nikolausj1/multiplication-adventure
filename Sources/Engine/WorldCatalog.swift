@@ -54,8 +54,10 @@ public enum WorldCatalog {
 
     /// Daily-quest stars that fill a world before its boss unlocks. Pure pacing:
     /// stars are session trophies, decoupled from fact mastery, so this only
-    /// sets how many sessions land between boss fights.
-    public static let starsPerWorld = 4
+    /// sets how many sessions land between boss fights. Set to 3 (2026-07-06) so
+    /// a ~4-day/week player beats all 7 worlds before a Sept-8 school start with
+    /// margin (28 sessions + 7 bosses ≈ 35, vs. ~36 available).
+    public static let starsPerWorld = 3
 
     /// Which world introduces a given fact (the world owning the fact's curriculum slot).
     public static func worldIndex(ofFact fact: FactID) -> Int {

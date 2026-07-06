@@ -484,12 +484,14 @@ Slow-kid shape now: day 1 ≈ 7 min (rule-table blitz, star earned), W1
 consolidation days ≈ 12–14 min, W2 ≈ 9–10 min settling back toward the floor
 as the review pool diversifies.
 
-### 17.4 Four stars per world (2026-07-06)
+### 17.4 Stars per world: 5 → 4 → 3 (2026-07-06)
 
-Reduced from 5 → 4 daily-quest stars to fill a world before its boss. Pure
+Reduced 5 → 4 → **3** daily-quest stars to fill a world before its boss. Pure
 pacing: stars are session trophies decoupled from fact mastery, so this only
-brings the boss climax ~20% more often and shortens map completion by ~a week
-(28 stars + 7 bosses = 35 sessions vs. 42) — the adaptive engine keeps drilling
+lands on 3 so a ~4-day/week player beats all 7 worlds before the Sept-8 school
+start with margin: 21 stars + 7 bosses = 28 sessions vs. ~36 available (4-star's
+35 was right at the buzzer; 5-star's 42 would never finish). Endgame staleness
+is covered by True/False + fill-in-the-blank keeping review fresh — the adaptive engine keeps drilling
 weak facts regardless, and the mastery certificate is unaffected. Single source
 of truth: `WorldCatalog.starsPerWorld`; `WorldStars.starCount` and `Profile`'s
 socket math both read it. Existing mid-progress profiles harmlessly become
