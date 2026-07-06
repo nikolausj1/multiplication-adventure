@@ -253,12 +253,12 @@ struct PlayerProfileView: View {
                 "day streak"
             }
             statTile {
-                Image(systemName: "flame.fill").font(.system(size: 32))
+                Image(systemName: "bolt.fill").font(.system(size: 30))
                     .foregroundStyle(Color(red: 1, green: 0.42, blue: 0.13))
             } value: {
                 "\(profile?.bestStreak ?? 0)"
             } label: {
-                "best streak"
+                "answer streak"
             }
             statTile {
                 Image(systemName: "diamond.fill").font(.system(size: 27))
