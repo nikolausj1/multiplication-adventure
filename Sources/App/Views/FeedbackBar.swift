@@ -8,24 +8,31 @@ struct FeedbackBar: View {
     let correct: Bool
     let equation: String           // e.g. "7 × 8 = 56", shown on a miss
     let xp: Int
-    var hotStreak: Int = 0         // >0 when this answer hit a fast-streak milestone
+    var hotStreak: Int = 0         // >0 when this answer hit a streak milestone
+    var wasFast: Bool = false      // this answer also beat the speed bar
     let mastered: Bool
     var showsContinue: Bool = true
     let onContinue: () -> Void
 
+    private static let speedColor = Color(red: 0.2, green: 0.7, blue: 1.0)
+    private static let flameColor = Color(red: 1, green: 0.5, blue: 0.15)
+
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: correct ? "checkmark.circle.fill" : "lightbulb.fill")
-                .foregroundStyle(correct ? Theme.Color.correct : Theme.Color.accent)
+            // The lead icon reads the moment: a lightning bolt when it was fast,
+            // otherwise a plain check. A miss shows the hint bulb.
+            Image(systemName: !correct ? "lightbulb.fill" : (wasFast ? "bolt.fill" : "checkmark.circle.fill"))
+                .foregroundStyle(!correct ? Theme.Color.accent : (wasFast ? Self.speedColor : Theme.Color.correct))
                 .font(.system(size: 26))
                 .background {
                     if correct {
-                        // A streak milestone earns a bigger, warmer burst.
+                        // Streak milestone → big warm burst; a fast answer → a
+                        // cool blue spark; otherwise the small default.
                         ParticleBurst(kind: .stars,
                                       colors: hotStreak > 0
-                                        ? [Theme.Color.accent, Color(red: 1, green: 0.5, blue: 0.15), .white]
-                                        : [Theme.Color.accent, .white],
-                                      count: hotStreak > 0 ? 18 : 8)
+                                        ? [Theme.Color.accent, Self.flameColor, .white]
+                                        : (wasFast ? [Self.speedColor, .white] : [Theme.Color.accent, .white]),
+                                      count: hotStreak > 0 ? 18 : (wasFast ? 14 : 8))
                             .frame(width: 120, height: 120)
                     }
                 }
@@ -33,12 +40,22 @@ struct FeedbackBar: View {
                 Text(correct ? message : equation)
                     .font(correct ? Theme.Font.body(19) : Theme.Font.number(24))
                     .foregroundStyle(.white)
-                if mastered {
-                    Label("Fact mastered!", systemImage: "star.fill")
-                        .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
-                } else if hotStreak > 0 {
-                    Label(streakText, systemImage: "flame.fill")
-                        .font(Theme.Font.label(14)).foregroundStyle(Color(red: 1, green: 0.5, blue: 0.15))
+                // Sub-badges stack: speed (bolt) and/or streak (flame), each
+                // self-explaining so the kid learns which reward is which.
+                HStack(spacing: 10) {
+                    if mastered {
+                        Label("Fact mastered!", systemImage: "star.fill")
+                            .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
+                    } else {
+                        if wasFast {
+                            Label("Speed bonus!", systemImage: "bolt.fill")
+                                .font(Theme.Font.label(14)).foregroundStyle(Self.speedColor)
+                        }
+                        if hotStreak > 0 {
+                            Label(streakText, systemImage: "flame.fill")
+                                .font(Theme.Font.label(14)).foregroundStyle(Self.flameColor)
+                        }
+                    }
                 }
             }
             if correct && xp > 0 {
@@ -61,11 +78,8 @@ struct FeedbackBar: View {
     }
 
     private var message: String {
-        switch xp {
-        case 18...: return "Lightning fast!"
-        case 12...: return "Great!"
-        default:    return "Nice!"
-        }
+        if wasFast { return "Lightning fast!" }
+        return xp >= 12 ? "Great!" : "Nice!"
     }
 
     private var streakText: String {

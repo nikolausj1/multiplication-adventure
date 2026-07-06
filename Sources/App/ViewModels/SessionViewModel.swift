@@ -30,15 +30,17 @@ final class SessionViewModel {
 
     // Running session stats.
     private(set) var combo = 0            // consecutive correct (in-session streak)
-    /// Fast-correct answers since the last miss. A slow-but-correct answer
-    /// PAUSES it (no change); an untimed inverse question pauses too; only a
-    /// wrong answer resets it. This is the streak we celebrate — quick, right,
-    /// and forgiving of the occasional careful answer.
+    /// Correct answers in a row (any speed). Only a wrong answer resets it —
+    /// getting them RIGHT is the reward, and it fires often. Speed is a separate,
+    /// additive flourish (see wasFast), never a gate.
     private(set) var hotStreak = 0
-    /// Set to the milestone number (5, 10, 15…) on the answer that reached it,
-    /// else nil — drives the feedback badge + sound for that one answer.
+    /// Set to the milestone number (4, 8, 12…) on the answer that reached it,
+    /// else nil — drives the streak badge + sound for that one answer.
     private(set) var hotStreakReached: Int? = nil
-    private static let hotStreakStep = 5
+    /// This answer was correct AND beat the adaptive speed bar — earns its own
+    /// "Lightning fast!" callout on top of the streak (a bonus, not a gate).
+    private(set) var wasFast = false
+    private static let hotStreakStep = 4
     /// The header chip shows the fast-streak in a quest, the raw combo in a boss
     /// (which has its own crit soundscape and doesn't run the hot streak).
     var streakDisplay: Int { bossWorldIndex != nil ? combo : hotStreak }
@@ -292,16 +294,19 @@ final class SessionViewModel {
         totalAnswered += 1
         if correct { correctCount += 1 }
         combo = correct ? combo + 1 : 0
-        // Hot streak (quests only): fast + correct builds it, a slow-but-correct
-        // answer pauses it, a miss resets it. "Fast" is the adaptive per-kid bar,
-        // and untimed inverse questions can't be fast so they pause.
+        // Hot streak (quests only): any correct answer builds it, a miss resets
+        // it — the reward is for getting them right. Being ALSO fast (adaptive
+        // per-kid bar; untimed inverse questions don't qualify) earns a separate
+        // speed flourish on the same answer.
         hotStreakReached = nil
+        wasFast = false
         if bossWorldIndex == nil {
-            if !correct {
-                hotStreak = 0
-            } else if !q.missingFactor, FluencyThreshold.isFast(rt, threshold: critThreshold) {
+            if correct {
                 hotStreak += 1
                 if hotStreak % Self.hotStreakStep == 0 { hotStreakReached = hotStreak }
+                wasFast = !q.missingFactor && FluencyThreshold.isFast(rt, threshold: critThreshold)
+            } else {
+                hotStreak = 0
             }
         }
         responseTimes.append(rt)

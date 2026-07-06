@@ -341,7 +341,8 @@ private struct QuestionContainer: View {
             // Correct answers auto-advance; only a miss waits for Continue.
             FeedbackBar(correct: vm.lastCorrect,
                         equation: "\(question.prompt.text) = \(question.prompt.answer)",
-                        xp: vm.lastXP, hotStreak: vm.hotStreakReached ?? 0, mastered: vm.justMastered,
+                        xp: vm.lastXP, hotStreak: vm.hotStreakReached ?? 0, wasFast: vm.wasFast,
+                        mastered: vm.justMastered,
                         showsContinue: inFeedback && !vm.lastCorrect) { vm.next() }
                 .opacity(inFeedback ? 1 : 0)
                 .scaleEffect(inFeedback ? 1 : 0.85)
