@@ -89,20 +89,26 @@ private struct AvatarFlight: View {
     let done: () -> Void
     @State private var arrived = false
 
+    private let baseSize: CGFloat = 230
+    private let chipSize: CGFloat = 40
+    private let chipCenter = CGPoint(x: 57, y: 64)   // the player chip's avatar
+
     var body: some View {
         GeometryReader { geo in
-            AvatarBadge(key: key, size: arrived ? 40 : 230)
-                .shadow(color: .black.opacity(0.35), radius: arrived ? 3 : 14,
+            // A fixed-size badge scaled via scaleEffect (not a re-rendered size)
+            // so the glide is GPU-smooth instead of re-laying-out each frame.
+            AvatarBadge(key: key, size: baseSize)
+                .scaleEffect(arrived ? chipSize / baseSize : 1)
+                .shadow(color: .black.opacity(0.3), radius: arrived ? 3 : 14,
                         y: arrived ? 2 : 6)
-                .position(arrived
-                          ? CGPoint(x: 57, y: 64)   // the player chip's avatar
+                .position(arrived ? chipCenter
                           : CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.33))
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.75).delay(0.15)) { arrived = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.05) { done() }
+            withAnimation(.easeInOut(duration: 0.6).delay(0.08)) { arrived = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.78) { done() }
         }
     }
 }

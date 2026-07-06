@@ -239,6 +239,6 @@ struct OnboardingView: View {
         p.avatarSymbol = avatarKey
         withAnimation(.easeOut(duration: 0.5)) { p.onboarded = true }
         try? context.save()
-        Feedback.fire(.levelUp)
+        // No sound here — the avatar-flight transition plays silently.
     }
 }
