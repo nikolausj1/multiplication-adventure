@@ -8,7 +8,7 @@ struct FeedbackBar: View {
     let correct: Bool
     let equation: String           // e.g. "7 × 8 = 56", shown on a miss
     let xp: Int
-    var fluent: Bool = false       // this answer made the fact fluent (ring +1)
+    var hotStreak: Int = 0         // >0 when this answer hit a fast-streak milestone
     let mastered: Bool
     var showsContinue: Bool = true
     let onContinue: () -> Void
@@ -20,7 +20,12 @@ struct FeedbackBar: View {
                 .font(.system(size: 26))
                 .background {
                     if correct {
-                        ParticleBurst(kind: .stars, colors: [Theme.Color.accent, .white], count: 8)
+                        // A streak milestone earns a bigger, warmer burst.
+                        ParticleBurst(kind: .stars,
+                                      colors: hotStreak > 0
+                                        ? [Theme.Color.accent, Color(red: 1, green: 0.5, blue: 0.15), .white]
+                                        : [Theme.Color.accent, .white],
+                                      count: hotStreak > 0 ? 18 : 8)
                             .frame(width: 120, height: 120)
                     }
                 }
@@ -31,9 +36,9 @@ struct FeedbackBar: View {
                 if mastered {
                     Label("Fact mastered!", systemImage: "star.fill")
                         .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.accent)
-                } else if fluent {
-                    Label("New fluent fact!", systemImage: "star.circle.fill")
-                        .font(Theme.Font.label(13)).foregroundStyle(Theme.Color.correct)
+                } else if hotStreak > 0 {
+                    Label(streakText, systemImage: "flame.fill")
+                        .font(Theme.Font.label(14)).foregroundStyle(Color(red: 1, green: 0.5, blue: 0.15))
                 }
             }
             if correct && xp > 0 {
@@ -60,6 +65,14 @@ struct FeedbackBar: View {
         case 18...: return "Lightning fast!"
         case 12...: return "Great!"
         default:    return "Nice!"
+        }
+    }
+
+    private var streakText: String {
+        switch hotStreak {
+        case 15...: return "Unstoppable! \(hotStreak) in a row!"
+        case 10...: return "On fire! \(hotStreak) in a row!"
+        default:    return "\(hotStreak) in a row!"
         }
     }
 }

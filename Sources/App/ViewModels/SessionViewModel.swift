@@ -25,12 +25,23 @@ final class SessionViewModel {
     private(set) var lastCorrectAnswer = 0
     private(set) var lastSelected: Int?
     private(set) var lastXP = 0
-    private(set) var justFluent = false
     private(set) var fluentGained = 0    // facts reaching Fluency this session
     private(set) var justMastered = false
 
     // Running session stats.
     private(set) var combo = 0            // consecutive correct (in-session streak)
+    /// Fast-correct answers since the last miss. A slow-but-correct answer
+    /// PAUSES it (no change); an untimed inverse question pauses too; only a
+    /// wrong answer resets it. This is the streak we celebrate — quick, right,
+    /// and forgiving of the occasional careful answer.
+    private(set) var hotStreak = 0
+    /// Set to the milestone number (5, 10, 15…) on the answer that reached it,
+    /// else nil — drives the feedback badge + sound for that one answer.
+    private(set) var hotStreakReached: Int? = nil
+    private static let hotStreakStep = 5
+    /// The header chip shows the fast-streak in a quest, the raw combo in a boss
+    /// (which has its own crit soundscape and doesn't run the hot streak).
+    var streakDisplay: Int { bossWorldIndex != nil ? combo : hotStreak }
     private(set) var correctCount = 0
     private(set) var totalAnswered = 0
     private(set) var xpEarned = 0
@@ -281,6 +292,18 @@ final class SessionViewModel {
         totalAnswered += 1
         if correct { correctCount += 1 }
         combo = correct ? combo + 1 : 0
+        // Hot streak (quests only): fast + correct builds it, a slow-but-correct
+        // answer pauses it, a miss resets it. "Fast" is the adaptive per-kid bar,
+        // and untimed inverse questions can't be fast so they pause.
+        hotStreakReached = nil
+        if bossWorldIndex == nil {
+            if !correct {
+                hotStreak = 0
+            } else if !q.missingFactor, FluencyThreshold.isFast(rt, threshold: critThreshold) {
+                hotStreak += 1
+                if hotStreak % Self.hotStreakStep == 0 { hotStreakReached = hotStreak }
+            }
+        }
         responseTimes.append(rt)
         xpEarned += result.xp
 
@@ -288,7 +311,6 @@ final class SessionViewModel {
         lastSelected = value
         lastCorrectAnswer = q.prompt.answer
         lastXP = result.xp
-        justFluent = result.becameFluent
         justMastered = result.becameMastered
         if bossWorldIndex != nil {
             // Boss fights have their own soundscape: hits instead of coins.
@@ -304,12 +326,14 @@ final class SessionViewModel {
             }
         } else {
             Feedback.fire(correct ? .correct : .wrong, combo: combo)
+            // The reward that used to fire on a silent fact-graduation now lands
+            // on a hot streak — something the kid can see himself earning.
+            if hotStreakReached != nil { Feedback.fire(.milestone) }
         }
-        // Stars are session trophies now (awarded at completion) — a fact going
-        // fluent is still its own magic moment.
         if result.becameFluent {
             fluentGained += 1
-            Feedback.fire(.milestone)
+            // (No celebration here anymore — a fluent fact is invisible to the
+            //  kid; the streak is the moment he can attribute to his own play.)
             // Adaptive budget: a fact cleared in ≤3 flawless answers was already
             // known — refund its novelty slot so the frontier keeps reaching
             // until it finds material that actually makes him work.
@@ -371,7 +395,7 @@ final class SessionViewModel {
             let gen = feedbackGen
             // Killing blow gets a long beat so the defeat animation plays out.
             let delay = (bossWorldIndex != nil && correctCount >= bossHPTotal) ? 2.2
-                : (justMastered || justFluent) ? 1.6 : 0.9   // let the ring moment land
+                : (justMastered || hotStreakReached != nil) ? 1.6 : 0.9   // let the moment land
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self, self.stage == .feedback, self.feedbackGen == gen,
                       self.pendingCelebration == nil,

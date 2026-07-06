@@ -71,8 +71,9 @@ struct SessionView: View {
             guard vm == nil, !showWorldIntro else { return }
             let args = ProcessInfo.processInfo.arguments
             let isQuest = !speedRound && !boss && testFormat == nil
+            let verifyLaunch = args.contains("-autostartSession")   // debug autoplay skips the reveal
             if isQuest, args.contains("-forceWorldIntro")
-                || !LearningService(context: context).activeProfile().hasSeenWorldIntro(worldIndex) {
+                || (!verifyLaunch && !LearningService(context: context).activeProfile().hasSeenWorldIntro(worldIndex)) {
                 showWorldIntro = true   // vm builds when the curtain lifts
                 return
             }
@@ -151,9 +152,9 @@ struct SessionView: View {
                 StarChip(filled: vm.shownStars)
             }
             // Always present so the header never reflows — dim until it ignites at 3.
-            ComboChip(combo: vm.combo)
+            ComboChip(combo: vm.streakDisplay)
         }
-        .animation(Theme.Motion.celebrate, value: vm.combo)
+        .animation(Theme.Motion.celebrate, value: vm.streakDisplay)
         .padding(.horizontal, Theme.Metric.pad).padding(.top, 12)
     }
 
@@ -340,7 +341,7 @@ private struct QuestionContainer: View {
             // Correct answers auto-advance; only a miss waits for Continue.
             FeedbackBar(correct: vm.lastCorrect,
                         equation: "\(question.prompt.text) = \(question.prompt.answer)",
-                        xp: vm.lastXP, fluent: vm.justFluent, mastered: vm.justMastered,
+                        xp: vm.lastXP, hotStreak: vm.hotStreakReached ?? 0, mastered: vm.justMastered,
                         showsContinue: inFeedback && !vm.lastCorrect) { vm.next() }
                 .opacity(inFeedback ? 1 : 0)
                 .scaleEffect(inFeedback ? 1 : 0.85)

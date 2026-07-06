@@ -108,6 +108,7 @@ struct LearningService {
         let p = activeProfile()
         let now = Date()
         p.onboarded = true   // demo jumps never trip the first-run gate
+        p.seenWorldIntrosMask = (1 << WorldCatalog.count) - 1   // and never the reveal
         // Bosses count as beaten for the demo-cleared worlds; stars match.
         for w in 0..<WorldCatalog.count where complete || w <= 2 { p.markWorldCleared(w) }
         p.questStars = complete ? 5 * WorldCatalog.count : 17   // 3 cleared + 2 in world 4
