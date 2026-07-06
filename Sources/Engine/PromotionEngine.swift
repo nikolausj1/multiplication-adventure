@@ -47,12 +47,24 @@ public enum PromotionEngine {
             f.dueDate = promoted.due
 
             // ×0/×1 are RULES, not facts: one correct answer (any speed) proves
-            // the rule — no ladder grind for material the rule already covers.
-            // Mastery still needs fast answers across days, like everything else.
-            if min(f.id.a, f.id.b) <= 1, f.stage < .fluency {
-                advance(&f, to: .fluency)
-                return Outcome(snapshot: f, promotedStage: true,
-                               becameMastered: false, lapsed: false)
+            // the rule → fluency; a second correct → mastered. They're excluded
+            // from the review pool (no ladder grind for trivial material), so the
+            // normal "3 fast across 2 days" mastery path can never reach them —
+            // and the cross-day anti-cramming rule doesn't apply to a rule anyway.
+            // Both reps land within the introduction session's queued reps.
+            if min(f.id.a, f.id.b) <= 1 {
+                if f.stage < .fluency {
+                    advance(&f, to: .fluency)
+                    return Outcome(snapshot: f, promotedStage: true,
+                                   becameMastered: false, lapsed: false)
+                } else if f.stage == .fluency {
+                    advance(&f, to: .mastered)
+                    f.masteredDate = now
+                    return Outcome(snapshot: f, promotedStage: true,
+                                   becameMastered: priorStage != .mastered, lapsed: false)
+                }
+                return Outcome(snapshot: f, promotedStage: false,
+                               becameMastered: false, lapsed: false)   // mastered maintenance
             }
 
             switch f.stage {

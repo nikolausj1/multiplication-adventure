@@ -60,6 +60,15 @@ var g = FactSnapshot(id: FactID(3, 4), introduced: true, stage: .recognition, re
 g = PromotionEngine.apply(to: g, correct: false, responseTime: 0, fluencyThreshold: 3, now: now).snapshot
 check(g.recognitionStreak == 0, "wrong answer resets recognition streak")
 
+print("Rule facts (×0/×1) fast-track to fluency, then master on a second correct")
+var ruleF = FactSnapshot(id: FactID(0, 7), introduced: true, stage: .recognition)
+ruleF = PromotionEngine.apply(to: ruleF, correct: true, responseTime: 5, fluencyThreshold: 3,
+                              now: now).snapshot
+check(ruleF.stage == .fluency, "a ×0/×1 rule fact tests out to fluency on one correct")
+let ruleM = PromotionEngine.apply(to: ruleF, correct: true, responseTime: 5, fluencyThreshold: 3, now: now)
+check(ruleM.snapshot.stage == .mastered, "a second correct masters it (no cross-day needed)")
+check(ruleM.becameMastered, "rule-fact mastery is flagged")
+
 print("Promotion: fluency → mastered requires 3 fast across 2 days")
 var h = FactSnapshot(id: FactID(6, 7), introduced: true, stage: .fluency)
 h = PromotionEngine.apply(to: h, correct: true, responseTime: 1.5, fluencyThreshold: 3, now: now).snapshot
