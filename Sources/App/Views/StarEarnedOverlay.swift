@@ -7,6 +7,8 @@ struct StarEarnedOverlay: View {
     let worldName: String
     /// 0-based index of the star that was just earned (existing stars: 0..<index).
     let newStarIndex: Int
+    /// Sockets in this world (the profile's parent-adjustable goal).
+    var totalStars: Int = WorldCatalog.starsPerWorld
     let onDone: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -28,7 +30,7 @@ struct StarEarnedOverlay: View {
                     .scaleEffect(shown ? 1 : 0.7)
 
                 HStack(spacing: 26) {
-                    ForEach(0..<WorldStars.starCount, id: \.self) { i in
+                    ForEach(0..<max(totalStars, 1), id: \.self) { i in
                         socket(i)
                     }
                 }
@@ -77,8 +79,8 @@ struct StarEarnedOverlay: View {
     }
 
     private var remainingText: String {
-        let left = WorldStars.starCount - (newStarIndex + 1)
-        if left == 0 { return "All \(WorldStars.starCount) stars — the BOSS CHALLENGE is unlocked on the map!" }
+        let left = totalStars - (newStarIndex + 1)
+        if left == 0 { return "All \(totalStars) stars — the BOSS CHALLENGE is unlocked on the map!" }
         return left == 1 ? "1 more star to the BOSS CHALLENGE!"
                          : "\(left) more stars to the BOSS CHALLENGE!"
     }

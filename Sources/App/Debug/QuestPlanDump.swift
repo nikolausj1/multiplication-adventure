@@ -26,7 +26,7 @@ enum QuestPlanDump {
         for session in 1...10 {
             // Boss-ready (5 sockets filled)? Fight it first, as the kid would.
             let worldIdx = service.currentWorldIdx()
-            if service.starsInCurrentWorld() == WorldCatalog.starsPerWorld,
+            if service.starsInCurrentWorld() == service.starsPerWorldGoal(),
                !service.activeProfile().clearedWorlds.contains(worldIdx) {
                 let boss = SessionViewModel(service: service, boss: true, worldIndex: worldIdx)
                 boss.now = { simDate }
@@ -82,7 +82,7 @@ enum QuestPlanDump {
             }
             print("→ \(vm.totalAnswered) answers, ~\(Int((vm.elapsed / 60).rounded())) min, "
                   + "star \(vm.starEarnedThisSession ? "EARNED" : "not earned"), "
-                  + "world \(service.currentWorldIdx() + 1) stars \(service.starsInCurrentWorld())/5")
+                  + "world \(service.currentWorldIdx() + 1) stars \(service.starsInCurrentWorld())/\(service.starsPerWorldGoal())")
             fflush(stdout)
             simDate += 86_400   // next day
         }

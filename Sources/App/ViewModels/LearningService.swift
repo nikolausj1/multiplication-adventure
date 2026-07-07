@@ -23,6 +23,12 @@ struct LearningService {
             for p in profiles where !p.onboarded && (p.totalXP > 0 || !p.sessions.isEmpty) {
                 p.onboarded = true
             }
+            // Migration heal: derive stored current-world stars once from the
+            // old formula (stars used to be derived from the lifetime total).
+            for p in profiles where p.currentWorldStars < 0 {
+                let per = WorldCatalog.starsPerWorld
+                p.currentWorldStars = max(0, min(per, p.questStars - per * p.clearedWorlds.count))
+            }
         }
         try? context.save()
     }
@@ -82,6 +88,7 @@ struct LearningService {
         profile.clearedWorldsMask = 0
         profile.bestSpeedAvg = 0
         profile.questStars = 0
+        profile.currentWorldStars = 0   // the goal setting itself survives resets
         profile.seenWorldIntrosMask = 0
         profile.bestStreak = 0
         profile.speedBonusCount = 0
@@ -113,8 +120,9 @@ struct LearningService {
         p.seenWorldIntrosMask = (1 << WorldCatalog.count) - 1   // and never the reveal
         // Bosses count as beaten for the demo-cleared worlds; stars match.
         for w in 0..<WorldCatalog.count where complete || w <= 2 { p.markWorldCleared(w) }
-        p.questStars = complete ? WorldCatalog.starsPerWorld * WorldCatalog.count
-                                : WorldCatalog.starsPerWorld * 3 + 2   // 3 cleared + 2 in world 4
+        p.questStars = complete ? p.starsPerWorldGoal * WorldCatalog.count
+                                : p.starsPerWorldGoal * 3 + 2   // 3 cleared + 2 in world 4
+        p.currentWorldStars = complete ? p.starsPerWorldGoal : 2
         p.bestStreak = complete ? 41 : 18
         p.speedBonusCount = complete ? 620 : 214
         for f in p.facts {
@@ -250,6 +258,14 @@ struct LearningService {
 
     func starsInCurrentWorld() -> Int { activeProfile().starsInCurrentWorld }
     func currentWorldIdx() -> Int { activeProfile().currentWorldIndex }
+    func starsPerWorldGoal() -> Int { activeProfile().starsPerWorldGoal }
+
+    /// Dev-area knob: sockets per world (3–5). Stored progress is unaffected —
+    /// lowering the goal just makes a full world boss-ready early.
+    func setStarsPerWorldGoal(_ n: Int) {
+        activeProfile().starsPerWorldGoal = max(3, min(5, n))
+        try? context.save()
+    }
 
     /// Award the completed session's star; returns its 0-based socket, or nil
     /// when the world is full (boss pending). Persisted immediately.

@@ -31,10 +31,17 @@ final class Profile {
     /// beating its boss (not merely by reaching full fluency), so this is explicit state.
     var clearedWorldsMask: Int = 0
 
-    /// Total daily-quest stars earned. Stars are SESSION trophies (a completed
-    /// ~10-minute quest), decoupled from fluency counts: 5 stars fill a world's
-    /// sockets, its boss unlocks, beating the boss opens the next world.
+    /// LIFETIME daily-quest stars earned (the trophy-room stat). Stars are
+    /// SESSION trophies (a completed quest), decoupled from fluency counts.
     var questStars: Int = 0
+
+    /// Stars in the current world's sockets, stored DIRECTLY (not derived from
+    /// questStars) so changing the per-world goal never scrambles history.
+    /// −1 = unmigrated sentinel; LearningService.bootstrap heals it once.
+    var currentWorldStars: Int = -1
+
+    /// Sockets per world before the boss unlocks (parent-adjustable, dev area).
+    var starsPerWorldGoal: Int = WorldCatalog.starsPerWorld
 
     /// Bitmask of worlds whose dramatic title reveal has played (first entry).
     var seenWorldIntrosMask: Int = 0
@@ -82,7 +89,10 @@ final class Profile {
         Set((0..<WorldCatalog.count).filter { clearedWorldsMask & (1 << $0) != 0 })
     }
 
-    func markWorldCleared(_ index: Int) { clearedWorldsMask |= (1 << index) }
+    func markWorldCleared(_ index: Int) {
+        clearedWorldsMask |= (1 << index)
+        currentWorldStars = 0   // fresh sockets for the newly opened world
+    }
 
     func hasSeenWorldIntro(_ index: Int) -> Bool { seenWorldIntrosMask & (1 << index) != 0 }
     func markWorldIntroSeen(_ index: Int) { seenWorldIntrosMask |= (1 << index) }
@@ -90,17 +100,18 @@ final class Profile {
     /// The adventure's current world: one past the last beaten boss.
     var currentWorldIndex: Int { min(clearedWorlds.count, WorldCatalog.count - 1) }
 
-    /// Stars showing in the current world's sockets. Caps at the per-world total
-    /// until the boss falls, so a world never holds more stars than sockets.
+    /// Stars showing in the current world's sockets. Caps at the goal until the
+    /// boss falls, so a world never holds more stars than sockets (lowering the
+    /// goal mid-world just makes the boss ready early — nothing is lost).
     var starsInCurrentWorld: Int {
-        let per = WorldCatalog.starsPerWorld
-        return max(0, min(per, questStars - per * clearedWorlds.count))
+        max(0, min(currentWorldStars, starsPerWorldGoal))
     }
 
     /// Award the day's quest star. Returns the 0-based socket it fills, or nil
     /// when the current world is full (boss pending — fight it for more sockets!).
     func awardQuestStar() -> Int? {
-        guard starsInCurrentWorld < WorldCatalog.starsPerWorld else { return nil }
+        guard starsInCurrentWorld < starsPerWorldGoal else { return nil }
+        currentWorldStars = starsInCurrentWorld + 1
         questStars += 1
         return starsInCurrentWorld - 1
     }

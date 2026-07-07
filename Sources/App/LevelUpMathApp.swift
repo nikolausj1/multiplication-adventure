@@ -19,6 +19,9 @@ struct LevelUpMathApp: App {
         if args.contains("-demoComplete") { service.applyDemoProgress(complete: true) }
         else if args.contains("-demoProgress") { service.applyDemoProgress(complete: false) }
         if args.contains("-forceTrueFalse") { LearningService.trueFalseDenominator = 1 }
+        if let i = args.firstIndex(of: "-starsGoal"), i + 1 < args.count, let n = Int(args[i + 1]) {
+            service.setStarsPerWorldGoal(n)   // simulator verification only
+        }
         MainActor.assumeIsolated { QuestPlanDump.runIfRequested() }
     }
 

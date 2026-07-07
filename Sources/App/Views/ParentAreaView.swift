@@ -49,6 +49,7 @@ struct ParentAreaView: View {
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-openGate") { showGate = true }
             if args.contains("-openHow") { howOpen = true }
+            if args.contains("-openDev") { devUnlocked = true }
             if args.contains("-testStartOver") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { performStartOver(profiles.first(where: { $0.isActive })) }
             }
@@ -116,6 +117,9 @@ struct ParentAreaView: View {
     }
 
     private var activeName: String { profiles.first(where: { $0.isActive })?.name ?? "Champion" }
+    private var activeGoal: Int {
+        profiles.first(where: { $0.isActive })?.starsPerWorldGoal ?? WorldCatalog.starsPerWorld
+    }
 
     // MARK: The modal card — controls on the left, dashboard on the right
 
@@ -237,9 +241,9 @@ struct ParentAreaView: View {
             explainRow("star.fill",
                        "Every day is one QUEST: the app picks the facts for today's star and drills each one up its ladder (2 multiple-choice + 3 typed), mixed with review of everything learned so far. The quest ends when the star slams in — roughly 4–12 minutes, longer in bigger worlds.")
             explainRow("map.fill",
-                       "Each world has \(WorldStars.starCount) stars ≈ one star per day. A hard day rolls over (\"star 80% charged — finish tomorrow\") with no penalty.")
+                       "Each world has \(activeGoal) stars ≈ one star per day. A hard day rolls over (\"star 80% charged — finish tomorrow\") with no penalty.")
             explainRow("flag.checkered",
-                       "\(WorldStars.starCount) stars wake the BOSS: a timed round of that world's facts, pass at 85%, free retries. Beating it clears the world and reveals the next. 7 worlds = the trophy.")
+                       "\(activeGoal) stars wake the BOSS: a timed round of that world's facts, pass at 85%, free retries. Beating it clears the world and reveals the next. 7 worlds = the trophy.")
             explainRow("flame.fill",
                        "The map flame lights when today's quest is done, and the number is his day streak. One missed day is forgiven; two in a row resets the streak. Extra play the same day continues to the next star. Mastery (for the certificate) still requires fast answers on 2 different days — that part can't be rushed.")
     }
@@ -298,6 +302,16 @@ struct ParentAreaView: View {
             }
             devBtn("Boss Challenge", "flag.checkered") { testLaunch = WorldSelection(id: testWorld, boss: true) }
 
+            Divider().padding(.vertical, 2)
+            // Pacing knob: sockets per world. Progress is stored per-world now,
+            // so changing this mid-game never loses stars — lowering it just
+            // makes a full world boss-ready early.
+            Stepper(value: Binding(get: { activeGoal },
+                                   set: { service.setStarsPerWorldGoal($0) }),
+                    in: 3...5) {
+                Label("Stars per world: \(activeGoal)", systemImage: "star.fill")
+                    .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.ink)
+            }
             Divider().padding(.vertical, 2)
             HStack(spacing: 10) {
                 devBtn("Preview certificate", "trophy.fill") { showCert = true }

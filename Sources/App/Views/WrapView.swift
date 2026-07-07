@@ -96,6 +96,7 @@ struct WrapView: View {
         let cleared = profile?.clearedWorlds ?? []
         let idx = profile?.currentWorldIndex ?? 0
         let stars = profile?.starsInCurrentWorld ?? 0
+        let goal = profile?.starsPerWorldGoal ?? WorldCatalog.starsPerWorld
         let name = WorldCatalog.worlds[safe: idx]?.name ?? "this world"
         let fluentNow = snapshots.filter { $0.stage >= .fluency }.count
         let gained = max(0, fluentNow - vm.worldStatBefore.fluent)
@@ -144,7 +145,7 @@ struct WrapView: View {
                     Text("\(fluentNow)/\(FactUniverse.count) facts fluent")
                         .font(Theme.Font.label(14)).foregroundStyle(.white.opacity(0.8))
                 }
-                WorldStars(filled: stars, size: 26, spacing: 8)
+                WorldStars(filled: stars, total: goal, size: 26, spacing: 8)
                     .padding(.vertical, 2)
                 if vm.isQuest, vm.starEarnedThisSession {
                     Label("Quest complete — star earned!", systemImage: "flame.fill")
@@ -154,9 +155,9 @@ struct WrapView: View {
                     Text("+\(gained) new fluent fact\(gained == 1 ? "" : "s") today!")
                         .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
                 }
-                Text(stars == WorldStars.starCount
-                     ? "All \(WorldStars.starCount) stars — the BOSS CHALLENGE is waiting on the map. Beat it to open the next world!"
-                     : "Every quest earns a star. Fill all \(WorldStars.starCount) to summon the \(name) boss.")
+                Text(stars == goal
+                     ? "All \(goal) stars — the BOSS CHALLENGE is waiting on the map. Beat it to open the next world!"
+                     : "Every quest earns a star. Fill all \(goal) to summon the \(name) boss.")
                     .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
             }

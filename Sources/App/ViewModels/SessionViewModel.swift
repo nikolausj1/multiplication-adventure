@@ -195,6 +195,10 @@ final class SessionViewModel {
     /// Mastered count at session start (the wrap's Master Quest delta).
     private(set) var masteredBefore = 0
 
+    /// Sockets per world (the profile's parent-adjustable goal), captured at
+    /// session start for the header chip and star-earned overlay.
+    private(set) var starsPerWorldGoal = WorldCatalog.starsPerWorld
+
     init(service: LearningService, speedRound: Bool = false, boss: Bool = false,
          auto: AutoMode = .off, worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
         self.service = service
@@ -209,6 +213,7 @@ final class SessionViewModel {
         self.auto = auto
         self.worldStatBefore = service.currentWorldStat()
         self.shownStars = service.starsInCurrentWorld()
+        self.starsPerWorldGoal = service.starsPerWorldGoal()
         self.isQuest = !speedRound && !boss && testFormat == nil
         self.showsWorldRing = isQuest
         let built: [PlannedQuestion]

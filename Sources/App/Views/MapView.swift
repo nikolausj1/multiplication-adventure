@@ -230,9 +230,10 @@ struct MapView: View {
         let unlocked = world.index <= currentIndex
         let cleared = clearedSet.contains(world.index)
         let isCurrent = world.index == currentIndex
-        let starsHere = isCurrent ? (profile?.starsInCurrentWorld ?? 0) : (cleared ? WorldStars.starCount : 0)
+        let goal = profile?.starsPerWorldGoal ?? WorldCatalog.starsPerWorld
+        let starsHere = isCurrent ? (profile?.starsInCurrentWorld ?? 0) : (cleared ? goal : 0)
         // All sockets filled but boss unbeaten → the node IS the boss fight.
-        let bossReady = isCurrent && !cleared && starsHere == WorldStars.starCount
+        let bossReady = isCurrent && !cleared && starsHere == goal
         VStack(spacing: 5) {
             Button {
                 if bossReady { sessionWorld = WorldSelection(id: world.index, boss: true) }
@@ -263,8 +264,8 @@ struct MapView: View {
 
             if unlocked {
                 // Star sockets — one star per completed quest; cleared worlds
-                // always wear all five.
-                WorldStars(filled: starsHere, size: 19, spacing: 4)
+                // always wear the full set.
+                WorldStars(filled: starsHere, total: goal, size: 19, spacing: 4)
                     .padding(.horizontal, 9).padding(.vertical, 4)
                     .background(Capsule().fill(.black.opacity(0.45)))
                     .padding(.top, 2)
@@ -283,7 +284,7 @@ struct MapView: View {
                                        startPoint: .top, endPoint: .bottom)))
                     .shadow(color: .black.opacity(0.35), radius: 3, y: 2)
             } else if isCurrent, !cleared {
-                let remaining = WorldStars.starCount - starsHere
+                let remaining = goal - starsHere
                 let resumable = (profile?.pausedQuestDate).map {
                     Calendar.current.isDateInToday($0)
                 } ?? false

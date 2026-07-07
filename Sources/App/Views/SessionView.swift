@@ -38,7 +38,8 @@ struct SessionView: View {
                 if let starIndex = vm.pendingStarEarned {
                     StarEarnedOverlay(
                         worldName: WorldCatalog.worlds[safe: vm.worldStatBefore.index]?.name ?? "This world",
-                        newStarIndex: starIndex) { vm.starEarnedDismissed() }
+                        newStarIndex: starIndex,
+                        totalStars: vm.starsPerWorldGoal) { vm.starEarnedDismissed() }
                         .transition(.opacity).zIndex(9)
                 }
                 if let celebration = vm.pendingCelebration {
@@ -149,7 +150,7 @@ struct SessionView: View {
                     .frame(maxWidth: .infinity)
             }
             if vm.showsWorldRing {
-                StarChip(filled: vm.shownStars)
+                StarChip(filled: vm.shownStars, total: vm.starsPerWorldGoal)
             }
             // Always present so the header never reflows — dim until it ignites at 3.
             ComboChip(combo: vm.streakDisplay)
@@ -287,13 +288,14 @@ private struct ComboChip: View {
 /// (right after the full-screen slam).
 private struct StarChip: View {
     let filled: Int
+    var total: Int = WorldCatalog.starsPerWorld
 
     @State private var shownFilled: Int = 0
     @State private var earnPulse = false
 
     var body: some View {
         HStack(spacing: 4) {
-            ForEach(0..<WorldStars.starCount, id: \.self) { i in
+            ForEach(0..<max(total, 1), id: \.self) { i in
                 StarGlyph(filled: i < filled, size: 16)
                     .scaleEffect(earnPulse && i == filled - 1 ? 1.7 : 1)
                     .rotationEffect(.degrees(earnPulse && i == filled - 1 ? 18 : 0))
@@ -316,7 +318,7 @@ private struct StarChip: View {
                 withAnimation(Theme.Motion.snappy) { earnPulse = false }
             }
         }
-        .accessibilityLabel("\(filled) of \(WorldStars.starCount) stars in this world")
+        .accessibilityLabel("\(filled) of \(total) stars in this world")
     }
 }
 
