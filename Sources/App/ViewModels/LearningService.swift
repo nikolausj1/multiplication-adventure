@@ -90,6 +90,7 @@ struct LearningService {
         profile.questStars = 0
         profile.currentWorldStars = 0   // the goal setting itself survives resets
         profile.seenWorldIntrosMask = 0
+        profile.mapCompleteCelebrated = false
         profile.bestStreak = 0
         profile.speedBonusCount = 0
         profile.pausedQuestDate = nil
@@ -144,6 +145,29 @@ struct LearningService {
                     f.totalAttempts = 8; f.totalCorrect = 4
                 }
             }
+        }
+        try? context.save()
+    }
+
+    /// Debug only: the world-7-beaten-but-not-yet-mastered state (Master Quest
+    /// era) — all worlds cleared, ~75% of facts mastered, the rest fluent.
+    func applyDemoMapDone() {
+        let p = activeProfile()
+        let now = Date()
+        p.onboarded = true
+        p.seenWorldIntrosMask = (1 << WorldCatalog.count) - 1
+        for w in 0..<WorldCatalog.count { p.markWorldCleared(w) }
+        p.questStars = p.starsPerWorldGoal * WorldCatalog.count
+        p.currentWorldStars = p.starsPerWorldGoal
+        for (i, f) in p.facts.enumerated() {
+            f.introduced = true
+            if i % 4 == 0 {
+                f.stageRaw = MasteryStage.fluency.rawValue; f.box = 4
+            } else {
+                f.stageRaw = MasteryStage.mastered.rawValue; f.box = 5; f.masteredDate = now
+            }
+            f.totalAttempts = 6; f.totalCorrect = 6
+            f.recentTimes = [1.2, 1.1]; f.averageTime = 1.15
         }
         try? context.save()
     }

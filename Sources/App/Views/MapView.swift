@@ -15,6 +15,7 @@ struct MapView: View {
     @State private var showStreak = false
     @State private var showTimesTable = false
     @State private var showCertificate = false
+    @State private var showMapComplete = false
 
     // Locked-node tap response + the fog-lift reveal when a new world opens.
     @State private var shakeTarget: Int?
@@ -89,6 +90,14 @@ struct MapView: View {
                 .transition(.opacity)
             }
         }
+        .overlay {
+            if showMapComplete {
+                MapCompleteOverlay {
+                    withAnimation(.easeOut(duration: 0.4)) { showMapComplete = false }
+                }
+                .transition(.opacity)
+            }
+        }
         .ignoresSafeArea(.keyboard)
         .fullScreenCover(isPresented: $showStreak) { StreakView() }
         .fullScreenCover(isPresented: $showTimesTable) { TimesTableView() }
@@ -101,6 +110,9 @@ struct MapView: View {
             if args.contains("-autostartProfile") { showProfile = true }
             if args.contains("-autostartStreak") { showStreak = true }
             if args.contains("-autostartTimesTable") { showTimesTable = true }
+            if args.contains("-demoMapComplete") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { showMapComplete = true }
+            }
             if args.contains("-autostartCertificate") { showCertificate = true }
             if args.contains("-autostartSpeed") { sessionWorld = WorldSelection(id: currentIndex, speed: true) }
             if args.contains("-autostartBoss") { sessionWorld = WorldSelection(id: currentIndex, boss: true) }
@@ -186,10 +198,10 @@ struct MapView: View {
             // Times-table reference — a lookup chart, deliberately map-only so
             // it's never available mid-quest.
             Button { showTimesTable = true } label: {
-                Image(systemName: "tablecells.fill")
-                    .font(.system(size: 17))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .frame(width: 44, height: 44).darkPlate(corner: 22)
+                Text("Times Table")
+                    .font(Theme.Font.label(14))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
             }
             .buttonStyle(PopButtonStyle())
             .accessibilityLabel("Times tables")
@@ -360,6 +372,13 @@ struct MapView: View {
     /// Called when a session cover closes: if the trail advanced, run the fog-lift
     /// reveal on the newly reachable world.
     private func checkUnlockReveal() {
+        // Boss 7 just fell → the whole map is beaten: one-time takeover.
+        if clearedSet.count == WorldCatalog.count,
+           let p = profile, !p.mapCompleteCelebrated {
+            p.mapCompleteCelebrated = true
+            withAnimation(.easeOut(duration: 0.3)) { showMapComplete = true }
+            return
+        }
         let now = currentIndex
         if now > baselineCurrent, !clearedSet.contains(now) {
             revealWorld = now

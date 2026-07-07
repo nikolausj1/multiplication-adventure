@@ -46,6 +46,9 @@ final class Profile {
     /// Bitmask of worlds whose dramatic title reveal has played (first entry).
     var seenWorldIntrosMask: Int = 0
 
+    /// The one-time "YOU BEAT THE MAP!" takeover has played (after boss 7 falls).
+    var mapCompleteCelebrated: Bool = false
+
     /// Longest in-session correct streak ever reached (a chase-able trophy stat).
     var bestStreak: Int = 0
     /// Lifetime count of speed bonuses earned (fast correct answers).

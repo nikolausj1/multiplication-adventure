@@ -97,70 +97,70 @@ struct TimesTableView: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    // MARK: One table — 12 big equations in two columns
+    // MARK: One table — 12 big equations in two tight columns
 
     private func tableList(_ t: Int) -> some View {
         let half = (maxFactor + 2) / 2   // 0…11 → 6 rows per column
         return VStack(spacing: 0) {
             ForEach(0..<half, id: \.self) { row in
-                HStack(spacing: 12) {
+                HStack(spacing: 0) {
                     equation(t, row)
                     equation(t, row + half)
                 }
                 .frame(maxHeight: .infinity)
             }
         }
-        .padding(.horizontal, 26).padding(.vertical, 12)
+        .padding(.horizontal, 12).padding(.vertical, 8)
     }
 
     private func equation(_ t: Int, _ n: Int) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 14) {
             Text("\(t) × \(n)")
-                .font(Theme.Font.number(30))
+                .font(Theme.Font.number(44))
                 .foregroundStyle(.white.opacity(0.92))
-                .frame(width: 128, alignment: .trailing)
+                .frame(width: 190, alignment: .trailing)
             Text("=")
-                .font(Theme.Font.number(26))
+                .font(Theme.Font.number(38))
                 .foregroundStyle(.white.opacity(0.45))
             Text("\(t * n)")
-                .font(Theme.Font.number(34))
+                .font(Theme.Font.number(48))
                 .foregroundStyle(Theme.Color.accent)
-                .frame(width: 84, alignment: .leading)
+                .frame(width: 128, alignment: .leading)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(t) times \(n) equals \(t * n)")
     }
 
-    // MARK: ALL — the classic product grid with row/column headers
+    // MARK: ALL — every table's full equations, side by side
 
     private var allGrid: some View {
-        Grid(horizontalSpacing: 3, verticalSpacing: 3) {
-            GridRow {
-                gridCell("×", header: true)
-                ForEach(0...maxFactor, id: \.self) { c in
-                    gridCell("\(c)", header: true)
-                }
-            }
-            ForEach(0...maxFactor, id: \.self) { r in
-                GridRow {
-                    gridCell("\(r)", header: true)
-                    ForEach(0...maxFactor, id: \.self) { c in
-                        gridCell("\(r * c)")
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(0...maxFactor, id: \.self) { t in
+                VStack(spacing: 3) {
+                    Text("×\(t)")
+                        .font(Theme.Font.number(19))
+                        .foregroundStyle(Theme.Color.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                        .background(RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.white.opacity(0.10)))
+                    ForEach(0...maxFactor, id: \.self) { n in
+                        (Text("\(t)×\(n)").foregroundColor(.white.opacity(0.85))
+                         + Text("=").foregroundColor(.white.opacity(0.4))
+                         + Text("\(t * n)").foregroundColor(Theme.Color.accent))
+                            .font(Theme.Font.number(16))
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .accessibilityLabel("\(t) times \(n) equals \(t * n)")
                     }
+                }
+                .padding(.horizontal, 3)
+                if t < maxFactor {
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1)
                 }
             }
         }
-        .padding(14)
-    }
-
-    private func gridCell(_ text: String, header: Bool = false) -> some View {
-        Text(text)
-            .font(Theme.Font.number(header ? 19 : 18))
-            .foregroundStyle(header ? Theme.Color.accent : .white.opacity(0.9))
-            .minimumScaleFactor(0.6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(RoundedRectangle(cornerRadius: 7)
-                .fill(Color.white.opacity(header ? 0.11 : 0.04)))
+        .padding(10)
     }
 }
