@@ -62,6 +62,14 @@ struct SessionView: View {
                 .transition(.opacity)
             }
         }
+        // A session has no text input, but this content lives in a
+        // fullScreenCover — and a cover inherits a lingering keyboard
+        // safe-area inset if the software keyboard was dismissing as it
+        // presented (e.g. right after the name editor). That inset shoves the
+        // centered column up and clips the entry plate + number pad off the
+        // bottom, leaving only the prompt (intermittent; a re-entry "fixes"
+        // it). Ignore the keyboard wholesale so the pad is always on screen.
+        .ignoresSafeArea(.keyboard)
         .environment(\.worldTheme, theme)
         .animation(Theme.Motion.snappy, value: vm?.stage)
         .onChange(of: scenePhase) { _, phase in
