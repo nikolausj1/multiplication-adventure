@@ -20,8 +20,8 @@ struct TimesTableView: View {
                 .ignoresSafeArea()
                 .onTapGesture { dismiss() }
             card
-                .frame(maxWidth: 1080)
-                .padding(.vertical, 26)
+                .frame(maxWidth: 1240)
+                .padding(.vertical, 14)
         }
         .presentationBackground(.clear)
         .onAppear {
@@ -101,33 +101,31 @@ struct TimesTableView: View {
 
     private func tableList(_ t: Int) -> some View {
         let half = (maxFactor + 2) / 2   // 0…11 → 6 rows per column
-        return VStack(spacing: 0) {
+        return VStack(spacing: 18) {
             ForEach(0..<half, id: \.self) { row in
-                HStack(spacing: 0) {
+                HStack(spacing: 64) {
                     equation(t, row)
                     equation(t, row + half)
                 }
-                .frame(maxHeight: .infinity)
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func equation(_ t: Int, _ n: Int) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 16) {
             Text("\(t) × \(n)")
-                .font(Theme.Font.number(44))
+                .font(Theme.Font.number(58))
                 .foregroundStyle(.white.opacity(0.92))
-                .frame(width: 190, alignment: .trailing)
+                .frame(width: 250, alignment: .trailing)
             Text("=")
-                .font(Theme.Font.number(38))
+                .font(Theme.Font.number(48))
                 .foregroundStyle(.white.opacity(0.45))
             Text("\(t * n)")
-                .font(Theme.Font.number(48))
+                .font(Theme.Font.number(62))
                 .foregroundStyle(Theme.Color.accent)
-                .frame(width: 128, alignment: .leading)
+                .frame(width: 168, alignment: .leading)
         }
-        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(t) times \(n) equals \(t * n)")
     }
