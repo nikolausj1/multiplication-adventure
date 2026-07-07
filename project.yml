@@ -32,5 +32,5 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.levelup.adventure
         # Home-screen label — short so iPadOS doesn't truncate it. The full name
         # "Multiplication Adventure" lives in the App Store record / splash art.
-        INFOPLIST_KEY_CFBundleDisplayName: "Adventure"
+        INFOPLIST_KEY_CFBundleDisplayName: "Multiplication"
         ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: "NO"

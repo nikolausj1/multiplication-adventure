@@ -13,6 +13,7 @@ struct MapView: View {
     @State private var showParent = false
     @State private var showProfile = false
     @State private var showStreak = false
+    @State private var showTimesTable = false
     @State private var showCertificate = false
 
     // Locked-node tap response + the fog-lift reveal when a new world opens.
@@ -90,6 +91,7 @@ struct MapView: View {
         }
         .ignoresSafeArea(.keyboard)
         .fullScreenCover(isPresented: $showStreak) { StreakView() }
+        .fullScreenCover(isPresented: $showTimesTable) { TimesTableView() }
         .sheet(isPresented: $showCertificate) { CertificateView(name: profile?.name ?? "Champion") }
         .onAppear {
             baselineCurrent = currentIndex
@@ -98,6 +100,7 @@ struct MapView: View {
             if args.contains("-autostartParent") { showParent = true }
             if args.contains("-autostartProfile") { showProfile = true }
             if args.contains("-autostartStreak") { showStreak = true }
+            if args.contains("-autostartTimesTable") { showTimesTable = true }
             if args.contains("-autostartCertificate") { showCertificate = true }
             if args.contains("-autostartSpeed") { sessionWorld = WorldSelection(id: currentIndex, speed: true) }
             if args.contains("-autostartBoss") { sessionWorld = WorldSelection(id: currentIndex, boss: true) }
@@ -180,6 +183,16 @@ struct MapView: View {
                         .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
                 }
             }
+            // Times-table reference — a lookup chart, deliberately map-only so
+            // it's never available mid-quest.
+            Button { showTimesTable = true } label: {
+                Image(systemName: "tablecells.fill")
+                    .font(.system(size: 17))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 44, height: 44).darkPlate(corner: 22)
+            }
+            .buttonStyle(PopButtonStyle())
+            .accessibilityLabel("Times tables")
             if let p = profile {
                 // The daily flame: lit = today's quest done; dim = not yet today.
                 // Tapping opens the streak calendar.
