@@ -5,6 +5,7 @@ import SwiftUI
 /// equation and a Continue key — never a buzzer or red (§3).
 struct FeedbackBar: View {
     @Environment(\.worldTheme) private var theme
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     let correct: Bool
     let equation: String           // e.g. "7 × 8 = 56", shown on a miss
     let xp: Int
@@ -70,7 +71,8 @@ struct FeedbackBar: View {
                 .padding(.leading, 6)
             }
         }
-        .padding(.horizontal, 22).padding(.vertical, 13)
+        .padding(.horizontal, vSize == .compact ? 16 : 22)
+        .padding(.vertical, vSize == .compact ? 7 : 13)
         .darkPlate(corner: 26)
         .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
             .strokeBorder((correct ? Theme.Color.correct : Theme.Color.accent).opacity(0.55),

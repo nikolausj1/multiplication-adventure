@@ -12,6 +12,7 @@ struct PlayerProfileView: View {
     /// keyboard changes nothing.
     var onClose: () -> Void = {}
     @Environment(\.modelContext) private var context
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
 
     @State private var editingName = false
@@ -20,6 +21,7 @@ struct PlayerProfileView: View {
     @State private var selectedTrophy: Int?
     @FocusState private var nameFocused: Bool
 
+    private var compact: Bool { vSize == .compact }
     private var profile: Profile? { activeProfiles.first }
     private static let sheetBG = Color(red: 0.09, green: 0.10, blue: 0.14)
 
@@ -46,11 +48,9 @@ struct PlayerProfileView: View {
     }
 
     private var card: some View {
-        VStack(spacing: 18) {
-            hero
-            statTiles
-            guardians
-                .frame(maxHeight: .infinity)
+        Group {
+            // iPhone landscape: scroll so the guardians row isn't crushed.
+            if compact { ScrollView { cardStack } } else { cardStack }
         }
         .padding(Theme.Metric.pad)
         .overlay(alignment: .topLeading) { ModalCloseButton { onClose() }.padding(14) }
@@ -63,6 +63,15 @@ struct PlayerProfileView: View {
         }
     }
 
+    private var cardStack: some View {
+        VStack(spacing: compact ? 12 : 18) {
+            hero
+            statTiles
+            guardians
+                .frame(maxHeight: compact ? 200 : .infinity)
+        }
+    }
+
     // MARK: Hero — avatar + name, grade + rank
 
     private var hero: some View {
@@ -72,7 +81,7 @@ struct PlayerProfileView: View {
                     pickingAvatar = true
                     Feedback.fire(.keyTap)
                 } label: {
-                    AvatarBadge(key: profile?.avatarSymbol ?? "avatar1", size: 96)
+                    AvatarBadge(key: profile?.avatarSymbol ?? "avatar1", size: compact ? 64 : 96)
                         .shadow(color: .black.opacity(0.4), radius: 8, y: 3)
                         .overlay(alignment: .bottomTrailing) {
                             Image(systemName: "pencil.circle.fill")
@@ -85,7 +94,7 @@ struct PlayerProfileView: View {
 
                 if editingName {
                     TextField("", text: $draftName)
-                        .font(Theme.Font.display(38)).foregroundStyle(.white)
+                        .font(Theme.Font.display(compact ? 26 : 38)).foregroundStyle(.white)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                         .focused($nameFocused)
@@ -101,7 +110,7 @@ struct PlayerProfileView: View {
                 } else {
                     HStack(spacing: 12) {
                         Text(profile?.name ?? "Player")
-                            .font(Theme.Font.display(38)).foregroundStyle(.white)
+                            .font(Theme.Font.display(compact ? 26 : 38)).foregroundStyle(.white)
                         Button {
                             draftName = profile?.name ?? ""
                             editingName = true
@@ -279,7 +288,7 @@ struct PlayerProfileView: View {
                     .font(Theme.Font.label(16)).foregroundStyle(.white.opacity(0.6))
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 118)
+            .frame(height: compact ? 72 : 118)
             .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.07)))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.08)))
         }
@@ -290,12 +299,12 @@ struct PlayerProfileView: View {
         VStack(spacing: 5) {
             HStack(spacing: 8) {
                 icon()
-                Text(value()).font(Theme.Font.number(36)).foregroundStyle(.white)
+                Text(value()).font(Theme.Font.number(compact ? 26 : 36)).foregroundStyle(.white)
             }
             Text(label()).font(Theme.Font.label(16)).foregroundStyle(.white.opacity(0.65))
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 118)
+        .frame(height: compact ? 72 : 118)
         .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.07)))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.08)))
     }

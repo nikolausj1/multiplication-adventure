@@ -6,33 +6,48 @@ import SwiftData
 /// with the child's avatar, real stats, and the seven conquered worlds.
 struct CertificateView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
     let name: String
 
     @State private var rendered: Image?
 
+    private var compact: Bool { vSize == .compact }
     private var profile: Profile? { activeProfiles.first }
     private static let gold = Color(hex: "#C9A24B")
     private static let goldDeep = Color(hex: "#A87F2E")
 
     var body: some View {
-        VStack(spacing: 20) {
-            certificate
-                .frame(width: 680, height: 470)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
+        VStack(spacing: compact ? 12 : 20) {
+            // iPad keeps the exact fixed frame; iPhone landscape aspect-fits the
+            // preview into the short screen. (The exported ImageRenderer size in
+            // render() is unchanged.)
+            Group {
+                if compact {
+                    certificate
+                        .aspectRatio(680.0 / 470.0, contentMode: .fit)
+                        .frame(maxWidth: 680, maxHeight: .infinity)
+                } else {
+                    certificate
+                        .frame(width: 680, height: 470)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
 
             HStack(spacing: 14) {
                 if let rendered {
                     ShareLink(item: rendered,
                               preview: SharePreview("Certificate of Mastery", image: rendered)) {
                         Label("Share / Print", systemImage: "square.and.arrow.up")
-                            .font(Theme.Font.display(18)).padding(.horizontal, 20).padding(.vertical, 14)
+                            .font(Theme.Font.display(compact ? 15 : 18))
+                            .padding(.horizontal, compact ? 14 : 20).padding(.vertical, compact ? 9 : 14)
                     }
                     .buttonStyle(.borderedProminent).tint(Theme.Color.primary)
                 }
                 Button("Done") { dismiss() }
-                    .font(Theme.Font.display(18)).padding(.horizontal, 20).padding(.vertical, 14)
+                    .font(Theme.Font.display(compact ? 15 : 18))
+                    .padding(.horizontal, compact ? 14 : 20).padding(.vertical, compact ? 9 : 14)
                     .buttonStyle(.bordered)
             }
         }

@@ -6,10 +6,12 @@ import SwiftData
 /// days, a dot on practiced-without-star days.
 struct StreakView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
 
     @State private var monthAnchor = Date.now
 
+    private var compact: Bool { vSize == .compact }
     private var profile: Profile? { activeProfiles.first }
     private let cal = Calendar.current
     private static let sheetBG = Color(red: 0.09, green: 0.10, blue: 0.14)
@@ -37,12 +39,10 @@ struct StreakView: View {
     }
 
     private var card: some View {
-        VStack(spacing: 16) {
-            hero
-            calendar
-                .frame(maxHeight: .infinity)
-            Text("One rest day never breaks your streak.")
-                .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.55))
+        Group {
+            // On iPhone landscape, a ScrollView is a safety net so the card
+            // never hard-clips; iPad keeps the existing non-scrolling layout.
+            if compact { ScrollView { cardStack } } else { cardStack }
         }
         .padding(Theme.Metric.pad)
         .overlay(alignment: .topLeading) { ModalCloseButton { dismiss() }.padding(14) }
@@ -52,20 +52,30 @@ struct StreakView: View {
         .shadow(color: .black.opacity(0.5), radius: 30, y: 10)
     }
 
+    private var cardStack: some View {
+        VStack(spacing: compact ? 10 : 16) {
+            hero
+            calendar
+                .frame(maxHeight: compact ? 240 : .infinity)
+            Text("One rest day never breaks your streak.")
+                .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.55))
+        }
+    }
+
     private var hero: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: compact ? 4 : 8) {
             HStack(spacing: 14) {
                 Image(systemName: "flame.fill")
-                    .font(.system(size: 66))
+                    .font(.system(size: compact ? 44 : 66))
                     .foregroundStyle(LinearGradient(colors: [Theme.Color.accent,
                                                              Color(red: 0.95, green: 0.35, blue: 0.1)],
                                                     startPoint: .top, endPoint: .bottom))
                     .shadow(color: Theme.Color.accent.opacity(0.6), radius: 16)
                 Text("\(profile?.streakDays ?? 0)")
-                    .font(Theme.Font.display(66)).foregroundStyle(.white)
+                    .font(Theme.Font.display(compact ? 40 : 66)).foregroundStyle(.white)
             }
             Text("DAY STREAK")
-                .font(Theme.Font.label(24)).tracking(4)
+                .font(Theme.Font.label(compact ? 18 : 24)).tracking(4)
                 .foregroundStyle(.white.opacity(0.8))
         }
     }
@@ -102,7 +112,7 @@ struct StreakView: View {
             GeometryReader { geo in
                 let cells = monthCells
                 let rows = max(1, Int(ceil(Double(cells.count) / 7)))
-                let tileH = max(56, (geo.size.height - CGFloat(rows - 1) * 9) / CGFloat(rows))
+                let tileH = max(compact ? 32 : 56, (geo.size.height - CGFloat(rows - 1) * 9) / CGFloat(rows))
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 9), count: 7),
                           spacing: 9) {
                     ForEach(Array(cells.enumerated()), id: \.offset) { _, day in

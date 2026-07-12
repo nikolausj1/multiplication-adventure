@@ -4,6 +4,7 @@ import SwiftUI
 /// world plaque and the child taps one of two big keys. Feedback lands in place —
 /// the correct key turns green and glows, the other steps back — nothing moves.
 struct TrueFalseView: View {
+    @Environment(\.verticalSizeClass) private var vSize
     let question: PlannedQuestion
     let showFeedback: Bool
     let selected: Int?               // 1 = True, 0 = False, nil = unanswered
@@ -11,15 +12,20 @@ struct TrueFalseView: View {
 
     /// 1 if the shown equation is actually true.
     private var trueIsCorrect: Bool { question.expectedAnswer == 1 }
+    private var compact: Bool { vSize == .compact }
 
     var body: some View {
-        VStack(spacing: 26) {
+        VStack(spacing: compact ? 12 : 26) {
             PromptText(question.displayText)
-            Text("TRUE or FALSE?")
-                .font(Theme.Font.label(16)).tracking(3)
-                .foregroundStyle(.white.opacity(0.7))
-                .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
-            HStack(spacing: 18) {
+            // On the short iPhone screen the label is dropped to save height —
+            // the green ✓ / red ✗ keys read as true/false on their own.
+            if !compact {
+                Text("TRUE or FALSE?")
+                    .font(Theme.Font.label(16)).tracking(3)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
+            }
+            HStack(spacing: compact ? 14 : 18) {
                 key(value: 1, title: "TRUE", icon: "checkmark",
                     tint: Theme.Color.correct)
                 key(value: 0, title: "FALSE", icon: "xmark",

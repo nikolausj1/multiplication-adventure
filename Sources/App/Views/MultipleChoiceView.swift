@@ -5,23 +5,31 @@ import SwiftUI
 /// turns green and glows, others step back. Nothing on screen moves.
 struct MultipleChoiceView: View {
     @Environment(\.worldTheme) private var theme
+    @Environment(\.verticalSizeClass) private var vSize
     let question: PlannedQuestion
     let showFeedback: Bool
     let selected: Int?
     let onSelect: (Int) -> Void
 
     private var answer: Int { question.prompt.answer }
-    private let columns = [GridItem(.flexible(), spacing: 18), GridItem(.flexible(), spacing: 18)]
+    private var compact: Bool { vSize == .compact }
+    // iPhone landscape has width to spare and no height — lay the four options
+    // in a single row instead of a 2×2 grid.
+    private var columns: [GridItem] {
+        let spacing: CGFloat = compact ? 12 : 18
+        let count = compact ? 4 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: spacing), count: count)
+    }
 
     var body: some View {
-        VStack(spacing: 26) {
+        VStack(spacing: compact ? 12 : 26) {
             PromptText(question.displayText)
-            LazyVGrid(columns: columns, spacing: 18) {
+            LazyVGrid(columns: columns, spacing: compact ? 12 : 18) {
                 ForEach(question.options ?? [], id: \.self) { option in
                     optionButton(option)
                 }
             }
-            .frame(maxWidth: 560)
+            .frame(maxWidth: compact ? 760 : 560)
         }
         .animation(Theme.Motion.snappy, value: showFeedback)
     }
@@ -32,8 +40,8 @@ struct MultipleChoiceView: View {
         let dimmed = showFeedback && !isAnswer
         return Button { if !showFeedback { onSelect(option) } } label: {
             Text("\(option)")
-                .font(Theme.Font.number(38))
-                .frame(maxWidth: .infinity, minHeight: 92)
+                .font(Theme.Font.number(compact ? 30 : 38))
+                .frame(maxWidth: .infinity, minHeight: compact ? 64 : 92)
         }
         .buttonStyle(ChunkyKeyStyle(base: keyBase(isAnswer: isAnswer, isPicked: isPicked),
                                     deep: keyDeep(isAnswer: isAnswer),
@@ -70,15 +78,20 @@ struct MultipleChoiceView: View {
 /// a soft dark blob sits behind the numeral over the busy frame centers.
 struct PromptText: View {
     @Environment(\.worldTheme) private var theme
+    // Compact height = iPhone landscape: the plaque and numeral shrink so the
+    // whole question column fits ~390pt.
+    @Environment(\.verticalSizeClass) private var vSize
     let text: String
     init(_ text: String) { self.text = text }
+
+    private var compact: Bool { vSize == .compact }
 
     var body: some View {
         if Art.exists(theme.buttonImage) {
             ZStack {
                 Image(theme.buttonImage)
                     .resizable().scaledToFit()
-                    .frame(height: 150)
+                    .frame(height: compact ? 92 : 150)
                     .shadow(color: .black.opacity(0.45), radius: 10, y: 5)
                 numeral
                     .background(
@@ -88,14 +101,15 @@ struct PromptText: View {
             }
         } else {
             numeral
-                .padding(.horizontal, 36).padding(.vertical, 12)
+                .padding(.horizontal, compact ? 24 : 36)
+                .padding(.vertical, compact ? 8 : 12)
                 .darkPlate()
         }
     }
 
     private var numeral: some View {
         Text(text)
-            .font(Theme.Font.display(58))
+            .font(Theme.Font.display(compact ? 38 : 58))
             .foregroundStyle(.white)
             .shadow(color: .black.opacity(0.55), radius: 3, y: 2)
             .minimumScaleFactor(0.6).lineLimit(1)

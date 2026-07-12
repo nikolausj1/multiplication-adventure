@@ -5,6 +5,7 @@ struct SessionView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     var worldIndex: Int = 0
     var speedRound: Bool = false
     var boss: Bool = false
@@ -15,6 +16,7 @@ struct SessionView: View {
     /// in the place — full backdrop, world title, tap to begin.
     @State private var showWorldIntro = false
     private var theme: WorldTheme { .forWorld(worldIndex) }
+    private var compact: Bool { vSize == .compact }
 
     var body: some View {
         // Blur the whole scene while the STAR EARNED takeover is up, so the big
@@ -114,17 +116,17 @@ struct SessionView: View {
                     HStack(alignment: .center, spacing: 4) {
                         BossPanel(theme: theme, hits: vm.correctCount, hpTotal: vm.bossHPTotal,
                                   lastHitCritical: vm.lastHitCritical)
-                            .frame(maxWidth: 400)
+                            .frame(maxWidth: compact ? 250 : 400)
                         QuestionContainer(vm: vm, question: q)
                             .id(vm.index)
-                            .frame(maxWidth: 620)
+                            .frame(maxWidth: compact ? 560 : 620)
                     }
-                    .padding(Theme.Metric.pad)
+                    .padding(compact ? 8 : Theme.Metric.pad)
                 } else {
                     QuestionContainer(vm: vm, question: q)
                         .id(vm.index)
                         .frame(maxWidth: 680)
-                        .padding(Theme.Metric.pad)
+                        .padding(compact ? 8 : Theme.Metric.pad)
                 }
             }
             Spacer(minLength: 0)
@@ -164,7 +166,7 @@ struct SessionView: View {
             ComboChip(combo: vm.streakDisplay)
         }
         .animation(Theme.Motion.celebrate, value: vm.streakDisplay)
-        .padding(.horizontal, Theme.Metric.pad).padding(.top, 12)
+        .padding(.horizontal, Theme.Metric.pad).padding(.top, compact ? 4 : 12)
     }
 
 }
@@ -332,12 +334,15 @@ private struct StarChip: View {
 
 /// Picks the question format and bridges feedback/advance back to the view-model.
 private struct QuestionContainer: View {
+    @Environment(\.verticalSizeClass) private var vSize
     let vm: SessionViewModel
     let question: PlannedQuestion
 
+    private var compact: Bool { vSize == .compact }
+
     var body: some View {
         let inFeedback = vm.stage == .feedback
-        VStack(spacing: 24) {
+        VStack(spacing: compact ? 10 : 24) {
             if question.trueFalse {
                 TrueFalseView(question: question, showFeedback: inFeedback,
                               selected: vm.lastSelected, onSelect: { vm.answer($0) })
@@ -360,7 +365,7 @@ private struct QuestionContainer: View {
                 .opacity(inFeedback ? 1 : 0)
                 .scaleEffect(inFeedback ? 1 : 0.85)
                 .allowsHitTesting(inFeedback)
-                .frame(height: 74)
+                .frame(height: compact ? 50 : 74)
         }
         .onAppear { vm.beginQuestion() }
         .animation(Theme.Motion.snappy, value: vm.stage)

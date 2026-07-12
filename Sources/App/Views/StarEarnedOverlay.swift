@@ -12,24 +12,26 @@ struct StarEarnedOverlay: View {
     let onDone: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     @State private var landed = false        // the new star has hit its socket
     @State private var impact = false        // brief shake + flash on landing
     @State private var shown = false         // scrim/text fade-in
 
-    private let starSize: CGFloat = 122
+    private var compact: Bool { vSize == .compact }
+    private var starSize: CGFloat { compact ? 72 : 122 }
 
     var body: some View {
         ZStack {
             Color.black.opacity(shown ? 0.8 : 0).ignoresSafeArea()
 
-            VStack(spacing: 40) {
+            VStack(spacing: compact ? 18 : 40) {
                 Text("STAR EARNED!")
-                    .font(Theme.Font.display(58)).foregroundStyle(.white)
+                    .font(Theme.Font.display(compact ? 38 : 58)).foregroundStyle(.white)
                     .tracking(2.5)
                     .shadow(color: .black.opacity(0.6), radius: 5, y: 3)
                     .scaleEffect(shown ? 1 : 0.7)
 
-                HStack(spacing: 26) {
+                HStack(spacing: compact ? 14 : 26) {
                     ForEach(0..<max(totalStars, 1), id: \.self) { i in
                         socket(i)
                     }
@@ -49,7 +51,7 @@ struct StarEarnedOverlay: View {
                     .font(Theme.Font.label(17)).foregroundStyle(.white.opacity(0.55))
                     .opacity(landed ? 1 : 0)
             }
-            .padding(40)
+            .padding(compact ? 20 : 40)
         }
         .contentShape(Rectangle())
         .onTapGesture { if landed || reduceMotion { onDone() } }

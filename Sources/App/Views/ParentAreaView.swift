@@ -7,6 +7,8 @@ import SwiftData
 struct ParentAreaView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
+    private var compact: Bool { vSize == .compact }
     @Query(sort: \Profile.createdAt) private var profiles: [Profile]
 
     private var service: LearningService { LearningService(context: context) }
@@ -126,8 +128,8 @@ struct ParentAreaView: View {
     private var card: some View {
         VStack(spacing: 0) {
             Text("Parent Area")
-                .font(Theme.Font.display(30)).foregroundStyle(Theme.Color.ink)
-                .padding(.top, 28).padding(.bottom, 24)
+                .font(Theme.Font.display(compact ? 22 : 30)).foregroundStyle(Theme.Color.ink)
+                .padding(.top, compact ? 10 : 28).padding(.bottom, compact ? 8 : 24)
             HStack(alignment: .top, spacing: Theme.Metric.gap) {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: Theme.Metric.gap) {
@@ -407,18 +409,21 @@ struct ParentGateView: View {
     let onPass: () -> Void
     let onCancel: () -> Void
 
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
+    private var compact: Bool { vSize == .compact }
+
     @State private var entry = ""
     @State private var wrong = false
 
     var body: some View {
-        VStack(spacing: 18) {
-            Text("Parents only").font(Theme.Font.display(24)).foregroundStyle(Theme.Color.ink)
+        VStack(spacing: compact ? 10 : 18) {
+            Text("Parents only").font(Theme.Font.display(compact ? 19 : 24)).foregroundStyle(Theme.Color.ink)
             Text("Please enter your year of birth").font(Theme.Font.body()).foregroundStyle(Theme.Color.inkSoft)
             HStack(spacing: 10) {
                 ForEach(0..<4, id: \.self) { i in
                     Text(i < entry.count ? String(Array(entry)[i]) : "")
-                        .font(Theme.Font.number(30)).foregroundStyle(Theme.Color.ink)
-                        .frame(width: 52, height: 62)
+                        .font(Theme.Font.number(compact ? 24 : 30)).foregroundStyle(Theme.Color.ink)
+                        .frame(width: compact ? 42 : 52, height: compact ? 48 : 62)
                         .background(Theme.Color.bg)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(RoundedRectangle(cornerRadius: 14)

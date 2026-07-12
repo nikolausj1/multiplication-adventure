@@ -6,6 +6,8 @@ import SwiftUI
 /// a lookup between quests, never available mid-session.
 struct TimesTableView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
+    private var compact: Bool { vSize == .compact }
 
     /// nil = the ALL product grid.
     @State private var selectedTable: Int? = 1
@@ -21,7 +23,7 @@ struct TimesTableView: View {
                 .onTapGesture { dismiss() }
             card
                 .frame(maxWidth: 1240)
-                .padding(.vertical, 14)
+                .padding(.vertical, compact ? 6 : 14)
         }
         .presentationBackground(.clear)
         .onAppear {
@@ -35,7 +37,7 @@ struct TimesTableView: View {
             Text("TIMES TABLES")
                 .font(Theme.Font.label(20)).tracking(5)
                 .foregroundStyle(.white.opacity(0.85))
-                .padding(.top, 10)
+                .padding(.top, compact ? 4 : 10)
             HStack(alignment: .top, spacing: 16) {
                 rail
                 Group {
@@ -62,7 +64,7 @@ struct TimesTableView: View {
     // MARK: Left rail — one button per table + ALL
 
     private var rail: some View {
-        VStack(spacing: 7) {
+        let stack = VStack(spacing: compact ? 5 : 7) {
             ForEach(0...maxFactor, id: \.self) { t in
                 railButton(label: "×\(t)", isSelected: selectedTable == t) {
                     selectedTable = t
@@ -73,7 +75,14 @@ struct TimesTableView: View {
             }
         }
         .frame(width: 86)
-        .padding(.top, 26)   // clear the close key above
+        .padding(.top, compact ? 8 : 26)   // clear the close key above
+        return Group {
+            if compact {
+                ScrollView(.vertical, showsIndicators: false) { stack }
+            } else {
+                stack
+            }
+        }
     }
 
     private func railButton(label: String, isSelected: Bool,
@@ -86,7 +95,7 @@ struct TimesTableView: View {
                 .font(Theme.Font.number(19))
                 .foregroundStyle(isSelected ? .black : .white.opacity(0.85))
                 .frame(maxWidth: .infinity)
-                .frame(height: 44)
+                .frame(height: compact ? 34 : 44)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(isSelected ? AnyShapeStyle(Theme.Color.accent)
@@ -101,30 +110,37 @@ struct TimesTableView: View {
 
     private func tableList(_ t: Int) -> some View {
         let half = (maxFactor + 2) / 2   // 0…11 → 6 rows per column
-        return VStack(spacing: 18) {
+        let content = VStack(spacing: compact ? 8 : 18) {
             ForEach(0..<half, id: \.self) { row in
-                HStack(spacing: 64) {
+                HStack(spacing: compact ? 24 : 64) {
                     equation(t, row)
                     equation(t, row + half)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        return Group {
+            if compact {
+                ScrollView(.vertical, showsIndicators: false) { content }
+            } else {
+                content
+            }
+        }
     }
 
     private func equation(_ t: Int, _ n: Int) -> some View {
-        HStack(spacing: 16) {
+        HStack(spacing: compact ? 10 : 16) {
             Text("\(t) × \(n)")
-                .font(Theme.Font.number(58))
+                .font(Theme.Font.number(compact ? 32 : 58))
                 .foregroundStyle(.white.opacity(0.92))
-                .frame(width: 250, alignment: .trailing)
+                .frame(width: compact ? 150 : 250, alignment: .trailing)
             Text("=")
-                .font(Theme.Font.number(48))
+                .font(Theme.Font.number(compact ? 28 : 48))
                 .foregroundStyle(.white.opacity(0.45))
             Text("\(t * n)")
-                .font(Theme.Font.number(62))
+                .font(Theme.Font.number(compact ? 36 : 62))
                 .foregroundStyle(Theme.Color.accent)
-                .frame(width: 168, alignment: .leading)
+                .frame(width: compact ? 96 : 168, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(t) times \(n) equals \(t * n)")
@@ -137,7 +153,7 @@ struct TimesTableView: View {
             ForEach(0...maxFactor, id: \.self) { t in
                 VStack(spacing: 3) {
                     Text("×\(t)")
-                        .font(Theme.Font.number(19))
+                        .font(Theme.Font.number(compact ? 14 : 19))
                         .foregroundStyle(Theme.Color.accent)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)

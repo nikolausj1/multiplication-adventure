@@ -5,10 +5,12 @@ import SwiftData
 /// the world backdrop. He always leaves knowing he made progress.
 struct WrapView: View {
     @Environment(\.worldTheme) private var theme
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
     let vm: SessionViewModel
     let onDone: () -> Void
 
+    private var compact: Bool { vSize == .compact }
     private var snapshots: [FactSnapshot] { (activeProfiles.first?.facts ?? []).map(\.snapshot) }
 
     /// Boss victory this session (worlds clear only by beating their boss).
@@ -27,10 +29,30 @@ struct WrapView: View {
     }
 
     var body: some View {
-        VStack(spacing: 22) {
+        Group {
+            // iPhone landscape: scroll the card body so it never hard-clips.
+            if compact { ScrollView { wrapStack } } else { wrapStack }
+        }
+        .padding(compact ? 14 : Theme.Metric.pad + 8)
+        .frame(maxWidth: 500)
+        .darkPlate()
+        .padding(Theme.Metric.pad)
+        .background {
+            if clearedThisSession {
+                ParticleBurst(kind: .confetti,
+                              colors: [Theme.Color.accent, Theme.Color.correct,
+                                       theme.primary, .white, theme.accent],
+                              origin: UnitPoint(x: 0.5, y: 0.3), count: 120)
+                    .frame(width: 900, height: 800)
+            }
+        }
+    }
+
+    private var wrapStack: some View {
+        VStack(spacing: compact ? 12 : 22) {
             Image(systemName: clearedThisSession ? "trophy.fill"
                               : (bossFailed ? "flag.checkered" : "checkmark.seal.fill"))
-                .font(.system(size: 72))
+                .font(.system(size: compact ? 48 : 72))
                 .foregroundStyle(clearedThisSession ? Theme.Color.accent
                                  : (bossFailed ? .white : Theme.Color.correct))
                 .symbolRenderingMode(.hierarchical)
@@ -41,10 +63,10 @@ struct WrapView: View {
                     }
                 }
             Text(headline)
-                .font(Theme.Font.display(34)).foregroundStyle(.white)
+                .font(Theme.Font.display(compact ? 24 : 34)).foregroundStyle(.white)
                 .multilineTextAlignment(.center)
 
-            HStack(spacing: 28) {
+            HStack(spacing: compact ? 14 : 28) {
                 stat("\(vm.totalAnswered)", "questions")
                 stat("\(Int(vm.accuracy * 100))%", "accuracy")
                 stat("+\(vm.xpEarned)", "XP", tint: Theme.Color.accent)
@@ -66,24 +88,11 @@ struct WrapView: View {
             .buttonStyle(ChunkyKeyStyle(base: theme.primary, deep: theme.deep,
                                         corner: Theme.Metric.corner))
         }
-        .padding(Theme.Metric.pad + 8)
-        .frame(maxWidth: 500)
-        .darkPlate()
-        .padding(Theme.Metric.pad)
-        .background {
-            if clearedThisSession {
-                ParticleBurst(kind: .confetti,
-                              colors: [Theme.Color.accent, Theme.Color.correct,
-                                       theme.primary, .white, theme.accent],
-                              origin: UnitPoint(x: 0.5, y: 0.3), count: 120)
-                    .frame(width: 900, height: 800)
-            }
-        }
     }
 
     private func stat(_ value: String, _ label: String, tint: Color = .white) -> some View {
         VStack(spacing: 4) {
-            Text(value).font(Theme.Font.number(30)).foregroundStyle(tint)
+            Text(value).font(Theme.Font.number(compact ? 22 : 30)).foregroundStyle(tint)
             Text(label).font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
         }
     }

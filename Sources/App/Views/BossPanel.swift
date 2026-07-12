@@ -12,6 +12,7 @@ struct BossPanel: View {
     private var bossName: String { theme.world.bossName }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     @State private var shakePhase: CGFloat = 0
     @State private var burst = 0
     @State private var showCrit = false
@@ -23,7 +24,7 @@ struct BossPanel: View {
         VStack(spacing: 14) {
             Image(theme.bossImage)
                 .resizable().scaledToFit()
-                .frame(maxHeight: 400)
+                .frame(maxHeight: vSize == .compact ? 190 : 400)
                 .saturation(defeated ? 0.25 : 1)
                 .opacity(defeated ? 0.6 : 1)
                 .rotationEffect(defeated ? .degrees(7) : .zero)

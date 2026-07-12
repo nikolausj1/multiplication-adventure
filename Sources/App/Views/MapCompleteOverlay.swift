@@ -8,14 +8,17 @@ struct MapCompleteOverlay: View {
     let onDone: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     @State private var shown = false      // scrim + trophy fade/scale in
     @State private var landed = false     // title slams, badges + text follow
+
+    private var compact: Bool { vSize == .compact }
 
     var body: some View {
         ZStack {
             Color.black.opacity(shown ? 0.82 : 0).ignoresSafeArea()
 
-            VStack(spacing: 26) {
+            VStack(spacing: compact ? 14 : 26) {
                 trophy
                     .scaleEffect(shown ? 1 : 2.6)
                     .opacity(shown ? 1 : 0)
@@ -30,18 +33,18 @@ struct MapCompleteOverlay: View {
                     }
 
                 Text("YOU BEAT THE MAP!")
-                    .font(Theme.Font.display(60)).foregroundStyle(.white)
+                    .font(Theme.Font.display(compact ? 38 : 60)).foregroundStyle(.white)
                     .tracking(2)
                     .shadow(color: .black.opacity(0.6), radius: 5, y: 3)
                     .scaleEffect(landed ? 1 : 1.4)
                     .opacity(landed ? 1 : 0)
 
                 Text("All Seven Worlds conquered — every guardian defeated!")
-                    .font(Theme.Font.body(22)).foregroundStyle(.white.opacity(0.9))
+                    .font(Theme.Font.body(compact ? 16 : 22)).foregroundStyle(.white.opacity(0.9))
                     .opacity(landed ? 1 : 0)
 
                 // The seven conquered worlds take a bow.
-                HStack(spacing: 16) {
+                HStack(spacing: compact ? 10 : 16) {
                     ForEach(WorldCatalog.worlds, id: \.index) { w in
                         let theme = WorldTheme.forWorld(w.index)
                         Group {
@@ -51,7 +54,7 @@ struct MapCompleteOverlay: View {
                                 Circle().fill(theme.primary)
                             }
                         }
-                        .frame(width: 64, height: 64)
+                        .frame(width: compact ? 46 : 64, height: compact ? 46 : 64)
                         .clipShape(Circle())
                         .overlay(Circle().strokeBorder(Theme.Color.accent, lineWidth: 2))
                         .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
@@ -69,7 +72,7 @@ struct MapCompleteOverlay: View {
                     .opacity(landed ? 1 : 0)
                     .padding(.top, 4)
             }
-            .padding(46)
+            .padding(compact ? 20 : 46)
         }
         .contentShape(Rectangle())
         .onTapGesture { if landed || reduceMotion { onDone() } }
@@ -81,11 +84,11 @@ struct MapCompleteOverlay: View {
     private var trophy: some View {
         if Art.exists("trophy_gold") {
             Image("trophy_gold").resizable().scaledToFit()
-                .frame(height: 190)
+                .frame(height: compact ? 110 : 190)
                 .shadow(color: Theme.Color.accent.opacity(0.55), radius: 26)
         } else {
             Image(systemName: "trophy.fill")
-                .font(.system(size: 130))
+                .font(.system(size: compact ? 90 : 130))
                 .foregroundStyle(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.35),
                                                          Color(red: 0.95, green: 0.63, blue: 0.1)],
                                                 startPoint: .top, endPoint: .bottom))
