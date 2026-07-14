@@ -139,11 +139,15 @@ final class SessionViewModel {
     /// its high-water mark — the "first questions matter more" illusion.
     private var shortFloorDay = false
 
-    /// The Quest Meter: near-LINEAR by design — the active clock is 90% of it,
-    /// today's ladder work a 10% garnish. (A work-heavy blend made the first
-    /// few answers leap the bar ~30% and then stall — quick test-outs maxed
-    /// the work term instantly, which read as "early questions matter more".)
-    /// Monotonic via high-water mark; snaps to 1.0 at quest completion.
+    /// The Quest Meter shows the LAGGING of the two finish gates. A quest ends
+    /// only when the clock floor is met AND the batch work is done, so the bar
+    /// tracks `min(clock, work)` — whichever is further behind. Early on the
+    /// clock lags (a fast test-out maxes the work term but the bar still follows
+    /// the clock — no early leap); at the end the clock is spent and the bar
+    /// tracks the last few facts to a linear finish, so it never sits "full"
+    /// while questions remain. Monotonic via high-water; snaps to 1.0 at
+    /// completion. (Prior 0.9·clock + 0.1·work blend read as full while 2–3
+    /// batch questions were still owed — the last facts moved it <1% each.)
     private(set) var questMeter: Double = 0
     private var meterHighWater: Double = 0
     /// Complete = clock satisfied AND nothing left mid-ladder. Ceiling days
@@ -162,9 +166,11 @@ final class SessionViewModel {
 
     private func updateMeter() {
         guard isQuest else { return }
+        // Review-only days have no batch to finish, so work is trivially done
+        // and the bar is pure clock. Otherwise the bar is the lagging gate.
         let workC = questBatch.isEmpty ? 1.0 : questCharge
-        let floorC = min(1.0, elapsed / max(effectiveFloorSeconds, 1))
-        meterHighWater = max(meterHighWater, 0.1 * workC + 0.9 * floorC)
+        let clockC = min(1.0, elapsed / max(effectiveFloorSeconds, 1))
+        meterHighWater = max(meterHighWater, min(clockC, workC))
         questMeter = meterHighWater
     }
 
