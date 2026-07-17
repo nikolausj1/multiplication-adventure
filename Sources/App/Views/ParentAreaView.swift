@@ -241,7 +241,7 @@ struct ParentAreaView: View {
     @ViewBuilder
     private var explainRows: some View {
             explainRow("star.fill",
-                       "Every day is one QUEST: the app picks the facts for today's star and drills each one up its ladder (2 multiple-choice + 3 typed), mixed with review of everything learned so far. The quest ends when the star slams in — roughly 4–12 minutes, longer in bigger worlds.")
+                       "Every day is one QUEST: the app picks the facts for today's star and drills each one up its ladder (2 multiple-choice + 3 typed), mixed with review of everything learned so far. The quest is about 30 questions (15 on easy rule days) and ends when the star slams in — the bar fills one notch per answer.")
             explainRow("map.fill",
                        "Each world has \(activeGoal) stars ≈ one star per day. A hard day rolls over (\"star 80% charged — finish tomorrow\") with no penalty.")
             explainRow("flag.checkered",

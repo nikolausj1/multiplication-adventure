@@ -95,6 +95,8 @@ struct LearningService {
         profile.speedBonusCount = 0
         profile.pausedQuestDate = nil
         profile.pausedQuestElapsed = 0
+        profile.pausedQuestAnswered = 0
+        profile.pausedQuestCorrect = 0
         profile.pausedQuestMeter = 0
         profile.pausedQuestNewCount = 0
         seedFacts(for: profile)
@@ -227,10 +229,12 @@ struct LearningService {
 
     // MARK: Paused quest (X = pause for the day)
 
-    func savePausedQuest(elapsed: Double, meter: Double, newCount: Int, now: Date = .now) {
+    func savePausedQuest(answered: Int, correct: Int, meter: Double, newCount: Int,
+                         now: Date = .now) {
         let p = activeProfile()
         p.pausedQuestDate = now
-        p.pausedQuestElapsed = elapsed
+        p.pausedQuestAnswered = answered
+        p.pausedQuestCorrect = correct
         p.pausedQuestMeter = meter
         p.pausedQuestNewCount = newCount
         try? context.save()
@@ -238,20 +242,23 @@ struct LearningService {
 
     /// Today's paused quest, if any (stale ones are cleared). Loading does NOT
     /// clear it — completion does, so a crash can't eat progress.
-    func loadPausedQuest(now: Date = .now) -> (elapsed: Double, meter: Double, newCount: Int)? {
+    func loadPausedQuest(now: Date = .now) -> (answered: Int, correct: Int,
+                                               meter: Double, newCount: Int)? {
         let p = activeProfile()
         guard let date = p.pausedQuestDate else { return nil }
         guard Calendar.current.isDate(date, inSameDayAs: now) else {
             clearPausedQuest()
             return nil
         }
-        return (p.pausedQuestElapsed, p.pausedQuestMeter, p.pausedQuestNewCount)
+        return (p.pausedQuestAnswered, p.pausedQuestCorrect,
+                p.pausedQuestMeter, p.pausedQuestNewCount)
     }
 
     func clearPausedQuest() {
         let p = activeProfile()
         p.pausedQuestDate = nil
-        p.pausedQuestElapsed = 0
+        p.pausedQuestAnswered = 0
+        p.pausedQuestCorrect = 0
         p.pausedQuestMeter = 0
         p.pausedQuestNewCount = 0
         try? context.save()

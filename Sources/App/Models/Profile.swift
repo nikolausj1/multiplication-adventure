@@ -58,7 +58,11 @@ final class Profile {
     /// re-entering the world resumes the clock, meter, and novelty budget.
     /// Expires at midnight — tomorrow is always a fresh quest.
     var pausedQuestDate: Date? = nil
+    /// Legacy (time-floor era) — kept so existing installs migrate without a
+    /// schema change; the answer-count floor uses the two fields below.
     var pausedQuestElapsed: Double = 0
+    var pausedQuestAnswered: Int = 0
+    var pausedQuestCorrect: Int = 0
     var pausedQuestMeter: Double = 0
     var pausedQuestNewCount: Int = 0
 

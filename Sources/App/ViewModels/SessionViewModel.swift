@@ -99,26 +99,18 @@ final class SessionViewModel {
     private(set) var questCharge: Double = 0
     let isQuest: Bool
 
-    /// Session rails are TIME, not question counts — "a good day's practice" is
-    /// ~12 minutes whether he's sprinting ×10s in July or grinding ×8s in August.
-    /// Launch args (-questFloorSeconds n / -questCeilingSeconds n) override for
-    /// demo/verify runs.
-    private let floorSeconds = SessionViewModel.launchSeconds("-questFloorSeconds", fallback: 12 * 60)
-    private let ceilingSeconds = SessionViewModel.launchSeconds("-questCeilingSeconds", fallback: 20 * 60)
-    /// Injectable clock (the -dumpQuestPlan simulator advances virtual time).
+    /// Session rails are ANSWER COUNTS, not time. A time floor made the bar
+    /// creep on the wall clock — a kid answering questions saw no connection
+    /// between effort and progress. Now a day IS its questions: the floor is
+    /// sized to the planned queue (~30), so "finish your questions" and
+    /// "fill the bar" are the same thing, and every answer moves it.
+    /// Launch args (-questFloorAnswers n / -questCeilingAnswers n) override
+    /// for demo/verify runs.
+    private let floorAnswers = SessionViewModel.launchCount("-questFloorAnswers", fallback: 30)
+    private let ceilingAnswersOverride = SessionViewModel.launchCount("-questCeilingAnswers", fallback: 0)
+    /// Injectable clock (the -dumpQuestPlan simulator advances virtual time;
+    /// per-question response timing still uses it).
     var now: () -> Date = { .now }
-    /// The clock counts ACTIVE screen time only — a snack break (backgrounded
-    /// app or paused session) never fills the bar by itself.
-    private var accumulatedActive: TimeInterval = 0
-    private var activeSince: Date?
-    var elapsed: TimeInterval {
-        accumulatedActive + (activeSince.map { now().timeIntervalSince($0) } ?? 0)
-    }
-    func clockRun() { if activeSince == nil { activeSince = now() } }
-    func clockPause() {
-        if let s = activeSince { accumulatedActive += now().timeIntervalSince(s) }
-        activeSince = nil
-    }
     /// X pressed mid-quest: paused for the day (the view dismisses, no wrap).
     private(set) var didPause = false
     /// Review serves per fact this session (cap 2 — a small pool must not cycle).
@@ -134,31 +126,32 @@ final class SessionViewModel {
     private var budgetBonusGranted = false
     private var effectiveBudget: Int { newFactBudget + (budgetBonusGranted ? 4 : 0) }
     /// Decided ONCE at build time: a day whose batch is mostly rule-table facts
-    /// (×0/×1/×2) runs on the short floor. A per-answer fraction oscillated as
-    /// real facts chained in, and every floor re-lengthening froze the bar at
-    /// its high-water mark — the "first questions matter more" illusion.
+    /// (×0/×1/×2) runs on the short floor. (Decided per-answer it oscillated
+    /// as real facts chained in — the "first questions matter more" illusion.)
     private var shortFloorDay = false
 
-    /// The Quest Meter shows the LAGGING of the two finish gates. A quest ends
-    /// only when the clock floor is met AND the batch work is done, so the bar
-    /// tracks `min(clock, work)` — whichever is further behind. Early on the
-    /// clock lags (a fast test-out maxes the work term but the bar still follows
-    /// the clock — no early leap); at the end the clock is spent and the bar
-    /// tracks the last few facts to a linear finish, so it never sits "full"
-    /// while questions remain. Monotonic via high-water; snaps to 1.0 at
-    /// completion. (Prior 0.9·clock + 0.1·work blend read as full while 2–3
-    /// batch questions were still owed — the last facts moved it <1% each.)
+    /// The Quest Meter averages the two finish gates: answers given and batch
+    /// work done — `(answers/floor + work) / 2`. The answer term ticks on
+    /// EVERY submit, so the bar always visibly moves; the work term adds the
+    /// honest "learning left" weight and only both together reach 100%.
+    /// (A min() of the gates was honest but flat through warmups and review
+    /// stretches — exactly the "I answered and nothing happened" complaint.)
+    /// Monotonic via high-water; snaps to 1.0 at completion.
     private(set) var questMeter: Double = 0
     private var meterHighWater: Double = 0
-    /// Complete = clock satisfied AND nothing left mid-ladder. Ceiling days
+    /// Complete = answer floor met AND nothing left mid-ladder. Ceiling days
     /// complete via the mercy path in next() (star still earned).
     var questComplete: Bool {
-        isQuest ? (elapsed >= effectiveFloorSeconds && batchDone) : stage == .finished
+        isQuest ? (totalAnswered >= effectiveFloorAnswers && batchDone) : stage == .finished
     }
-    /// The habit floor, scaled: a rule-table day (batch mostly ×0/×1/×2) may
-    /// complete at 6 minutes instead of the full floor.
-    private var effectiveFloorSeconds: TimeInterval {
-        shortFloorDay ? min(floorSeconds, 6 * 60) : floorSeconds
+    /// The daily floor, scaled: a rule-table day (batch mostly ×0/×1/×2)
+    /// completes at half the count.
+    private var effectiveFloorAnswers: Int {
+        shortFloorDay ? min(floorAnswers, 15) : floorAnswers
+    }
+    /// Mercy cap: a brutal day still ends (star earned) at 2× the floor.
+    private var ceilingAnswers: Int {
+        ceilingAnswersOverride > 0 ? ceilingAnswersOverride : effectiveFloorAnswers * 2
     }
     private var batchDone: Bool {
         questBatch.allSatisfy { service.ladderProgress($0) >= 1 }
@@ -166,18 +159,18 @@ final class SessionViewModel {
 
     private func updateMeter() {
         guard isQuest else { return }
-        // Review-only days have no batch to finish, so work is trivially done
-        // and the bar is pure clock. Otherwise the bar is the lagging gate.
-        let workC = questBatch.isEmpty ? 1.0 : questCharge
-        let clockC = min(1.0, elapsed / max(effectiveFloorSeconds, 1))
-        meterHighWater = max(meterHighWater, min(clockC, workC))
+        let answersC = min(1.0, Double(totalAnswered) / Double(max(effectiveFloorAnswers, 1)))
+        // Review-only days have no batch to finish — the bar is pure answer
+        // count. Otherwise both gates weigh in equally.
+        let blended = questBatch.isEmpty ? answersC : (answersC + min(1.0, questCharge)) / 2
+        meterHighWater = max(meterHighWater, min(1.0, blended))
         questMeter = meterHighWater
     }
 
-    private static func launchSeconds(_ key: String, fallback: TimeInterval) -> TimeInterval {
+    private static func launchCount(_ key: String, fallback: Int) -> Int {
         let args = ProcessInfo.processInfo.arguments
         guard let i = args.firstIndex(of: key), i + 1 < args.count,
-              let v = TimeInterval(args[i + 1]) else { return fallback }
+              let v = Int(args[i + 1]) else { return fallback }
         return v
     }
 
@@ -230,12 +223,13 @@ final class SessionViewModel {
         } else if speedRound {
             built = service.buildSpeedSession()
         } else {
-            // Resume a same-day paused quest: clock, meter, and novelty budget
-            // carry over. The queue rebuilds from current fact state — leftovers-
-            // first frontier naturally re-picks the same in-flight material.
+            // Resume a same-day paused quest: answer counts, meter, and novelty
+            // budget carry over. The queue rebuilds from current fact state —
+            // leftovers-first frontier naturally re-picks the in-flight material.
             var carriedNew = 0
             if let paused = service.loadPausedQuest() {
-                accumulatedActive = paused.elapsed
+                totalAnswered = paused.answered
+                correctCount = paused.correct
                 meterHighWater = paused.meter
                 carriedNew = paused.newCount
             }
@@ -282,7 +276,6 @@ final class SessionViewModel {
 
     func beginQuestion() {
         questionStart = .now
-        clockRun()
         updatePhase()
         guard auto != .off else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -464,21 +457,42 @@ final class SessionViewModel {
             finish(); return
         }
         if isQuest {
-            if elapsed >= ceilingSeconds { completeQuest(); return }   // mercy: star still earned
-            if questComplete { completeQuest(); return }   // clock + in-flight work done
+            if totalAnswered >= ceilingAnswers { completeQuest(); return }   // mercy: star still earned
+            if questComplete { completeQuest(); return }   // floor + in-flight work done
             if index >= queue.count {
-                // Miss recovery for in-flight facts first; then (clock unmet)
+                // Miss recovery for in-flight facts first; then (floor unmet)
                 // chain the next frontier batch; then pure review rounds.
                 var more = service.questExtension(batch: questBatch)
-                if more.isEmpty, elapsed < effectiveFloorSeconds {
+                if totalAnswered >= effectiveFloorAnswers {
+                    // Overtime (floor met, batch unfinished): serve ONLY reps
+                    // that can still move the work gate — core reps of facts
+                    // whose ladder isn't maxed for today. Interleaved reviews
+                    // and re-serves of already-complete facts don't move the
+                    // bar, and a bar that sits still while the kid answers is
+                    // the exact complaint this design fixes. When nothing
+                    // gainable remains, the quest completes right here.
+                    more = more.filter {
+                        $0.movement == .core && service.ladderProgress($0.fact) < 1
+                    }
+                }
+                if more.isEmpty, totalAnswered < effectiveFloorAnswers {
+                    // A chained batch must FIT the remaining floor: a late
+                    // chain overruns the day and dilutes the work gate below
+                    // the bar's high-water, so the bar sits flat while the new
+                    // facts catch up (the kid-visible stall this design exists
+                    // to kill). Chain sizes vary (rule chains are short), so
+                    // build the chain and accept it only if it fits; otherwise
+                    // reviews walk the bar to the floor.
+                    let headroom = effectiveFloorAnswers - totalAnswered
                     // Hot streak: budget gone but he's ≥90% accurate on a real
                     // sample — grant one +4 bonus so the frontier keeps moving.
                     if !budgetBonusGranted, newIntroduced >= newFactBudget,
                        totalAnswered >= 10, accuracy >= 0.9 {
                         budgetBonusGranted = true
                     }
-                    let chained = service.chainBatch(exclude: Set(questBatch),
+                    var chained = service.chainBatch(exclude: Set(questBatch),
                                                      maxFresh: effectiveBudget - newIntroduced)
+                    if chained.queue.count > headroom { chained = (queue: [], batch: []) }
                     if chained.batch.isEmpty {
                         let capped = Set(reviewCounts.filter { $0.value >= 2 }.keys)
                         more = service.reviewRound(reviewExclude: capped)
@@ -525,12 +539,22 @@ final class SessionViewModel {
 
     /// Testing out makes pre-planned ladder reps stale: once a fact reaches
     /// fluent, its remaining card/recall reps teach nothing — skip them so the
-    /// adaptive ladder actually saves the time it promises.
+    /// adaptive ladder actually saves the time it promises. In OVERTIME (floor
+    /// met, batch unfinished) the skip widens to anything that can't move the
+    /// work gate — reviews and maxed-for-today reps included — so every
+    /// remaining answer visibly moves the bar and the day ends the moment
+    /// nothing gainable is left.
     private func skipStaleReps() {
+        let overtime = isQuest && totalAnswered >= effectiveFloorAnswers
         while index < queue.count {
             let q = queue[index]
-            guard q.movement == .core, q.format != .fluency,
-                  service.ladderProgress(q.fact) >= 1 else { break }
+            if overtime {
+                guard q.movement != .core || service.ladderProgress(q.fact) >= 1
+                else { break }
+            } else {
+                guard q.movement == .core, q.format != .fluency,
+                      service.ladderProgress(q.fact) >= 1 else { break }
+            }
             index += 1
         }
     }
@@ -556,15 +580,14 @@ final class SessionViewModel {
         }
     }
 
-    /// X on a quest = PAUSE for the day, not quit: clock, bar, and budget are
-    /// saved; tapping the world resumes. (Learning was already recorded per
-    /// answer either way.) Boss/speed/test runs end normally.
+    /// X on a quest = PAUSE for the day, not quit: answer counts, bar, and
+    /// budget are saved; tapping the world resumes. (Learning was already
+    /// recorded per answer either way.) Boss/speed/test runs end normally.
     func stop() {
         guard stage != .finished else { return }
         if isQuest, !questEndPending, auto == .off {
-            clockPause()
-            service.savePausedQuest(elapsed: elapsed, meter: meterHighWater,
-                                    newCount: newIntroduced)
+            service.savePausedQuest(answered: totalAnswered, correct: correctCount,
+                                    meter: meterHighWater, newCount: newIntroduced)
             didPause = true
             stage = .finished   // the view sees didPause and dismisses (no wrap)
             return
@@ -574,12 +597,11 @@ final class SessionViewModel {
 
     private func finish() {
         stage = .finished
-        clockPause()
         if auto == .wrap { pendingStarEarned = nil }   // demo autoplay: don't trap the wrap
         // Strict flame: dev jumps never count; quests count when the day's star
-        // landed or real time was put in; boss and speed runs always count.
+        // landed or real work was put in; boss and speed runs always count.
         let practiced = !isTest && (starEarnedThisSession || bossWorldIndex != nil
-                                    || isSpeed || elapsed >= 480)
+                                    || isSpeed || totalAnswered >= 20)
         endCelebration = service.finishSession(
             questionCount: totalAnswered, correctCount: correctCount, xpEarned: xpEarned,
             responseTimes: responseTimes, factsTouched: touched.count,

@@ -30,7 +30,6 @@ enum QuestPlanDump {
                !service.activeProfile().clearedWorlds.contains(worldIdx) {
                 let boss = SessionViewModel(service: service, boss: true, worldIndex: worldIdx)
                 boss.now = { simDate }
-                boss.clockRun()
                 while boss.stage != .finished {
                     guard let q = boss.current else { break }
                     simDate += 3
@@ -44,7 +43,6 @@ enum QuestPlanDump {
             }
             let vm = SessionViewModel(service: service)
             vm.now = { simDate }
-            vm.clockRun()
             let world = WorldCatalog.worlds[safe: vm.worldStatBefore.index]?.name ?? "?"
             print("\n━━━ SESSION \(session) — \(world) ━━━")
             var n = 0
@@ -72,7 +70,9 @@ enum QuestPlanDump {
                     : (seen < 2 ? 6.0 : seen < 4 ? 3.2 : 2.2)
                 let rt = slow ? max(base, 3.2) : base
                 let tag = q.format == .recognition ? "C " : (q.missingFactor ? "MF" : "K ")
-                print(String(format: "%3d [%@] %@  bar %3.0f%%", n, tag, q.displayText,
+                let mv = q.movement == .core ? "core" : (q.movement == .review ? "rev " : "warm")
+                print(String(format: "%3d [%@ %@ lp%.1f] %@  bar %5.1f%%", n, tag, mv,
+                             service.ladderProgress(q.fact), q.displayText,
                              vm.questMeter * 100))
                 simDate += rt + 1.2   // answer + feedback beat
                 vm.answer(q.expectedAnswer, simulatedRT: rt)
@@ -80,7 +80,7 @@ enum QuestPlanDump {
                 if vm.stage == .feedback { vm.next() }
                 if vm.pendingStarEarned != nil { vm.starEarnedDismissed() }
             }
-            print("→ \(vm.totalAnswered) answers, ~\(Int((vm.elapsed / 60).rounded())) min, "
+            print("→ \(vm.totalAnswered) answers, "
                   + "star \(vm.starEarnedThisSession ? "EARNED" : "not earned"), "
                   + "world \(service.currentWorldIdx() + 1) stars \(service.starsInCurrentWorld())/\(service.starsPerWorldGoal())")
             fflush(stdout)

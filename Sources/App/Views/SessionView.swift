@@ -3,13 +3,16 @@ import SwiftData
 
 struct SessionView: View {
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     var worldIndex: Int = 0
     var speedRound: Bool = false
     var boss: Bool = false
     var testFormat: MasteryStage? = nil
+    /// Presented as an in-hierarchy overlay (NOT a fullScreenCover — a cover's
+    /// hosting layer applies a lingering keyboard inset that ignoresSafeArea
+    /// can't override, clipping the number pad; see PlayerProfileView). The
+    /// owner tears the overlay down through this.
+    var onClose: () -> Void = {}
 
     @State private var vm: SessionViewModel?
     /// First-ever visit to this world: hold the questions and let the kid take
@@ -29,9 +32,9 @@ struct SessionView: View {
                 if vm.stage == .finished {
                     if vm.didPause {
                         // Paused for the day — straight back to the map, no wrap.
-                        Color.clear.onAppear { dismiss() }
+                        Color.clear.onAppear { onClose() }
                     } else {
-                        WrapView(vm: vm) { dismiss() }.transition(.opacity)
+                        WrapView(vm: vm) { onClose() }.transition(.opacity)
                     }
                 } else {
                     active(vm)
@@ -64,25 +67,21 @@ struct SessionView: View {
                 .transition(.opacity)
             }
         }
-        // A session has no text input, but this content lives in a
-        // fullScreenCover — and a cover inherits a lingering keyboard
-        // safe-area inset if the software keyboard was dismissing as it
-        // presented (e.g. right after the name editor). That inset shoves the
-        // centered column up and clips the entry plate + number pad off the
-        // bottom, leaving only the prompt (intermittent; a re-entry "fixes"
-        // it). Ignore the keyboard wholesale so the pad is always on screen.
+        // A session has no text input; freeze the layout against any keyboard
+        // that's still animating away when the session opens (e.g. right after
+        // the name editor). This works because the session is an in-hierarchy
+        // overlay — inside a fullScreenCover this modifier is IGNORED (the
+        // cover's hosting layer applies the inset first), which is why the
+        // pad kept getting clipped despite it.
         .ignoresSafeArea(.keyboard)
         .environment(\.worldTheme, theme)
         .animation(Theme.Motion.snappy, value: vm?.stage)
-        .onChange(of: scenePhase) { _, phase in
-            // The quest clock counts active screen time only.
-            if phase == .active { vm?.clockRun() } else { vm?.clockPause() }
-        }
         .onAppear {
             guard vm == nil, !showWorldIntro else { return }
             let args = ProcessInfo.processInfo.arguments
             let isQuest = !speedRound && !boss && testFormat == nil
             let verifyLaunch = args.contains("-autostartSession")   // debug autoplay skips the reveal
+                || args.contains("-demoKeyboardSession")
             if isQuest, args.contains("-forceWorldIntro")
                 || (!verifyLaunch && !LearningService(context: context).activeProfile().hasSeenWorldIntro(worldIndex)) {
                 showWorldIntro = true   // vm builds when the curtain lifts

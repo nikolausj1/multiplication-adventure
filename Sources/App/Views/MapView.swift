@@ -73,9 +73,21 @@ struct MapView: View {
             }
             VStack { header; Spacer() }
         }
-        .fullScreenCover(item: $sessionWorld, onDismiss: checkUnlockReveal) { sel in
-            SessionView(worldIndex: sel.id, speedRound: sel.speed, boss: sel.boss)
+        // In-hierarchy overlay, NOT a fullScreenCover: a cover's hosting layer
+        // applies a lingering keyboard inset (keyboard still animating away
+        // when a world is tapped right after name editing) that clips the
+        // number pad off the bottom — and ignoresSafeArea(.keyboard) inside a
+        // cover is ignored. Same lesson as PlayerProfileView.
+        .overlay {
+            if let sel = sessionWorld {
+                SessionView(worldIndex: sel.id, speedRound: sel.speed, boss: sel.boss,
+                            onClose: {
+                    withAnimation(.easeOut(duration: 0.25)) { sessionWorld = nil }
+                    checkUnlockReveal()
+                })
                 .environment(\.worldTheme, .forWorld(sel.id))
+                .transition(.opacity)
+            }
         }
         .fullScreenCover(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
         // In-hierarchy overlay, NOT a cover: the cover's hosting layer fights
@@ -98,6 +110,7 @@ struct MapView: View {
                 .transition(.opacity)
             }
         }
+        .animation(.easeOut(duration: 0.25), value: sessionWorld != nil)
         .ignoresSafeArea(.keyboard)
         .fullScreenCover(isPresented: $showStreak) { StreakView() }
         .fullScreenCover(isPresented: $showTimesTable) { TimesTableView() }
@@ -106,6 +119,16 @@ struct MapView: View {
             baselineCurrent = currentIndex
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-autostartSession") { sessionWorld = WorldSelection(id: currentIndex) }
+            // Repro for the clipped-pad bug: open the profile name editor
+            // (keyboard up, pair with -editName), then start a session while
+            // the keyboard is still animating away — the exact race kids hit.
+            if args.contains("-demoKeyboardSession") {
+                showProfile = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    showProfile = false
+                    sessionWorld = WorldSelection(id: currentIndex)
+                }
+            }
             if args.contains("-autostartParent") { showParent = true }
             if args.contains("-autostartProfile") { showProfile = true }
             if args.contains("-autostartStreak") { showStreak = true }
