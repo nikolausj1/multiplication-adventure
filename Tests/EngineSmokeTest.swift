@@ -60,14 +60,18 @@ var g = FactSnapshot(id: FactID(3, 4), introduced: true, stage: .recognition, re
 g = PromotionEngine.apply(to: g, correct: false, responseTime: 0, fluencyThreshold: 3, now: now).snapshot
 check(g.recognitionStreak == 0, "wrong answer resets recognition streak")
 
-print("Rule facts (×0/×1) fast-track to fluency, then master on a second correct")
+print("Rule facts (×0/×1): one FAST correct fast-tracks to fluency; slow walks the ladder")
 var ruleF = FactSnapshot(id: FactID(0, 7), introduced: true, stage: .recognition)
-ruleF = PromotionEngine.apply(to: ruleF, correct: true, responseTime: 5, fluencyThreshold: 3,
+ruleF = PromotionEngine.apply(to: ruleF, correct: true, responseTime: 2, fluencyThreshold: 3,
                               now: now).snapshot
-check(ruleF.stage == .fluency, "a ×0/×1 rule fact tests out to fluency on one correct")
+check(ruleF.stage == .fluency, "a FAST correct tests a rule fact out to fluency")
 let ruleM = PromotionEngine.apply(to: ruleF, correct: true, responseTime: 5, fluencyThreshold: 3, now: now)
 check(ruleM.snapshot.stage == .mastered, "a second correct masters it (no cross-day needed)")
 check(ruleM.becameMastered, "rule-fact mastery is flagged")
+var ruleSlow = FactSnapshot(id: FactID(1, 8), introduced: true, stage: .recognition)
+ruleSlow = PromotionEngine.apply(to: ruleSlow, correct: true, responseTime: 9, fluencyThreshold: 3,
+                                 now: now).snapshot
+check(ruleSlow.stage < .fluency, "a SLOW correct (counting, not knowing) does NOT fast-track a rule")
 
 print("Promotion: fluency → mastered requires 3 fast across 2 days")
 var h = FactSnapshot(id: FactID(6, 7), introduced: true, stage: .fluency)

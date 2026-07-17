@@ -101,12 +101,13 @@ final class SessionViewModel {
 
     /// Session rails are ANSWER COUNTS, not time. A time floor made the bar
     /// creep on the wall clock — a kid answering questions saw no connection
-    /// between effort and progress. Now a day IS its questions: the floor is
-    /// sized to the planned queue (~30), so "finish your questions" and
-    /// "fill the bar" are the same thing, and every answer moves it.
-    /// Launch args (-questFloorAnswers n / -questCeilingAnswers n) override
-    /// for demo/verify runs.
-    private let floorAnswers = SessionViewModel.launchCount("-questFloorAnswers", fallback: 30)
+    /// between effort and progress. Now a day IS its questions: the floor
+    /// targets ~8 minutes of ANSWERING at this kid's own recent pace
+    /// (service.adaptiveFloorAnswers, decided once at build), so "finish your
+    /// questions" and "fill the bar" are the same thing and every answer
+    /// moves it. Launch args (-questFloorAnswers n / -questCeilingAnswers n)
+    /// override for demo/verify runs.
+    private let floorAnswers: Int
     private let ceilingAnswersOverride = SessionViewModel.launchCount("-questCeilingAnswers", fallback: 0)
     /// Injectable clock (the -dumpQuestPlan simulator advances virtual time;
     /// per-question response timing still uses it).
@@ -145,9 +146,9 @@ final class SessionViewModel {
         isQuest ? (totalAnswered >= effectiveFloorAnswers && batchDone) : stage == .finished
     }
     /// The daily floor, scaled: a rule-table day (batch mostly ×0/×1/×2)
-    /// completes at half the count.
+    /// completes at three-quarters of the count.
     private var effectiveFloorAnswers: Int {
-        shortFloorDay ? min(floorAnswers, 15) : floorAnswers
+        shortFloorDay ? max(1, floorAnswers * 3 / 4) : floorAnswers
     }
     /// Mercy cap: a brutal day still ends (star earned) at 2× the floor.
     private var ceilingAnswers: Int {
@@ -213,6 +214,8 @@ final class SessionViewModel {
         self.worldStatBefore = service.currentWorldStat()
         self.shownStars = service.starsInCurrentWorld()
         self.starsPerWorldGoal = service.starsPerWorldGoal()
+        let floorArg = Self.launchCount("-questFloorAnswers", fallback: 0)
+        self.floorAnswers = floorArg > 0 ? floorArg : service.adaptiveFloorAnswers()
         self.isQuest = !speedRound && !boss && testFormat == nil
         self.showsWorldRing = isQuest
         let built: [PlannedQuestion]
@@ -492,7 +495,22 @@ final class SessionViewModel {
                     }
                     var chained = service.chainBatch(exclude: Set(questBatch),
                                                      maxFresh: effectiveBudget - newIntroduced)
-                    if chained.queue.count > headroom { chained = (queue: [], batch: []) }
+                    if !chained.batch.isEmpty {
+                        // Two acceptance tests: the chain must FIT the
+                        // remaining floor, and it may not DILUTE the work gate
+                        // more than ~4 points below the bar's shown high-water
+                        // (fresh facts drag the batch mean down; past that the
+                        // bar sits flat for many answers while they catch up).
+                        let wouldCharge = Self.charge(of: questBatch + chained.batch,
+                                                      service: service)
+                        let answersC = min(1.0, Double(totalAnswered)
+                                           / Double(max(effectiveFloorAnswers, 1)))
+                        let wouldBlended = (answersC + min(1.0, wouldCharge)) / 2
+                        if chained.queue.count > headroom
+                            || meterHighWater - wouldBlended > 0.04 {
+                            chained = (queue: [], batch: [])
+                        }
+                    }
                     if chained.batch.isEmpty {
                         let capped = Set(reviewCounts.filter { $0.value >= 2 }.keys)
                         more = service.reviewRound(reviewExclude: capped)
@@ -505,6 +523,17 @@ final class SessionViewModel {
                         questCharge = Self.charge(of: questBatch, service: service)
                         more = chained.queue
                     }
+                }
+                if more.isEmpty, totalAnswered < effectiveFloorAnswers {
+                    // Truly dry BELOW the floor (day one: rules learned fast,
+                    // no chain fits, nothing to review yet). The floor is a
+                    // hard minimum — consolidate today's own facts up to it
+                    // rather than hand out a discount star. The work gate is
+                    // already full here, so the bar walks one notch per answer
+                    // straight to 100% at the floor.
+                    more = service.consolidationRound(
+                        batch: questBatch,
+                        count: min(6, effectiveFloorAnswers - totalAnswered))
                 }
                 if more.isEmpty { completeQuest() } else {   // floor met or truly dry
                     queue.append(contentsOf: more)

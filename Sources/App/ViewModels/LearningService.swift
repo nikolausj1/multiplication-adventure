@@ -270,6 +270,38 @@ struct LearningService {
         return Calendar.current.isDate(d, inSameDayAs: now)
     }
 
+    /// The day's answer floor, calibrated to ~8 minutes of ANSWERING at this
+    /// kid's own recent pace (median per-answer time + a feedback beat),
+    /// clamped to a sane band. Before any history exists, 40. Decided once per
+    /// session — the bar's denominator never moves mid-day.
+    func adaptiveFloorAnswers(targetSeconds: Double = 8 * 60) -> Int {
+        var d = FetchDescriptor<SessionRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)])
+        d.fetchLimit = 5
+        let medians = ((try? context.fetch(d)) ?? [])
+            .map(\.medianResponseTime).filter { $0 > 0.5 }
+        guard !medians.isEmpty else { return 40 }
+        let m = medians.sorted()[medians.count / 2]
+        return max(28, min(50, Int((targetSeconds / (m + 1.5)).rounded())))
+    }
+
+    /// Consolidation reps of today's batch to carry a "dry" day to the answer
+    /// floor: typed reps of the day's own facts, shuffled. Served as .review so
+    /// the ladder serve-skips leave them alone; they never promote past what
+    /// the day already earned, they just make the floor a real minimum.
+    func consolidationRound(batch: [FactID], count: Int, now: Date = .now) -> [PlannedQuestion] {
+        guard !batch.isEmpty, count > 0 else { return [] }
+        var rng = SplitMix64(seed: UInt64(bitPattern: Int64(now.timeIntervalSince1970)) &+ 77)
+        var qs: [PlannedQuestion] = []
+        while qs.count < count {
+            for id in batch.shuffled(using: &rng) where qs.count < count {
+                qs.append(PlannedQuestion(
+                    prompt: OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1),
+                    format: .recall, movement: .review, options: nil, timed: false))
+            }
+        }
+        return Self.antiRepeat(qs)
+    }
+
     /// Mid-session: the batch is done but the clock isn't — chain the next
     /// frontier batch (full ladder: cards then typed) with a few fresh reviews.
     /// `maxFresh` = how many brand-new facts the session may still introduce.

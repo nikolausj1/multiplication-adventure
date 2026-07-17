@@ -63,25 +63,33 @@ public enum PromotionEngine {
             f.box = promoted.box
             f.dueDate = promoted.due
 
-            // ×0/×1 are RULES, not facts: one correct answer (any speed) proves
-            // the rule → fluency; a second correct → mastered. They're excluded
-            // from the review pool (no ladder grind for trivial material), so the
-            // normal "3 fast across 2 days" mastery path can never reach them —
-            // and the cross-day anti-cramming rule doesn't apply to a rule anyway.
-            // Both reps land within the introduction session's queued reps.
+            // ×0/×1 are RULES, not facts: one FAST correct answer proves the
+            // rule is *known* → fluency; a second correct → mastered. They're
+            // excluded from the review pool (no ladder grind for trivial
+            // material), so the normal "3 fast across 2 days" mastery path can
+            // never reach them — and cross-day anti-cramming doesn't apply to
+            // a rule anyway. A SLOW correct means he computed the rule instead
+            // of recognizing it (counting, guessing) — that earns a normal
+            // ladder rung below, never the fast-track.
             if min(f.id.a, f.id.b) <= 1 {
+                let fast = countsTime
+                    && FluencyThreshold.isFast(responseTime, threshold: fluencyThreshold)
                 if f.stage < .fluency {
-                    advance(&f, to: .fluency)
-                    return Outcome(snapshot: f, promotedStage: true,
-                                   becameMastered: false, lapsed: false)
+                    if fast {
+                        advance(&f, to: .fluency)
+                        return Outcome(snapshot: f, promotedStage: true,
+                                       becameMastered: false, lapsed: false)
+                    }
+                    // Slow correct → fall through to the standard ladder.
                 } else if f.stage == .fluency {
                     advance(&f, to: .mastered)
                     f.masteredDate = now
                     return Outcome(snapshot: f, promotedStage: true,
                                    becameMastered: priorStage != .mastered, lapsed: false)
+                } else {
+                    return Outcome(snapshot: f, promotedStage: false,
+                                   becameMastered: false, lapsed: false)   // mastered maintenance
                 }
-                return Outcome(snapshot: f, promotedStage: false,
-                               becameMastered: false, lapsed: false)   // mastered maintenance
             }
 
             switch f.stage {
