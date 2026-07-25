@@ -23,6 +23,10 @@ struct LevelUpMathApp: App {
         if let i = args.firstIndex(of: "-starsGoal"), i + 1 < args.count, let n = Int(args[i + 1]) {
             service.setStarsPerWorldGoal(n)   // simulator verification only
         }
+        if args.contains("-unlockLightning") {
+            service.activeProfile().lightningRoundUnlocked = true   // simulator verification only
+            try? container.mainContext.save()
+        }
         MainActor.assumeIsolated { QuestPlanDump.runIfRequested() }
     }
 

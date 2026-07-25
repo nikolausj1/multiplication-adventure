@@ -87,6 +87,10 @@ struct LearningService {
         profile.speedRoundUnlocked = false
         profile.clearedWorldsMask = 0
         profile.bestSpeedAvg = 0
+        profile.lightningRoundUnlocked = false
+        profile.bestLightningScore = 0
+        profile.bestLightningTime = 0
+        profile.hasLightningResult = false
         profile.questStars = 0
         profile.currentWorldStars = 0   // the goal setting itself survives resets
         profile.seenWorldIntrosMask = 0
@@ -673,6 +677,11 @@ struct LearningService {
         }
     }
 
+    /// Fluent-or-better fact pool for the Lightning Round — read-only, mirrors the
+    /// Speed Round's own fact filter. No engine/scheduler side effects here; the
+    /// pure `LightningRound.build` turns this into the round's statements.
+    func lightningPool() -> [FactID] { facts().filter { $0.stage >= .fluency }.map(\.id) }
+
     private func masteredCount() -> Int { facts().filter { $0.stage == .mastered }.count }
 
     // MARK: Recording an answer
@@ -794,6 +803,40 @@ struct LearningService {
 
         try? context.save()
         return MilestoneEngine.merge(events, minTier: .t1)
+    }
+
+    // MARK: Lightning Round (deliberately isolated from the scheduler/Leitner/
+    // promotion pipeline above — a true/false tap is a weak recognition signal,
+    // not evidence for the fact-mastery model. See LightningRoundViewModel.)
+
+    /// Modest, flat XP per correct answer. Deliberately NOT XPEngine's mastery-
+    /// scaled curve — that curve is tuned for the full `record()` pipeline this
+    /// mode intentionally skips.
+    static let lightningXPPerCorrect = 2
+
+    /// Records a completed Lightning Round: awards flat XP and updates the
+    /// profile's personal best (more correct wins; ties broken by faster time).
+    /// Never touches a `Fact` row (no box/stage/promotion change) and never
+    /// inserts a `SessionRecord` (keeps the daily quest's adaptive-floor timing,
+    /// which samples recent session medians, uncontaminated by these much-faster
+    /// true/false response times). Returns a light T1 celebration on a new best.
+    @discardableResult
+    func finishLightningRound(correct: Int, total: Int, elapsed: Double) -> Celebration? {
+        let p = activeProfile()
+        let xp = max(0, correct) * Self.lightningXPPerCorrect
+        if xp > 0 { p.totalXP += xp }
+        let isBest = !p.hasLightningResult
+            || correct > p.bestLightningScore
+            || (correct == p.bestLightningScore && elapsed < p.bestLightningTime)
+        if isBest {
+            p.bestLightningScore = correct
+            p.bestLightningTime = elapsed
+            p.hasLightningResult = true
+        }
+        try? context.save()
+        guard isBest else { return nil }
+        return Celebration(tier: .t1, headline: "New Lightning best!",
+                           lines: ["\(correct)/\(total) correct in \(String(format: "%.1fs", elapsed))"])
     }
 
     private func persistMilestones(_ events: [MilestoneEvent], for profile: Profile, now: Date) {

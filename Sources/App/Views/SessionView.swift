@@ -6,6 +6,7 @@ struct SessionView: View {
     @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     var worldIndex: Int = 0
     var speedRound: Bool = false
+    var lightningRound: Bool = false
     var boss: Bool = false
     var testFormat: MasteryStage? = nil
     /// Presented as an in-hierarchy overlay (NOT a fullScreenCover — a cover's
@@ -22,6 +23,18 @@ struct SessionView: View {
     private var compact: Bool { vSize == .compact }
 
     var body: some View {
+        // The Lightning Round is its own small state machine, fully isolated from
+        // SessionViewModel/the learning engine (see LightningRoundView) — branch
+        // before any of the quest/speed/boss machinery below ever spins up.
+        if lightningRound {
+            LightningRoundView(worldIndex: worldIndex, onClose: onClose)
+        } else {
+            questBody
+        }
+    }
+
+    @ViewBuilder
+    private var questBody: some View {
         // Blur the whole scene while the STAR EARNED takeover is up, so the big
         // stars sit on a calm background instead of visual noise.
         let starShowing = vm?.pendingStarEarned != nil

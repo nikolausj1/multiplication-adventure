@@ -27,6 +27,17 @@ final class Profile {
     var speedRoundUnlocked: Bool
     var bestSpeedAvg: Double = 0   // best (lowest) median response time in a Speed Round; 0 = none yet
 
+    /// True/False Lightning Round: a parent-enabled extra, mirroring how the Speed
+    /// Round is unlocked (see ParentAreaView's "Settings" toggle).
+    var lightningRoundUnlocked: Bool = false
+    /// Best (highest) correct count out of a Lightning Round; ties broken by faster time.
+    var bestLightningScore: Int = 0
+    /// Total time (seconds) of the best Lightning Round run.
+    var bestLightningTime: Double = 0
+    /// Whether a Lightning Round has ever been completed — 0 is a legitimate score,
+    /// so this sentinel disambiguates "no runs yet" from "scored zero."
+    var hasLightningResult: Bool = false
+
     /// Bitmask of worlds whose boss challenge has been beaten. A world *clears* by
     /// beating its boss (not merely by reaching full fluency), so this is explicit state.
     var clearedWorldsMask: Int = 0

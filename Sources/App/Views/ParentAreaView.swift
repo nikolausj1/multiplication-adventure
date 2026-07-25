@@ -391,6 +391,7 @@ struct ParentAreaView: View {
             if let a = active {
                 Toggle("Sound effects", isOn: Binding(get: { a.soundOn }, set: { a.soundOn = $0; Feedback.soundEnabled = $0 }))
                 Toggle("Speed Round unlocked", isOn: Binding(get: { a.speedRoundUnlocked }, set: { a.speedRoundUnlocked = $0 }))
+                Toggle("Lightning Round unlocked", isOn: Binding(get: { a.lightningRoundUnlocked }, set: { a.lightningRoundUnlocked = $0 }))
                 Toggle("Show timer during practice", isOn: Binding(get: { a.timingMode == .speed },
                                                                    set: { a.timingMode = $0 ? .speed : .gentle }))
                 Text("Off keeps practice pressure-free (times are still tracked). The Speed Round always shows its timer.")

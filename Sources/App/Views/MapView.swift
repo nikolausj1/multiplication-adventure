@@ -31,6 +31,9 @@ struct MapView: View {
     /// The anytime Speed Round is a parent-enabled extra; the boss challenge is
     /// the built-in timed moment.
     private var canSpeedRound: Bool { profile?.speedRoundUnlocked ?? false }
+    /// The True/False Lightning Round: a parent-enabled extra, gated the same way
+    /// as the Speed Round (see ParentAreaView's Settings toggle).
+    private var canLightning: Bool { profile?.lightningRoundUnlocked ?? false }
     private var isComplete: Bool { (profile?.masteredCount ?? 0) == FactUniverse.count }
 
     /// Fractional positions of each world node, forming a left→right winding trail,
@@ -80,7 +83,8 @@ struct MapView: View {
         // cover is ignored. Same lesson as PlayerProfileView.
         .overlay {
             if let sel = sessionWorld {
-                SessionView(worldIndex: sel.id, speedRound: sel.speed, boss: sel.boss,
+                SessionView(worldIndex: sel.id, speedRound: sel.speed, lightningRound: sel.lightning,
+                            boss: sel.boss,
                             onClose: {
                     withAnimation(.easeOut(duration: 0.25)) { sessionWorld = nil }
                     checkUnlockReveal()
@@ -138,6 +142,9 @@ struct MapView: View {
             }
             if args.contains("-autostartCertificate") { showCertificate = true }
             if args.contains("-autostartSpeed") { sessionWorld = WorldSelection(id: currentIndex, speed: true) }
+            if args.contains("-autostartLightning") || args.contains("-demoLightningResults") {
+                sessionWorld = WorldSelection(id: currentIndex, lightning: true)
+            }
             if args.contains("-autostartBoss") { sessionWorld = WorldSelection(id: currentIndex, boss: true) }
             // Demo: play the fog-lift reveal on the current node (pair with -demoProgress).
             if args.contains("-demoReveal") { revealWorld = currentIndex }
@@ -214,6 +221,13 @@ struct MapView: View {
             if canSpeedRound {
                 Button { sessionWorld = WorldSelection(id: currentIndex, speed: true) } label: {
                     Label("Speed", systemImage: "timer").font(Theme.Font.label(14))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
+                }
+            }
+            if canLightning {
+                Button { sessionWorld = WorldSelection(id: currentIndex, lightning: true) } label: {
+                    Label("Lightning", systemImage: "bolt.fill").font(Theme.Font.label(14))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 13).frame(height: 44).darkPlate(corner: 22)
                 }
@@ -503,11 +517,12 @@ private struct PulsingRing: View {
 }
 
 /// Wrapper so `fullScreenCover(item:)` can carry a world index + how to start it.
-/// `boss` runs the world's boss challenge; `speed` a Speed Round; `testFormat`
-/// forces a question format (dev/testing).
+/// `boss` runs the world's boss challenge; `speed` a Speed Round; `lightning` a
+/// True/False Lightning Round; `testFormat` forces a question format (dev/testing).
 struct WorldSelection: Identifiable {
     let id: Int
     var speed: Bool = false
+    var lightning: Bool = false
     var boss: Bool = false
     var testFormat: MasteryStage? = nil
 }
