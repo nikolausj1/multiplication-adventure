@@ -1,8 +1,8 @@
 ---
 title: "STATUS - Math Tutor"
 created: 2026-07-24
-modified: 2026-07-25
-version: 2.0
+modified: 2026-07-31
+version: 2.1
 author: Claude Fable 5 (claude-fable-5)
 tags:
 ---
@@ -15,7 +15,7 @@ An iPad/iPhone SwiftUI app you built for your son Chase, called Multiplication A
 
 ## Stage
 
-Beta (submitted to Apple for App Store review 2026-07-25; gameplay loop complete and in daily use on real devices)
+Beta (1.0 build 2 resubmitted for App Store review 2026-07-31 after correcting the iPad screenshots; gameplay loop complete and in daily use on real devices)
 
 ## Health
 
@@ -27,7 +27,7 @@ Beta (submitted to Apple for App Store review 2026-07-25; gameplay loop complete
       - unblocks: knowing whether the pacing engine needs another retuning pass (and a 1.0.1 if so)
 - [ ] **Try the new Lightning Round with the kids** (~10 min) - it ships OFF; enable via Parent Area gear -> Settings -> "Lightning Round unlocked" on their iPads
       - unblocks: deciding if it stays in the rotation as the mid-summer freshness drop
-- [ ] **Watch for Apple's review verdict** (~passive, 1-3 days typical) - approval auto-releases the app; a rejection email will say exactly what to fix
+- [ ] **Watch for Apple's review verdict** (~passive) - approval auto-releases the app. NOTE: the first submission sat in "Waiting for Review" for six days with no reviewer action and no message from Apple; if this one stalls past ~5 days, contact App Review rather than assuming it is normal queueing
       - unblocks: the public App Store listing going live
 
 ## Next Up
@@ -58,13 +58,18 @@ Apple review has the current pacing engine frozen in build 2 while the kids stil
 
 ## App Store Readiness
 
-- DONE 2026-07-25: **1.0 (build 2) submitted for App Store review, state WAITING_FOR_REVIEW, auto-release on approval.**
+- 2026-07-31: **1.0 (build 2) RESUBMITTED, state WAITING_FOR_REVIEW, auto-release on approval.** The 2026-07-25 submission sat six days untouched; pulled it (version briefly showed "Developer Rejected", which just means withdrawn by us) to replace the iPad screenshots, then resubmitted.
 - Done: privacy policy live at https://nikolausj1.github.io/multiplication-adventure/privacy-policy.html (GitHub Pages).
 - Done: public name "Multiplication Adventure" (ASC app 6787582433, record existed since Jul 4).
 - Done: all metadata (subtitle, description, keywords, promo text, support URL, copyright), categories Education + Games (Family/Trivia - Apple's API no longer offers Games>Educational), age rating 4+, price Free, all 175 territories, App Privacy "Data Not Collected" published, review contact (phone reused from the ForeSome app record).
-- Done: 9 screenshots uploaded (5 iPad 13", 4 iPhone 6.9": map, session, boss, Lightning Round).
+- Done: 9 screenshots uploaded (5 iPad 13", 4 iPhone 6.9": map, session, boss, Lightning Round). iPad set REPLACED 2026-07-31 with true landscape 2752x2064 captures - the originals were portrait 2064x2752 with black letterbox bars because the sim device was in portrait while the app is landscape-locked.
 - Done: TestFlight - build 2 processed, internal "Family" group (apple@justinnikolaus.com invited), beta description + What to Test filled.
 - Devices: iPhone and dad's iPad Pro on 1.0 (2) with the Lightning Round; Chase's iPad still on 83e7702 (functionally identical for him - Lightning ships gated OFF).
+
+## Session Notes (2026-07-31)
+
+- Answered Apple's new age-rating question `socialMediaAgeRestricted` (no social features); ASC had been nagging with a 2026-09-07 deadline.
+- Screenshots cannot be edited while a version is "Waiting for Review" - fixing them costs the queue position.
 
 ## Session Notes (2026-07-25)
 
