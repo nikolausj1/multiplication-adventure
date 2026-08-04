@@ -10,9 +10,18 @@ struct BossGalleryView: View {
     @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     private var compact: Bool { vSize == .compact }
 
-    @State private var worldIndex = 0
+    @State private var worldIndex: Int
     @State private var hits = 0
     @State private var lastHitCritical = false
+
+    /// Launches the REAL boss session for the world currently on screen.
+    /// Defaulted so existing call sites and previews keep compiling.
+    var onPlayBoss: (Int) -> Void = { _ in }
+
+    init(initialWorldIndex: Int = 0, onPlayBoss: @escaping (Int) -> Void = { _ in }) {
+        _worldIndex = State(initialValue: initialWorldIndex)
+        self.onPlayBoss = onPlayBoss
+    }
 
     private let hpTotal = 5
     private var theme: WorldTheme { .forWorld(worldIndex) }
@@ -31,6 +40,7 @@ struct BossGalleryView: View {
                         .frame(maxWidth: compact ? 280 : 460, maxHeight: compact ? 210 : 420)
                     navButton("chevron.right", label: "Next world") { step(1) }
                 }
+                playBossButton
                 Spacer(minLength: 4)
                 controls
             }
@@ -68,6 +78,20 @@ struct BossGalleryView: View {
                 .shadow(color: .black.opacity(0.4), radius: 6, y: 3)
         }
         .padding(.top, compact ? 4 : 10)
+    }
+
+    // MARK: Play Boss Fight — the primary action, distinct from the preview pokes below
+
+    private var playBossButton: some View {
+        Button { onPlayBoss(worldIndex) } label: {
+            Label("Play Boss Fight", systemImage: "flag.checkered")
+                .font(Theme.Font.label(compact ? 16 : 21))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, compact ? 12 : 18)
+        }
+        .buttonStyle(ChunkyKeyStyle(base: Theme.Color.accent, deep: Theme.Color.accent.shaded(by: -0.4)))
+        .frame(maxWidth: compact ? 320 : 460)
+        .accessibilityHint("Launches the real boss fight for this world")
     }
 
     private func navButton(_ icon: String, label: String, action: @escaping () -> Void) -> some View {

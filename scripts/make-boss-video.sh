@@ -5,15 +5,20 @@
 #   ./scripts/make-boss-video.sh <master.mov> <worldN> [quality]
 #   e.g. ./scripts/make-boss-video.sh _inbox/bossVideos/world2boss.MOV world2
 #
-# Two passes, and BOTH are required:
-#   1. ffmpeg — crop to the union bounding box of the animation (so the video
-#      drops into BossPanel at the same size the still occupied) and bake a
-#      ping-pong loop (forward, then reversed minus the duplicated end frames)
-#      so it repeats seamlessly. Kling renders do NOT loop on their own.
-#   2. AVAssetWriter (prores2hevcalpha.swift) — re-encode to Apple's
+# Three things happen, and all three matter:
+#   1. Measure — find the union bounding box of the opaque pixels across EVERY
+#      frame (the boss moves; a crop tight on frame 0 clips him mid-sway), and
+#      find the first/last frames that actually contain the boss at all.
+#      Some renders fade in from a fully transparent frame — world 5's frame 0
+#      was 100% transparent, which both breaks the bbox math and would make the
+#      boss blink out at the loop point. Those frames get trimmed.
+#   2. ffmpeg — trim, crop, and bake a ping-pong loop (forward, then reversed
+#      minus the duplicated end frames) so it repeats seamlessly. Kling renders
+#      do NOT loop on their own.
+#   3. AVAssetWriter (prores2hevcalpha.swift) — re-encode to Apple's
 #      AVVideoCodecType.hevcWithAlpha.
 #
-# Why pass 2 instead of just letting ffmpeg encode HEVC directly: ffmpeg's
+# Why step 3 instead of letting ffmpeg encode HEVC directly: ffmpeg's
 # `hevc_videotoolbox -alpha_quality` produces a file that ADVERTISES alpha
 # (AVFoundation reports ContainsAlphaChannel=1) and that ffmpeg itself can
 # decode back with alpha intact — but it tags AlphaChannelMode as
@@ -30,40 +35,62 @@ OUT="Sources/App/Resources/BossVideos/${WORLD}_boss.mov"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "→ Measuring the animation's union bounding box"
-# The boss MOVES, so crop to the union of every frame's opaque area, not
-# frame 0's. A crop that is tight on frame 0 will clip him mid-sway.
+echo "→ Measuring opaque bounding box and usable frame range"
 ffmpeg -v error -y -i "$MASTER" -vsync 0 "$TMP/%04d.png"
-read -r CW CH CX CY <<EOF
-$(python3 - "$TMP" <<'PY'
+
+MEASURE=$(python3 - "$TMP" <<'PY'
 import sys, glob
 import numpy as np
 from PIL import Image
+
+files = sorted(glob.glob(sys.argv[1] + "/*.png"))
+if not files:
+    sys.exit("no frames extracted")
+
 x0 = y0 = 10**9; x1 = y1 = -1
-for f in sorted(glob.glob(sys.argv[1] + "/*.png")):
+first_good = last_good = None
+W = H = 0
+for i, f in enumerate(files):
     a = np.asarray(Image.open(f).convert("RGBA"))[..., 3] > 16
+    H, W = a.shape
+    if not a.any():
+        continue                      # fully transparent frame — skip entirely
+    if first_good is None:
+        first_good = i
+    last_good = i
     ys, xs = np.where(a)
     x0 = min(x0, xs.min()); x1 = max(x1, xs.max())
     y0 = min(y0, ys.min()); y1 = max(y1, ys.max())
-    H, W = a.shape
-# 6px of safety, clamped to the frame, and even dimensions for the encoder
-PAD = 6
+
+if first_good is None:
+    sys.exit("every frame is fully transparent — is this really an alpha master?")
+
+PAD = 6                                # safety margin, clamped to the frame
 x0 = max(0, x0 - PAD); y0 = max(0, y0 - PAD)
 x1 = min(W - 1, x1 + PAD); y1 = min(H - 1, y1 + PAD)
-w = (x1 - x0 + 1) // 2 * 2
+w = (x1 - x0 + 1) // 2 * 2             # even dimensions for the encoder
 h = (y1 - y0 + 1) // 2 * 2
-print(w, h, x0, y0)
+print(w, h, x0, y0, first_good, last_good, len(files))
 PY
 )
-EOF
-echo "  crop=${CW}:${CH}:${CX}:${CY}"
+read -r CW CH CX CY F0 F1 NTOTAL <<<"$MEASURE"
+NKEEP=$(( F1 - F0 + 1 ))
+echo "  crop=${CW}:${CH}:${CX}:${CY}   frames ${F0}..${F1} of ${NTOTAL} (${NKEEP} kept)"
+if [ "$NKEEP" -lt "$NTOTAL" ]; then
+  echo "  (trimmed $(( NTOTAL - NKEEP )) fully-transparent frame(s))"
+fi
+if [ "$NKEEP" -lt 8 ]; then
+  echo "  ERROR: only $NKEEP usable frames — refusing to build a loop from that" >&2
+  exit 1
+fi
 
-echo "→ Pass 1: crop + ping-pong loop (ProRes 4444 intermediate)"
-# reverse then drop the first and last reversed frames, otherwise the turnaround
+echo "→ Pass 1: trim + crop + ping-pong loop (ProRes 4444 intermediate)"
+# The reversed half drops its first and last frames, otherwise the turnaround
 # stutters on a duplicated frame.
+REV_LAST=$(( NKEEP - 2 ))
 ffmpeg -v error -y -i "$MASTER" -filter_complex \
-  "[0:v]crop=${CW}:${CH}:${CX}:${CY},split[a][b];\
-   [b]reverse,select='between(n\,1\,$(( $(ffprobe -v error -select_streams v:0 -count_frames -show_entries stream=nb_read_frames -of csv=p=0 "$MASTER") - 2 )))',setpts=N/FRAME_RATE/TB[r];\
+  "[0:v]select='between(n\,${F0}\,${F1})',setpts=N/FRAME_RATE/TB,crop=${CW}:${CH}:${CX}:${CY},split[a][b];\
+   [b]reverse,select='between(n\,1\,${REV_LAST})',setpts=N/FRAME_RATE/TB[r];\
    [a][r]concat=n=2:v=1[out]" \
   -map "[out]" -c:v prores_ks -profile:v 4444 -pix_fmt yuva444p10le -an -sn "$TMP/intermediate.mov"
 
@@ -71,6 +98,10 @@ echo "→ Pass 2: re-encode to Apple hevcWithAlpha"
 swift scripts/prores2hevcalpha.swift "$TMP/intermediate.mov" "$OUT" "$QUALITY" 2>/dev/null | tail -4
 
 echo "→ Verifying alpha survived"
-swift scripts/alphacheck.swift "$OUT" 2>/dev/null | grep -E "containsAlphaChannel|AlphaChannelMode|naturalSize"
+if ! swift scripts/alphacheck.swift "$OUT" 2>/dev/null | grep -q "containsAlphaChannel): true"; then
+  echo "  ERROR: output does not report an alpha channel" >&2
+  exit 1
+fi
+swift scripts/alphacheck.swift "$OUT" 2>/dev/null | grep -E "AlphaChannelMode|naturalSize"
 ls -lh "$OUT"
 echo "✓ $OUT — rebuild the app to pick it up"

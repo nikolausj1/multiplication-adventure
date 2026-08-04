@@ -29,6 +29,8 @@ struct ParentAreaView: View {
     @State private var testLaunch: WorldSelection?
     @State private var showCert = false
     @State private var showBossGallery = false
+    @State private var galleryInitialWorld = 0
+    @State private var pendingBossWorld: Int?
     @State private var startOverTarget: Profile?
 
     private let avatars = AvatarCatalog.keys
@@ -53,6 +55,11 @@ struct ParentAreaView: View {
             if args.contains("-openGate") { showGate = true }
             if args.contains("-openHow") { howOpen = true }
             if args.contains("-openDev") { devUnlocked = true }
+            // Optional companion to -autostartBossGallery: open the gallery already
+            // showing a specific world. Same idiom as -starsGoal in LevelUpMathApp.
+            if let i = args.firstIndex(of: "-galleryWorld"), i + 1 < args.count, let n = Int(args[i + 1]) {
+                galleryInitialWorld = min(max(n, 0), WorldCatalog.count - 1)
+            }
             // Deep-link straight into the boss gallery (see MapView, which sets
             // showParent for this same flag so a single arg reaches all the way).
             if args.contains("-autostartBossGallery") { devUnlocked = true; showBossGallery = true }
@@ -61,7 +68,20 @@ struct ParentAreaView: View {
             }
         }
         .sheet(isPresented: $showCert) { CertificateView(name: activeName) }
-        .sheet(isPresented: $showBossGallery) { BossGalleryView() }
+        .sheet(isPresented: $showBossGallery, onDismiss: {
+            // Runs after the sheet has fully dismissed, so presenting testLaunch's
+            // fullScreenCover here can't race the gallery's own dismissal (a sheet
+            // dismiss + a new presentation in the same runloop turn can silently
+            // drop the second one).
+            guard let world = pendingBossWorld else { return }
+            pendingBossWorld = nil
+            testLaunch = WorldSelection(id: world, boss: true)
+        }) {
+            BossGalleryView(initialWorldIndex: galleryInitialWorld, onPlayBoss: { world in
+                pendingBossWorld = world
+                showBossGallery = false
+            })
+        }
         .fullScreenCover(item: $testLaunch) { sel in
             SessionView(worldIndex: sel.id, speedRound: sel.speed, boss: sel.boss, testFormat: sel.testFormat)
                 .environment(\.worldTheme, .forWorld(sel.id))
