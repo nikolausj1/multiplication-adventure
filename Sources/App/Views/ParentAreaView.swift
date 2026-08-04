@@ -23,7 +23,10 @@ struct ParentAreaView: View {
     @State private var deleteTarget: Profile?
     @State private var resetTarget: Profile?
 
-    // Developer / testing
+    // Developer / testing — DEBUG ONLY. None of this may ship: App Review
+    // Guideline 2.3.1(a) forbids hidden/undocumented features, and these
+    // controls fabricate and overwrite a child's real progress.
+    #if DEBUG
     @State private var devUnlocked = false   // gate per sheet-presentation; spoils world names otherwise
     @State private var testWorld = 0
     @State private var testLaunch: WorldSelection?
@@ -31,10 +34,15 @@ struct ParentAreaView: View {
     @State private var showBossGallery = false
     @State private var galleryInitialWorld = 0
     @State private var pendingBossWorld: Int?
+    #endif
     @State private var startOverTarget: Profile?
 
     private let avatars = AvatarCatalog.keys
     @State private var howOpen = false
+
+    /// Published alongside the App Store listing (GitHub Pages).
+    static let privacyURL = URL(string: "https://nikolausj1.github.io/multiplication-adventure/privacy-policy.html")!
+    static let supportURL = URL(string: "https://nikolausj1.github.io/multiplication-adventure/support.html")!
 
     var body: some View {
         ZStack {
@@ -54,6 +62,7 @@ struct ParentAreaView: View {
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-openGate") { showGate = true }
             if args.contains("-openHow") { howOpen = true }
+            #if DEBUG
             if args.contains("-openDev") { devUnlocked = true }
             // Optional companion to -autostartBossGallery: open the gallery already
             // showing a specific world. Same idiom as -starsGoal in LevelUpMathApp.
@@ -63,10 +72,14 @@ struct ParentAreaView: View {
             // Deep-link straight into the boss gallery (see MapView, which sets
             // showParent for this same flag so a single arg reaches all the way).
             if args.contains("-autostartBossGallery") { devUnlocked = true; showBossGallery = true }
+            #endif
             if args.contains("-testStartOver") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { performStartOver(profiles.first(where: { $0.isActive })) }
             }
         }
+        // Developer-only presentations (certificate preview, boss gallery, and
+        // format jump-ins) — compiled out of Release with the card itself.
+        #if DEBUG
         .sheet(isPresented: $showCert) { CertificateView(name: activeName) }
         // Full screen, NOT a sheet: on iPad a sheet is a small fixed-size floating
         // card, so the guardian ends up tiny no matter what size the gallery asks
@@ -88,6 +101,7 @@ struct ParentAreaView: View {
             SessionView(worldIndex: sel.id, speedRound: sel.speed, boss: sel.boss, testFormat: sel.testFormat)
                 .environment(\.worldTheme, .forWorld(sel.id))
         }
+        #endif
         .alert("New profile", isPresented: $showAdd) {
             TextField("Name", text: $addName)
             Button("Create") { _ = service.createProfile(name: addName, avatar: avatars.randomElement()!); addName = "" }
@@ -163,7 +177,13 @@ struct ParentAreaView: View {
                         profilesCard
                         settingsCard
                         howItWorksCard
+                        // Debug builds only. Shipping this was an App Store
+                        // blocker: Guideline 2.3.1(a) forbids "hidden, dormant,
+                        // or undocumented features", and these buttons fabricate
+                        // and overwrite real progress.
+                        #if DEBUG
                         developerCard
+                        #endif
                     }
                     .padding(.bottom, Theme.Metric.pad)
                 }
@@ -288,6 +308,7 @@ struct ParentAreaView: View {
 
     // MARK: Developer / testing
 
+    #if DEBUG
     @ViewBuilder
     private var developerCard: some View {
         if devUnlocked { devCardOpen } else { devCardLocked }
@@ -363,6 +384,7 @@ struct ParentAreaView: View {
         }
         .buttonStyle(.bordered).tint(Theme.Color.primary)
     }
+    #endif   // DEBUG — developer/testing surfaces end here
 
     // MARK: Profiles
 
@@ -425,6 +447,17 @@ struct ParentAreaView: View {
                 Text("Off keeps practice pressure-free (times are still tracked). The Speed Round always shows its timer.")
                     .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
             }
+            Divider().padding(.vertical, 2)
+            // Guideline 5.1.1(i) requires the privacy policy to be reachable
+            // "within the app", not only from the App Store listing. Parent
+            // area is the right home: it's the adult surface of the app.
+            Text("This app collects no data and works entirely offline.")
+                .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
+            HStack(spacing: 14) {
+                Link("Privacy Policy", destination: Self.privacyURL)
+                Link("Support", destination: Self.supportURL)
+            }
+            .font(Theme.Font.label(14))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.Metric.pad).cardSurface()
@@ -432,8 +465,13 @@ struct ParentAreaView: View {
     }
 }
 
-/// The parent gate: "enter your year of birth" — accepts any year implying an
-/// adult (18–100 years old).
+/// The parent gate: a two-digit multiplication problem well beyond the app's
+/// own curriculum (teens × teens, no answer under 100). Apple's parental-gate
+/// guidance asks for an "adult-level task" and illustrates exactly this — a
+/// math problem — while year-of-birth is neither endorsed nor safe here (a
+/// child can guess a parent's birth year, and there were only 83 valid
+/// answers). The problem is re-rolled on every presentation and after every
+/// miss, so it can't be learned by repetition.
 struct ParentGateView: View {
     let onPass: () -> Void
     let onCancel: () -> Void
@@ -443,13 +481,23 @@ struct ParentGateView: View {
 
     @State private var entry = ""
     @State private var wrong = false
+    @State private var lhs = 0
+    @State private var rhs = 0
+
+    /// Deliberately outside the 0–11 tables this app teaches, so solving it is
+    /// an adult task rather than a lesson the child has already mastered.
+    private static func newProblem() -> (Int, Int) {
+        (Int.random(in: 12...19), Int.random(in: 12...19))
+    }
 
     var body: some View {
         VStack(spacing: compact ? 10 : 18) {
             Text("Parents only").font(Theme.Font.display(compact ? 19 : 24)).foregroundStyle(Theme.Color.ink)
-            Text("Please enter your year of birth").font(Theme.Font.body()).foregroundStyle(Theme.Color.inkSoft)
+            Text("To continue, solve:").font(Theme.Font.body()).foregroundStyle(Theme.Color.inkSoft)
+            Text("\(lhs) × \(rhs)")
+                .font(Theme.Font.number(compact ? 28 : 36)).foregroundStyle(Theme.Color.ink)
             HStack(spacing: 10) {
-                ForEach(0..<4, id: \.self) { i in
+                ForEach(0..<3, id: \.self) { i in
                     Text(i < entry.count ? String(Array(entry)[i]) : "")
                         .font(Theme.Font.number(compact ? 24 : 30)).foregroundStyle(Theme.Color.ink)
                         .frame(width: compact ? 42 : 52, height: compact ? 48 : 62)
@@ -460,8 +508,8 @@ struct ParentGateView: View {
                 }
             }
             if wrong { Text("Not quite — try again").font(Theme.Font.label()).foregroundStyle(Theme.Color.gentle) }
-            NumberPadView(enterEnabled: entry.count == 4,
-                          onDigit: { d in if entry.count < 4 { entry.append(String(d)) } },
+            NumberPadView(enterEnabled: entry.count == 3,
+                          onDigit: { d in if entry.count < 3 { entry.append(String(d)) } },
                           onDelete: { _ = entry.popLast() },
                           onEnter: check,
                           keyTint: Theme.Color.primary)
@@ -469,14 +517,15 @@ struct ParentGateView: View {
         }
         .padding(Theme.Metric.pad)
         .frame(maxWidth: 460)
+        .onAppear { (lhs, rhs) = Self.newProblem() }
     }
 
     private func check() {
-        let currentYear = Calendar.current.component(.year, from: .now)
-        if let y = Int(entry), ((currentYear - 100)...(currentYear - 18)).contains(y) {
+        if Int(entry) == lhs * rhs {
             onPass()
         } else {
-            wrong = true; entry = ""
+            // Re-roll so repeated guessing can't converge on one answer.
+            wrong = true; entry = ""; (lhs, rhs) = Self.newProblem()
         }
     }
 }
