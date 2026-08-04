@@ -13,6 +13,7 @@ struct WorldTheme: Equatable {
     var nodeImage: String { "\(world.assetKey)_node" }
     var buttonImage: String { "\(world.assetKey)_button" }
     var bossImage: String { "\(world.assetKey)_boss" }
+    var bossVideo: String { "\(world.assetKey)_boss" }
 
     static func forWorld(_ index: Int) -> WorldTheme {
         WorldTheme(world: WorldCatalog.worlds[min(max(index, 0), WorldCatalog.count - 1)])
@@ -53,5 +54,11 @@ enum Art {
         #else
         return false
         #endif
+    }
+
+    /// The bundled URL for a flat `.mov` resource, or nil if that world has no
+    /// video yet (falls back to the still `bossImage`).
+    static func videoURL(_ name: String) -> URL? {
+        Bundle.main.url(forResource: name, withExtension: "mov")
     }
 }

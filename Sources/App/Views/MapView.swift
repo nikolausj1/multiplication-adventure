@@ -134,6 +134,10 @@ struct MapView: View {
                 }
             }
             if args.contains("-autostartParent") { showParent = true }
+            // Boss Gallery lives one level deeper, behind the parent gate's dev
+            // card — ParentAreaView's own onAppear checks this same flag to
+            // unlock dev mode and open the gallery once it's on screen.
+            if args.contains("-autostartBossGallery") { showParent = true }
             if args.contains("-autostartProfile") { showProfile = true }
             if args.contains("-autostartStreak") { showStreak = true }
             if args.contains("-autostartTimesTable") { showTimesTable = true }
