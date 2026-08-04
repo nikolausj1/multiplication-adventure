@@ -128,7 +128,7 @@ struct SessionView: View {
                     HStack(alignment: .center, spacing: 4) {
                         BossPanel(theme: theme, hits: vm.correctCount, hpTotal: vm.bossHPTotal,
                                   lastHitCritical: vm.lastHitCritical)
-                            .frame(maxWidth: compact ? 250 : 400)
+                            .frame(maxWidth: compact ? 250 : 470)
                         QuestionContainer(vm: vm, question: q)
                             .id(vm.index)
                             .frame(maxWidth: compact ? 560 : 620)

@@ -68,11 +68,13 @@ struct ParentAreaView: View {
             }
         }
         .sheet(isPresented: $showCert) { CertificateView(name: activeName) }
-        .sheet(isPresented: $showBossGallery, onDismiss: {
-            // Runs after the sheet has fully dismissed, so presenting testLaunch's
-            // fullScreenCover here can't race the gallery's own dismissal (a sheet
-            // dismiss + a new presentation in the same runloop turn can silently
-            // drop the second one).
+        // Full screen, NOT a sheet: on iPad a sheet is a small fixed-size floating
+        // card, so the guardian ends up tiny no matter what size the gallery asks
+        // for — the whole point of this screen is judging the art at real size.
+        .fullScreenCover(isPresented: $showBossGallery, onDismiss: {
+            // Runs after the gallery has fully dismissed, so presenting testLaunch's
+            // own fullScreenCover here can't race that dismissal (a dismiss + a new
+            // presentation in the same runloop turn can silently drop the second).
             guard let world = pendingBossWorld else { return }
             pendingBossWorld = nil
             testLaunch = WorldSelection(id: world, boss: true)

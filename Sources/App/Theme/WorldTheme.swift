@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 /// Maps a pure-engine `World` to SwiftUI colors and asset names. This is the swap
 /// point between the data-driven world catalog and the actual art/palette.
@@ -60,5 +61,25 @@ enum Art {
     /// video yet (falls back to the still `bossImage`).
     static func videoURL(_ name: String) -> URL? {
         Bundle.main.url(forResource: name, withExtension: "mov")
+    }
+
+    private static var videoAspectCache: [String: CGFloat] = [:]
+
+    /// A video's own width/height. Each boss video is cropped to the union
+    /// bounding box of its animation, so its aspect differs per world AND from
+    /// the matching still — constraining the player to the still's aspect
+    /// letterboxes the video inside that box and renders the boss up to 26%
+    /// smaller than the space allows. Measured once per name and cached; the
+    /// files are local and tiny to interrogate.
+    static func videoAspect(_ name: String) -> CGFloat? {
+        if let cached = videoAspectCache[name] { return cached }
+        guard let url = videoURL(name),
+              let track = AVURLAsset(url: url).tracks(withMediaType: .video).first
+        else { return nil }
+        let size = track.naturalSize.applying(track.preferredTransform)
+        let w = abs(size.width), h = abs(size.height)
+        guard w > 0, h > 0 else { return nil }
+        videoAspectCache[name] = w / h
+        return w / h
     }
 }

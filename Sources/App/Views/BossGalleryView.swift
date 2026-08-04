@@ -37,7 +37,7 @@ struct BossGalleryView: View {
                 HStack(spacing: compact ? 10 : 26) {
                     navButton("chevron.left", label: "Previous world") { step(-1) }
                     BossPanel(theme: theme, hits: hits, hpTotal: hpTotal, lastHitCritical: lastHitCritical)
-                        .frame(maxWidth: compact ? 280 : 460, maxHeight: compact ? 210 : 420)
+                        .frame(maxWidth: compact ? 280 : 660, maxHeight: compact ? 210 : 580)
                     navButton("chevron.right", label: "Next world") { step(1) }
                 }
                 playBossButton

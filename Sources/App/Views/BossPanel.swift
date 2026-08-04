@@ -41,12 +41,13 @@ struct BossPanel: View {
     private var showVideo: Bool {
         !defeated && !reduceMotion
             && Art.videoURL(theme.bossVideo) != nil
-            && bossAspectRatio != nil
+            && Art.videoAspect(theme.bossVideo) != nil
     }
 
     @ViewBuilder
     private var bossVisual: some View {
-        if showVideo, let url = Art.videoURL(theme.bossVideo), let ratio = bossAspectRatio {
+        if showVideo, let url = Art.videoURL(theme.bossVideo),
+           let ratio = Art.videoAspect(theme.bossVideo) {
             // NOTE: deliberately bare. The defeat treatment below
             // (saturation/opacity/rotation) and the drop shadow are all
             // compositing filters, and applying any of them to this
@@ -73,7 +74,7 @@ struct BossPanel: View {
     var body: some View {
         VStack(spacing: 14) {
             bossVisual
-                .frame(maxHeight: vSize == .compact ? 190 : 400)
+                .frame(maxHeight: vSize == .compact ? 190 : 470)
                 .modifier(Shake(travel: 10, shakesPerUnit: 3,
                                 animatableData: reduceMotion ? 0 : shakePhase))
                 .overlay {
