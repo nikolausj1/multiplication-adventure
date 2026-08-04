@@ -1,8 +1,8 @@
 ---
 title: "STATUS - Math Tutor"
 created: 2026-07-24
-modified: 2026-07-31
-version: 2.1
+modified: 2026-08-03
+version: 2.2
 author: Claude Fable 5 (claude-fable-5)
 tags:
 ---
@@ -27,6 +27,10 @@ Beta (1.0 build 2 resubmitted for App Store review 2026-07-31 after correcting t
       - unblocks: knowing whether the pacing engine needs another retuning pass (and a 1.0.1 if so)
 - [ ] **Try the new Lightning Round with the kids** (~10 min) - it ships OFF; enable via Parent Area gear -> Settings -> "Lightning Round unlocked" on their iPads
       - unblocks: deciding if it stays in the rotation as the mid-summer freshness drop
+- [ ] **Review the world-1 boss video on device** (~5 min) - iPhone and dad's iPad Pro already have it (branch `boss-idle-videos`). Parent Area gear -> Developer/Testing -> Boss Gallery. Tap Defeat there: that path swaps to the still, and it is the one transition I could not tap-test myself
+      - unblocks: deciding whether to render the other six bosses
+- [ ] **Render the remaining six boss videos** (~your Kling time) - only after the above. Bigger subject (~1000-1200px tall, render 1920x1080) and >=40px margin all round; keep ProRes 4444 + alpha, 8s idle sway. Then `./scripts/make-boss-video.sh <master.mov> worldN`
+      - unblocks: shipping animated bosses for the whole map
 - [ ] **Watch for Apple's review verdict** (~passive) - approval auto-releases the app. NOTE: the first submission sat in "Waiting for Review" for six days with no reviewer action and no message from Apple; if this one stalls past ~5 days, contact App Review rather than assuming it is normal queueing
       - unblocks: the public App Store listing going live
 
@@ -38,7 +42,7 @@ Beta (1.0 build 2 resubmitted for App Store review 2026-07-31 after correcting t
 
 ## Ideas Shelf
 
-- **Boss idle videos** (L) - replace boss stills with seamless idle loops (Kling image-to-video, chroma key to HEVC-alpha, AVPlayerLooper) layered behind the existing flinch/crit/defeat effects; pilot with 2-3 bosses first, full plan already discussed.
+- **Boss idle videos** - PILOT BUILT 2026-08-03 on branch `boss-idle-videos` (world 1 only, deployed to iPhone + dad's iPad Pro, not merged, not in any App Store build). Remaining: review on device, then render worlds 2-7 and run them through `scripts/make-boss-video.sh`.
 - **Progress export/import** (S) - a Parent Area button to export the profile as JSON via the share sheet (and re-import); cheap insurance against device loss or a botched update.
 - **Per-world ambience loops** (M) - background music per world, Kling prompts already drafted, volume-ducked under SFX with a parent toggle.
 - **iPad portrait polish** (M) - the app now runs in portrait on iPad (universal update side effect) with heavy letterboxing; either lock it back to landscape or make portrait first-class.
