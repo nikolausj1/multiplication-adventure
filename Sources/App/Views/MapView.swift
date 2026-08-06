@@ -7,7 +7,10 @@ import SwiftData
 struct MapView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.verticalSizeClass) private var vSize   // compact = iPhone landscape
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
+
+    private var compact: Bool { vSize == .compact }
 
     @State private var sessionWorld: WorldSelection?
     @State private var showParent = false
@@ -44,11 +47,21 @@ struct MapView: View {
         CGPoint(x: 0.91, y: 0.76),
     ]
 
+    /// iPhone landscape is short: the capped banner takes the top ~0.32, so the
+    /// trail is compressed into the lower band (upper row ~0.56, lower ~0.80) with
+    /// smaller nodes so both rows clear the banner and neither clips the bottom.
+    private let ptsCompact: [CGPoint] = [
+        CGPoint(x: 0.09, y: 0.80), CGPoint(x: 0.22, y: 0.56), CGPoint(x: 0.35, y: 0.80),
+        CGPoint(x: 0.49, y: 0.56), CGPoint(x: 0.63, y: 0.80), CGPoint(x: 0.78, y: 0.56),
+        CGPoint(x: 0.91, y: 0.79),
+    ]
+    private var nodePoints: [CGPoint] { compact ? ptsCompact : pts }
+
     var body: some View {
         ZStack {
             mapBackdrop
             GeometryReader { geo in
-                let scaled = pts.map { CGPoint(x: $0.x * geo.size.width, y: $0.y * geo.size.height) }
+                let scaled = nodePoints.map { CGPoint(x: $0.x * geo.size.width, y: $0.y * geo.size.height) }
                 ZStack {
                     TrailPath(points: scaled)
                         .stroke(style: StrokeStyle(lineWidth: 5, lineCap: .round, dash: [2, 14]))
@@ -68,7 +81,17 @@ struct MapView: View {
             // Full-bleed title banner: painted sky fades into the map's fog.
             if Art.exists("map_banner") {
                 VStack(spacing: 0) {
-                    Image("map_banner").resizable().scaledToFit()
+                    // Full-bleed, top-pinned on iPad (natural fitted height). On the
+                    // short iPhone landscape the full-width banner would scale to
+                    // ~70% of the height and bury the top row of nodes, so cap it
+                    // there. NOTE: never use `.frame(maxHeight: .infinity)` on a
+                    // scaledToFit image — it expands the frame and centers the art
+                    // vertically, floating the banner into the middle of the screen.
+                    if compact {
+                        Image("map_banner").resizable().scaledToFit().frame(maxHeight: 150)
+                    } else {
+                        Image("map_banner").resizable().scaledToFit()
+                    }
                     Spacer(minLength: 0)
                 }
                 .ignoresSafeArea(edges: [.top, .horizontal])
@@ -287,6 +310,7 @@ struct MapView: View {
         let starsHere = isCurrent ? (profile?.starsInCurrentWorld ?? 0) : (cleared ? goal : 0)
         // All sockets filled but boss unbeaten → the node IS the boss fight.
         let bossReady = isCurrent && !cleared && starsHere == goal
+        let badgeD: CGFloat = compact ? 82 : 104
         VStack(spacing: 5) {
             Button {
                 if bossReady { sessionWorld = WorldSelection(id: world.index, boss: true) }
@@ -296,19 +320,19 @@ struct MapView: View {
                 ZStack {
                     if unlocked {
                         if world.index == revealWorld {
-                            UnlockRevealNode(index: world.index) { revealWorld = nil }
+                            UnlockRevealNode(index: world.index, diameter: badgeD) { revealWorld = nil }
                         } else {
-                            UnlockedBadge(index: world.index)
+                            UnlockedBadge(index: world.index, diameter: badgeD)
                         }
                     } else {
-                        LockedNodeView()
+                        LockedNodeView(diameter: badgeD)
                     }
-                    if isCurrent { PulsingRing() }
+                    if isCurrent { PulsingRing(diameter: badgeD * 1.19) }
                     if cleared {
-                        Image(systemName: "checkmark.seal.fill").font(.system(size: 26))
+                        Image(systemName: "checkmark.seal.fill").font(.system(size: compact ? 21 : 26))
                             .foregroundStyle(Theme.Color.correct)
-                            .background(Circle().fill(.white).frame(width: 24, height: 24))
-                            .offset(x: 38, y: -38)
+                            .background(Circle().fill(.white).frame(width: compact ? 19 : 24, height: compact ? 19 : 24))
+                            .offset(x: badgeD * 0.37, y: -badgeD * 0.37)
                     }
                 }
             }
@@ -318,13 +342,14 @@ struct MapView: View {
             if unlocked {
                 // Star sockets — one star per completed quest; cleared worlds
                 // always wear the full set.
-                WorldStars(filled: starsHere, total: goal, size: 19, spacing: 4)
-                    .padding(.horizontal, 9).padding(.vertical, 4)
+                WorldStars(filled: starsHere, total: goal, size: compact ? 15 : 19, spacing: 4)
+                    .padding(.horizontal, 9).padding(.vertical, compact ? 3 : 4)
                     .background(Capsule().fill(.black.opacity(0.45)))
                     .padding(.top, 2)
                 Text(world.name)
-                    .font(Theme.Font.label(13)).foregroundStyle(.white)
-                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .font(Theme.Font.label(compact ? 11 : 13)).foregroundStyle(.white)
+                    .lineLimit(1).minimumScaleFactor(compact ? 0.7 : 1)
+                    .padding(.horizontal, 10).padding(.vertical, compact ? 3 : 4)
                     .background(Capsule().fill(.black.opacity(0.5)))
             }
             if bossReady {
@@ -357,7 +382,7 @@ struct MapView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
         }
-        .frame(width: 150)
+        .frame(width: compact ? 124 : 150)
         .animation(Theme.Motion.snappy, value: hintNode)
     }
 
@@ -431,10 +456,11 @@ struct MapView: View {
 /// The standard unlocked world badge on the map.
 private struct UnlockedBadge: View {
     let index: Int
+    var diameter: CGFloat = 104
     var body: some View {
         WorldNodeBadge(theme: .forWorld(index))
-            .frame(width: 104, height: 104).clipShape(Circle())
-            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 4))
+            .frame(width: diameter, height: diameter).clipShape(Circle())
+            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: diameter > 95 ? 4 : 3))
             .shadow(color: .black.opacity(0.4), radius: 7, y: 3)
     }
 }
@@ -442,18 +468,20 @@ private struct UnlockedBadge: View {
 /// Fogged, unknown world node. The smoke art deliberately billows beyond the
 /// 104pt node footprint, so it renders larger without shifting the node's center.
 private struct LockedNodeView: View {
+    var diameter: CGFloat = 104
     var body: some View {
         ZStack {
             if Art.exists("node_locked") {
-                Image("node_locked").resizable().scaledToFit().frame(width: 138, height: 138)
+                Image("node_locked").resizable().scaledToFit()
+                    .frame(width: diameter * 1.33, height: diameter * 1.33)
             } else {
-                Circle().fill(Color.gray.opacity(0.5)).frame(width: 96, height: 96)
+                Circle().fill(Color.gray.opacity(0.5)).frame(width: diameter * 0.92, height: diameter * 0.92)
             }
-            Image(systemName: "questionmark").font(.system(size: 32, weight: .heavy))
+            Image(systemName: "questionmark").font(.system(size: diameter * 0.31, weight: .heavy))
                 .foregroundStyle(.white.opacity(0.9))
                 .shadow(color: .black.opacity(0.6), radius: 3)
         }
-        .frame(width: 104, height: 104)   // layout footprint stays the node size
+        .frame(width: diameter, height: diameter)   // layout footprint stays the node size
     }
 }
 
@@ -461,16 +489,17 @@ private struct LockedNodeView: View {
 /// springs in underneath. Plays the unlock sound; respects Reduced Motion.
 private struct UnlockRevealNode: View {
     let index: Int
+    var diameter: CGFloat = 104
     let onDone: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var revealed = false
 
     var body: some View {
         ZStack {
-            UnlockedBadge(index: index)
+            UnlockedBadge(index: index, diameter: diameter)
                 .opacity(revealed ? 1 : 0)
                 .scaleEffect(reduceMotion ? 1 : (revealed ? 1 : 0.35))
-            LockedNodeView()
+            LockedNodeView(diameter: diameter)
                 .opacity(revealed ? 0 : 1)
                 .scaleEffect(reduceMotion || !revealed ? 1 : 1.5)
                 .blur(radius: reduceMotion || !revealed ? 0 : 14)
@@ -505,12 +534,13 @@ private struct TrailPath: Shape {
 
 /// A pulsing ring marking the current world (respects Reduced Motion).
 private struct PulsingRing: View {
+    var diameter: CGFloat = 124
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animate = false
     var body: some View {
         Circle()
             .strokeBorder(Theme.Color.accent, lineWidth: 5)
-            .frame(width: 124, height: 124)
+            .frame(width: diameter, height: diameter)
             .scaleEffect(animate && !reduceMotion ? 1.14 : 1.0)
             .opacity(animate && !reduceMotion ? 0.2 : 0.9)
             .onAppear {
