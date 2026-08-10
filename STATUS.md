@@ -23,8 +23,6 @@ Beta (1.0 build 6 submitted for App Store review 2026-08-10, carrying the fix fo
 
 ## Waiting on Me
 
-- [ ] **Unlock Chase's iPad so build 6 can install** (~1 min) - `devicectl` refused with "device was still locked". He is currently running a build that still has the answer-controls bug
-      - unblocks: Chase getting the fix
 - [ ] **Watch for Apple's verdict on 1.0 (6)** (~passive) - approval auto-releases. Apple DID review this app on 2026-08-08 (4 days after submit), so the queue does move; if this one stalls past ~5 days, contact App Review
       - unblocks: the public App Store listing going live
 - [ ] **Play-test the pacing with Chase and Vinny** (~a few sessions) - check whether "~8 minutes, 30-50 answers" is the right feel, now that the iPhone map fix makes the map usable on a phone
@@ -76,7 +74,7 @@ Five submissions, zero releases. Each rejection or withdrawal costs the full que
 - Done: categories Education + Games (Family/Trivia), age rating 4+ with `socialMediaAgeRestricted` answered, price Free, 175 territories, App Privacy "Data Not Collected" published.
 - Done: 9 screenshots (5 iPad 13" true-landscape 2752x2064, 4 iPhone 6.9").
 - Account-level: Free and Paid Apps Agreements Active, bank account Active, W-9 Active, DSA/EU trader status Active for 27 countries. All verified 2026-08-07, nothing blocking.
-- Devices: Chase's iPad runs an Ad Hoc build from 7085ab7 - functionally identical to build 5, which adds only the version-number bump. NOTE: that Ad Hoc build is labelled "build 4" but is a different binary from ASC's build 4; the bump to 5 ends that collision.
+- Devices: **Chase's iPad is on 1.0 (6)** as of 2026-08-10 (Ad Hoc, installed over USB-C, install + launch both verified) - the same binary that is in App Store review, so he has the answer-controls fix. Wireless `devicectl` kept dropping the iPad to "unavailable"; the cable was the fix. Launch it with NO arguments on real devices: `-demo*` flags rewrite profile data.
 
 ## The "no way to answer" bug (root-caused 2026-08-10, commit 7400557)
 
