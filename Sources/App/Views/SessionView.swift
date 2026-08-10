@@ -358,7 +358,14 @@ private struct QuestionContainer: View {
             if question.trueFalse {
                 TrueFalseView(question: question, showFeedback: inFeedback,
                               selected: vm.lastSelected, onSelect: { vm.answer($0) })
-            } else if question.format == .recognition {
+            // A recognition question with no options has nothing to tap, so it
+            // would render as a prompt the child cannot answer. Never show that
+            // dead end: fall through to the number pad, which can answer any
+            // question. Belt-and-braces behind the planner fix in
+            // LearningService.assembleQuest — a planning slip should degrade to
+            // a typed question, never to a stuck screen.
+            } else if question.format == .recognition,
+                      let options = question.options, !options.isEmpty {
                 MultipleChoiceView(question: question, showFeedback: inFeedback,
                                    selected: vm.lastSelected, onSelect: { vm.answer($0) })
             } else {

@@ -578,9 +578,21 @@ struct LearningService {
         if includeWarmup {
             for _ in 0..<3 {
                 if let r = reviews.next() {
-                    queue.append(PlannedQuestion(prompt: r.prompt, format: r.format,
-                                                 movement: .warmup, options: r.options,
-                                                 timed: r.timed, missingFactor: false))
+                    // Warm-up is plain typed review by design, so the special
+                    // forms (missing-factor, true/false) are stripped here.
+                    // Stripping them field-by-field used to drop `trueFalse`
+                    // while LEAVING format == .recognition and options == nil.
+                    // QuestionContainer routes on `trueFalse` first, so such a
+                    // question fell through to MultipleChoiceView, whose
+                    // `ForEach(options ?? [])` rendered the prompt and no
+                    // buttons at all — the intermittent "question with no way
+                    // to answer" bug. Normalise the format alongside the flags
+                    // so a stripped question is always answerable.
+                    let typed: MasteryStage = r.format == .recognition ? .recall : r.format
+                    queue.append(PlannedQuestion(prompt: r.prompt, format: typed,
+                                                 movement: .warmup, options: nil,
+                                                 timed: typed == .fluency,
+                                                 missingFactor: false))
                 }
             }
         }
