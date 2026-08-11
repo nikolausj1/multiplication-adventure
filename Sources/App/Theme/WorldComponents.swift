@@ -245,3 +245,51 @@ struct WorldNodeBadge: View {
         }
     }
 }
+
+/// Golden Guardians phase 3 map node: once the map transforms, each node
+/// shows its GUARDIAN (the still `bossImage`, never the boss video — see
+/// BossPanel's note on why compositing filters break the video's alpha)
+/// instead of the world image, in one of two readable states:
+///  - not yet gilded: a dark "challenger" silhouette on the world's own
+///    palette with a dim gold rim — "a guardian holds this world."
+///  - gilded: full warm-gold treatment (desaturate + gold colorMultiply +
+///    brightness lift) with a bright rim and a warm glow — unmistakably
+///    different from the un-gilded state at a glance.
+/// Self-contained (frame/clip/border/shadow) so callers just drop it in,
+/// mirroring how `UnlockedBadge` wraps `WorldNodeBadge` on the map.
+struct GuardianNodeBadge: View {
+    let theme: WorldTheme
+    let gilded: Bool
+    var diameter: CGFloat = 104
+
+    private var gold: Color { Color(red: 1.0, green: 0.82, blue: 0.35) }
+
+    var body: some View {
+        ZStack {
+            Circle().fill(LinearGradient(colors: [theme.primary, theme.deep],
+                                         startPoint: .top, endPoint: .bottom))
+            if Art.exists(theme.bossImage) {
+                Image(theme.bossImage)
+                    .resizable().scaledToFill()
+                    .saturation(gilded ? 0.25 : 0.12)
+                    .brightness(gilded ? 0.18 : -0.34)
+                    .colorMultiply(gilded ? gold : Color(white: 0.32))
+            } else {
+                Image(systemName: "shield.lefthalf.filled")
+                    .font(.system(size: diameter * 0.32))
+                    .foregroundStyle(gilded ? gold : .white.opacity(0.4))
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        .clipShape(Circle())
+        .overlay(
+            Circle().strokeBorder(
+                LinearGradient(colors: gilded
+                    ? [Color(red: 1, green: 0.97, blue: 0.82), Color(red: 0.87, green: 0.64, blue: 0.18)]
+                    : [gold.opacity(0.75), Color(red: 0.7, green: 0.48, blue: 0.12).opacity(0.75)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing),
+                lineWidth: gilded ? (diameter > 95 ? 5 : 4) : (diameter > 95 ? 3.5 : 2.5))
+        )
+        .shadow(color: gold.opacity(gilded ? 0.7 : 0.12), radius: gilded ? 14 : 3, y: gilded ? 0 : 2)
+    }
+}

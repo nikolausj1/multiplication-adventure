@@ -24,6 +24,12 @@ struct LevelUpMathApp: App {
         if let i = args.firstIndex(of: "-starsGoal"), i + 1 < args.count, let n = Int(args[i + 1]) {
             service.setStarsPerWorldGoal(n)   // simulator verification only
         }
+        // Golden Guardians (phase 3): force a gilded-worlds bitmask on top of
+        // whatever demo seeding ran above — e.g. `-demoGoldenEra -gildWorlds 127`
+        // for all seven gold. Simulator verification only.
+        if let i = args.firstIndex(of: "-gildWorlds"), i + 1 < args.count, let n = Int(args[i + 1]) {
+            service.setGildedWorldsMask(n)
+        }
         if args.contains("-unlockLightning") {
             service.activeProfile().lightningRoundUnlocked = true   // simulator verification only
             try? container.mainContext.save()

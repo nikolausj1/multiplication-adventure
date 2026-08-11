@@ -166,6 +166,15 @@ struct LearningService {
         for w in 0..<WorldCatalog.count { p.markWorldCleared(w) }
         p.questStars = p.starsPerWorldGoal * WorldCatalog.count
         p.currentWorldStars = p.starsPerWorldGoal
+        // Explicitly reset (not just "left alone"): this demo state means
+        // "just beat the map, celebration not yet played" -- so it must land
+        // there deterministically even when re-launched on an install where
+        // an earlier -demoGoldenEra session already flipped these true on
+        // the SAME persisted profile. Without this, MapView's isGoldenEra
+        // reads the stale flags and renders golden before the map-complete
+        // takeover ever shows, which is exactly what the spec forbids.
+        p.mapCompleteCelebrated = false
+        p.gildedWorldsMask = 0
         for (i, f) in p.facts.enumerated() {
             f.introduced = true
             if i % 4 == 0 {
@@ -193,8 +202,11 @@ struct LearningService {
         p.questStars = p.starsPerWorldGoal * WorldCatalog.count
         p.currentWorldStars = p.starsPerWorldGoal
         p.mapCompleteCelebrated = true
-        // gildedWorldsMask stays 0 — the point of this demo state is entering
-        // the golden era with nothing gilded yet.
+        // Explicitly zeroed (not just "left alone"): the point of this demo
+        // state is entering the golden era with nothing gilded yet, and a
+        // relaunch on top of a profile a previous debug session gilded (via
+        // -gildWorlds) must still land here at zero, not carry that over.
+        p.gildedWorldsMask = 0
         for (i, f) in p.facts.enumerated() {
             switch i % 5 {
             case 0:
@@ -385,6 +397,14 @@ struct LearningService {
     /// lowering the goal just makes a full world boss-ready early.
     func setStarsPerWorldGoal(_ n: Int) {
         activeProfile().starsPerWorldGoal = max(3, min(5, n))
+        try? context.save()
+    }
+
+    /// Dev-area knob: force a specific gilded-worlds bitmask (e.g. 127 = all
+    /// seven, 7 = the first three) regardless of golden-fight results.
+    /// Simulator verification only — see `-gildWorlds` in LevelUpMathApp.
+    func setGildedWorldsMask(_ mask: Int) {
+        activeProfile().gildedWorldsMask = mask
         try? context.save()
     }
 
