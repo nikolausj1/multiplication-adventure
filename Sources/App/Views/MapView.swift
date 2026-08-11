@@ -150,7 +150,13 @@ struct MapView: View {
         .ignoresSafeArea(.keyboard)
         .fullScreenCover(isPresented: $showStreak) { StreakView() }
         .fullScreenCover(isPresented: $showTimesTable) { TimesTableView() }
-        .sheet(isPresented: $showCertificate) { CertificateView(name: profile?.name ?? "Champion") }
+        // Full-screen, not a sheet: a sheet wrapped the gilded art in a white
+        // card and pinned it to the system form-sheet size on iPad. No text
+        // input here, so the keyboard-inset caveat that rules out covers for
+        // sessions does not apply.
+        .fullScreenCover(isPresented: $showCertificate) {
+            CertificateView(name: profile?.name ?? "Champion")
+        }
         .onAppear {
             baselineCurrent = currentIndex
             let args = ProcessInfo.processInfo.arguments

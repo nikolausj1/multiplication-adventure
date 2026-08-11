@@ -80,7 +80,7 @@ struct ParentAreaView: View {
         // Developer-only presentations (certificate preview, boss gallery, and
         // format jump-ins) — compiled out of Release with the card itself.
         #if DEBUG
-        .sheet(isPresented: $showCert) { CertificateView(name: activeName) }
+        .fullScreenCover(isPresented: $showCert) { CertificateView(name: activeName) }
         // Full screen, NOT a sheet: on iPad a sheet is a small fixed-size floating
         // card, so the guardian ends up tiny no matter what size the gallery asks
         // for — the whole point of this screen is judging the art at real size.

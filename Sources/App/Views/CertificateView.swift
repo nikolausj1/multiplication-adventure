@@ -16,54 +16,73 @@ struct CertificateView: View {
     private var profile: Profile? { activeProfiles.first }
     private static let gold = Color(hex: "#C9A24B")
     private static let goldDeep = Color(hex: "#A87F2E")
+    /// Warm parchment inks. Theme.Color.ink/inkSoft are cool blue-greys tuned
+    /// for the app's light UI; on aged paper they read as the wrong document.
+    private static let paperInk = Color(hex: "#2E1F0C")
+    private static let paperInkSoft = Color(hex: "#7A6240")
 
     var body: some View {
-        VStack(spacing: compact ? 12 : 20) {
-            // iPad keeps the exact fixed frame; iPhone landscape aspect-fits the
-            // preview into the short screen. (The exported ImageRenderer size in
-            // render() is unchanged.)
-            Group {
-                if compact {
-                    // iPhone landscape: SCALE the finished 680x470 card down to
-                    // fit. Shrinking the frame instead left the type at fixed
-                    // point sizes, which overflowed the smaller box and
-                    // truncated the citation mid-word ("…from 0 to 11 — an…").
-                    GeometryReader { geo in
-                        let s = min(geo.size.width / 680, geo.size.height / 470)
-                        certificate
-                            .frame(width: 680, height: 470)
-                            .scaleEffect(s, anchor: .center)
-                            .frame(width: geo.size.width, height: geo.size.height)
-                    }
-                    .aspectRatio(680.0 / 470.0, contentMode: .fit)
-                } else {
+        ZStack {
+            // The gilded art IS the moment, so everything around it gets out of
+            // the way. A white sheet card used to frame it and kill the impact.
+            LinearGradient(colors: [Color(hex: "#241A0E"), Color(hex: "#0C0805")],
+                           startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+
+            // One scaling path for both devices: lay the card out at its design
+            // size and scale the whole thing (art AND type together) to fill the
+            // space available. iPad gets to grow into the room it has instead of
+            // sitting at a fixed 680pt in the middle of a 1180pt screen.
+            GeometryReader { geo in
+                let btnH: CGFloat = compact ? 42 : 54
+                let gap: CGFloat = compact ? 14 : 26
+                let availW = geo.size.width - (compact ? 30 : 90)
+                let availH = geo.size.height - btnH - gap - (compact ? 26 : 70)
+                let s = min(availW / 680, availH / 470, compact ? 1.0 : 1.5)
+                VStack(spacing: gap) {
                     certificate
                         .frame(width: 680, height: 470)
+                        .scaleEffect(s, anchor: .center)
+                        .frame(width: 680 * s, height: 470 * s)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .shadow(color: .black.opacity(0.65), radius: 30, y: 16)
+                    buttonRow(height: btnH)
                 }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
-
-            HStack(spacing: 14) {
-                if let rendered {
-                    ShareLink(item: rendered,
-                              preview: SharePreview("Certificate of Mastery", image: rendered)) {
-                        Label("Share / Print", systemImage: "square.and.arrow.up")
-                            .font(Theme.Font.display(compact ? 15 : 18))
-                            .padding(.horizontal, compact ? 14 : 20).padding(.vertical, compact ? 9 : 14)
-                    }
-                    .buttonStyle(.borderedProminent).tint(Theme.Color.primary)
-                }
-                Button("Done") { dismiss() }
-                    .font(Theme.Font.display(compact ? 15 : 18))
-                    .padding(.horizontal, compact ? 14 : 20).padding(.vertical, compact ? 9 : 14)
-                    .buttonStyle(.bordered)
+                .frame(width: geo.size.width, height: geo.size.height)
             }
         }
-        .padding(Theme.Metric.pad)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.Color.bg)
         .onAppear(perform: render)
+    }
+
+    /// Matched pair: identical height, identical shape, identical type. Only the
+    /// fill separates primary from secondary — the old pair mixed a prominent
+    /// blue capsule with a bordered text button at a different height.
+    private func buttonRow(height: CGFloat) -> some View {
+        let font = Theme.Font.label(compact ? 15 : 18)
+        return HStack(spacing: 14) {
+            if let rendered {
+                ShareLink(item: rendered,
+                          preview: SharePreview("Certificate of Mastery", image: rendered)) {
+                    Label("Share / Print", systemImage: "square.and.arrow.up")
+                        .font(font)
+                        .foregroundStyle(Color(hex: "#3A2708"))
+                        .frame(width: compact ? 186 : 234, height: height)
+                        .background(Capsule().fill(LinearGradient(
+                            colors: [Color(hex: "#E8C46A"), Self.goldDeep],
+                            startPoint: .top, endPoint: .bottom)))
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.38), lineWidth: 1))
+                }
+            }
+            Button { dismiss() } label: {
+                Text("Done")
+                    .font(font)
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(width: compact ? 116 : 146, height: height)
+                    .background(Capsule().fill(.white.opacity(0.13)))
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1))
+            }
+        }
+        .shadow(color: .black.opacity(0.45), radius: 10, y: 5)
     }
 
     private func render() {
@@ -110,19 +129,26 @@ struct CertificateView: View {
                 }
                 Text("CERTIFICATE OF MASTERY")
                     .font(Theme.Font.label(22)).tracking(5)
-                    .foregroundStyle(Theme.Color.ink)
+                    .foregroundStyle(Self.paperInk)
                 Text("This certifies that")
-                    .font(Theme.Font.body(15)).foregroundStyle(Theme.Color.inkSoft)
+                    .font(Theme.Font.body(15)).foregroundStyle(Self.paperInkSoft)
 
+                // Gilded, engraved-into-the-parchment — NOT Theme.Color.primary.
+                // The app's friendly blue is the one colour on this page that
+                // belongs to a UI kit rather than to a certificate, and it made
+                // the name read as if it came from a different product.
                 Text(name)
-                    .font(Theme.Font.display(44))
-                    .foregroundStyle(Theme.Color.primary)
+                    .font(Theme.Font.display(46))
+                    .foregroundStyle(LinearGradient(
+                        colors: [Color(hex: "#7A4E15"), Color(hex: "#472A09")],
+                        startPoint: .top, endPoint: .bottom))
+                    .shadow(color: Self.gold.opacity(0.5), radius: 6, y: 2)
                     .lineLimit(1).minimumScaleFactor(0.6)
 
                 Text("has mastered all \(FactUniverse.count) multiplication facts —\nthe times tables from 0 to \(FactUniverse.maxFactor) — and conquered the Seven Worlds.")
                     .multilineTextAlignment(.center)
                     .font(Theme.Font.body(16))
-                    .foregroundStyle(Theme.Color.ink)
+                    .foregroundStyle(Self.paperInk)
 
                 // Earned stats + date.
                 HStack(spacing: 20) {
@@ -136,8 +162,8 @@ struct CertificateView: View {
             // the text block starts below it instead of on top of it. The drawn
             // parchment fallback renders its own trophy inline and needs no gap.
             .padding(.horizontal, 90)
-            .padding(.top, Art.exists("certificate_bg") ? 104 : 40)
-            .padding(.bottom, 34)
+            .padding(.top, Art.exists("certificate_bg") ? 132 : 40)
+            .padding(.bottom, 30)
         }
     }
 
@@ -145,7 +171,7 @@ struct CertificateView: View {
         HStack(spacing: 5) {
             Image(systemName: icon).font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Self.goldDeep)
-            Text(text).font(Theme.Font.label(14)).foregroundStyle(Theme.Color.inkSoft)
+            Text(text).font(Theme.Font.label(14)).foregroundStyle(Self.paperInkSoft)
         }
     }
 }
