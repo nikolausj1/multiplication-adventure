@@ -1,9 +1,9 @@
 ---
 title: "STATUS - Math Tutor"
 created: 2026-07-24
-modified: 2026-08-10
-version: 4.0
-author: Claude Opus 5 (claude-opus-5)
+modified: 2026-08-11
+version: 5.0
+author: Claude Fable 5 (claude-fable-5)
 tags:
 ---
 
@@ -11,111 +11,102 @@ tags:
 
 ## Project
 
-An iPad/iPhone SwiftUI app you built for your son Chase, called Multiplication Adventure, to master multiplication facts (0-11) before school starts Sept 8. It's a full game: a 7-world map, boss fights with animated idle videos, daily "quests" with an adaptive fact ladder, a True/False Lightning Round, streaks, XP, a times-table reference, and a completion certificate. A sibling "Addition" app for Vinny is being ported in parallel by another agent, kept in sync via `PARITY.md`.
+An iPad/iPhone SwiftUI app you built for your son Chase, called Multiplication Adventure, to master multiplication facts (0-11) before school starts Sept 8. It's a full game: a 7-world map, boss fights with animated idle videos, daily "quests" with an adaptive fact ladder, a True/False Lightning Round, streaks, XP, a times-table reference, a completion certificate, and (new, on branch) the Golden Guardians endgame. A sibling "Addition" app for Vinny is being ported in parallel by another agent, kept in sync via `PARITY.md`.
 
 ## Stage
 
-Beta (1.0 build 6 submitted for App Store review 2026-08-10, carrying the fix for the long-standing "no way to answer" bug; gameplay loop complete and in daily use on real devices)
+Beta (1.0 build 6 submitted for App Store review 2026-08-10; the Golden Guardians endgame is complete and measured on branch `boss-idle-videos`, NOT in the build under review)
 
 ## Health
 
-🟢 On-track - the "sometimes there's no keyboard" bug that had survived two wrong fixes is now root-caused, fixed and measured (5/6 failing before, 0/8 after, plus 0/8 on iPad), the Guideline 1.5 rejection cause is fixed and verified live, and the store screenshot that showed the old cramped map has been replaced. Build 6 is in review with nothing known-broken in it.
+🟢 On-track - build 6 is in review with nothing known-broken; the Golden Guardians feature (spec v3.1) was built overnight 2026-08-11 across five commits with every acceptance criterion verified by measurement (engine 86 checks, app-layer sim 58/58 x12 runs, pixel-metric screenshot loops 8/8, phase-1 quest-plan summary lines byte-identical to the pre-change baseline)
 
 ## Waiting on Me
 
 - [ ] **Watch for Apple's verdict on 1.0 (6)** (~passive) - approval auto-releases. Apple DID review this app on 2026-08-08 (4 days after submit), so the queue does move; if this one stalls past ~5 days, contact App Review
       - unblocks: the public App Store listing going live
-- [ ] **Play-test the pacing with Chase and Vinny** (~a few sessions) - check whether "~8 minutes, 30-50 answers" is the right feel, now that the iPhone map fix makes the map usable on a phone
+- [ ] **Play the Golden Guardians endgame yourself** (~20 min on a simulator: `-demoGoldenEra`, then win/lose fights) (updated 2026-08-11)
+      - unblocks: deciding whether it ships as 1.1 right after 1.0 releases, and whether the fight length (9-15 questions, one per fact) feels right
+- [ ] **Grant the iPad simulator panel permission for MA-Verify-iPad, then rerun the retreat-screen tap-through** (~5 min) - the one Golden Guardians surface not verified on iPad (it IS verified on the tighter iPhone landscape layout; a permission prompt was declined/pending during the overnight run)
+      - unblocks: closing the last verification gap
+- [ ] **Play-test the pacing with Chase and Vinny** (~a few sessions) - check whether "~8 minutes, 30-50 answers" is the right feel
       - unblocks: knowing whether the pacing engine needs another retuning pass (and a 1.0.1 if so)
-- [ ] **Decide on the star-count cap** (~after one session of watching) - the 50-answer cap means a fast answerer can finish a star in ~4 minutes against an 8-minute target. Recommendation was to watch Chase play before changing anything
+- [ ] **Decide on the star-count cap** (~after one session of watching) - watch Chase play before changing anything
       - unblocks: whether the pacing constants need a 1.0.1
-- [ ] **Try the Lightning Round with the kids** (~10 min) - it ships OFF; enable via Parent Area gear -> Settings -> "Lightning Round unlocked"
-      - unblocks: deciding if it stays in the rotation as the mid-summer freshness drop
-- [ ] **Update the developer address in Apple Developer** (~10 min, AFTER release) - the address on the ASC Business page is a former address. Deliberately deferred: changing it can trigger agreement re-acceptance and DSA trader re-verification, which you do not want mid-review. Also check whether the Digital Services Act trader record carries the same stale address, since that one is publicly displayed on EU listings
+- [ ] **Try the Lightning Round with the kids** (~10 min) - ships OFF; enable via Parent Area gear -> Settings
+      - unblocks: deciding if it stays in the rotation
+- [ ] **Update the developer address in Apple Developer** (~10 min, AFTER release) - deliberately deferred; see v4.0 notes
       - unblocks: accurate legal/trader details
 
 ## Next Up
 
-1. Respond to the App Store review outcome for build 5 (auto-release on approval; fix-and-resubmit if rejected).
-2. Watch or ask Chase and Vinny about 2-3 real sessions under the current pacing; adjust the 8-minute constants if it feels off.
-3. Once released, fix the developer address and the DSA trader record together.
+1. Respond to the App Store review outcome for build 6 (auto-release on approval; fix-and-resubmit if rejected).
+2. After 1.0 releases: decide the 1.1 plan for `boss-idle-videos` (Golden Guardians). The branch is 5 commits ahead, pushed, all measured; it needs your play-through and a version/build bump, nothing else known.
+3. Watch Chase play 2-3 real sessions under the current pacing; adjust the 8-minute constants if it feels off.
 
 ## Biggest Risk
 
-Five submissions, zero releases. Each rejection or withdrawal costs the full queue position, so a small oversight turns into another multi-day round trip - and Sept 8 is four weeks out. Mitigating factor: the two things that caused the last two round trips (a 404 Support URL, a broken build) are both now verified rather than assumed.
+Five submissions, zero releases - each rejection costs the full queue position, and Sept 8 is four weeks out. Secondary: the Golden Guardians endgame is machine-verified but has never been played by a human; the per-fight length and the fight-train-fight difficulty loop may need feel-tuning once Chase actually reaches the golden era (weeks away, so low urgency).
 
 ## Ideas Shelf
 
-- **Progress export/import** (S) - a Parent Area button to export the profile as JSON via the share sheet (and re-import); cheap insurance against device loss or a botched update.
+- **Progress export/import** (S) - a Parent Area button to export the profile as JSON via the share sheet (and re-import); cheap insurance against device loss.
+- **Golden fight flourish** (S) - a guardian-specific gild animation or roar SFX when a world turns gold; currently it reuses the standard celebration.
 - **Per-world ambience loops** (M) - background music per world, Kling prompts already drafted, volume-ducked under SFX with a parent toggle.
-- **iPad portrait polish** (M) - the app now runs in portrait on iPad (universal update side effect) with heavy letterboxing; either lock it back to landscape or make portrait first-class.
-- **Certificate and streak-calendar nits** (S) - certificate on-screen preview text is crowded; the streak-calendar caption slightly overlaps the grid.
+- **iPad portrait polish** (M) - the app runs in portrait on iPad with heavy letterboxing; either lock it back to landscape or make portrait first-class.
 
 ---
 
+## Golden Guardians (built overnight 2026-08-11, branch `boss-idle-videos`, commits 4b876c9..aeb57e3)
+
+Implements `docs/golden-guardians-spec.md` v3.1 in full. What shipped, in build order:
+
+1. **Engine** (`Sources/Engine/GoldenFightBuilder.swift` + smoke-test coverage): a golden fight serves EVERY fact its world owns exactly once, each in a format its stage can answer (recognition -> MC untimed, recall -> open untimed, fluency/mastered -> open timed); never-introduced facts serve as MC. This closes the `stage >= .recall` hazard that would have made a world permanently unconquerable. Measured: 84 uniform + 2,100 randomized builds (23,100 questions), zero violations; recognition facts provably advance with `countsTime:false`; all 77 facts converge to mastered in 7 simulated daily rounds with the 2-day gate intact.
+2. **The fight** (WP2): golden-era node taps go straight in; full-gauntlet HP (no early victory cutting facts); MC hits are normal hits (never crits, excluded from the speed baseline); >=85% gilds via `Profile.gildedWorldsMask` without touching `clearedWorlds`; soft fail = "the guardian escaped" retreat with a world-scoped untimed "TRAIN THE Ns" round. Measured: `-dumpGoldenSim` harness, 58/58 PASS on 12 runs total.
+3. **Map transformation** (WP3): after the completion celebration, nodes flip (one-time staggered animation) to guardians - dark gold-rimmed challengers until beaten, full gold with glow once gilded; table labels ("Sky Citadel / the 8s") appear only now; golden-hour tint. Measured: pixel metric classifies 0/7 vs 3/7 vs 7/7 gilded correctly on both sims; 8/8 launch loop; pre-golden map byte-identical to pre-change build except an animation phase.
+4. **Final beats** (WP4): seventh gild -> one-time "THE GUARDIANS SALUTE YOU!" takeover (8/8 launches) -> certificate gains a drawn gold seal (inside the ImageRenderer'd card) -> permanent quiet caption "Seven Worlds conquered · Adventure complete". Persistence verified across arg-less relaunch.
+5. **Certificate + bar removal** (WP5): certificate awarded at map completion (no mastery precondition), retitled "CERTIFICATE OF VICTORY", reworded around conquering the Seven Worlds; sequence is takeover -> certificate -> map transform; `masterQuestBar`/`masterQuestBarSlim` deleted; WrapView and the trophy room's child-facing fact counts removed (sweep table in session log). Honest counts live only in the Parent Area.
+
+**Phase-1 proof:** `-dumpQuestPlan -dumpSlow` re-run twice on the final build; all 20 per-session summary lines byte-identical to the pre-change baseline. Engine smoke test grew 59 -> 86 checks, all green.
+
+**Verified by hand-driving the UI (iPhone landscape):** MC question shows 4 options and no timer; typed golden question shows keypad; losing (3/9 wrong) shows the retreat screen exactly per spec (no "So close!", no numbers, TRAIN THE 9s works and opens an untimed training round); winning gilds the node gold on the map.
+
+**Not verified:** the retreat screen layout on iPad (simulator panel permission was declined/pending; the fight screen itself was captured fine on iPad via simctl), and confetti visibility on the gold win wrap (static screenshot timing). New debug hooks: `-demoGoldenEra`, `-gildWorlds <mask>`, `-autostartGolden`, `-goldenWorld <n>`, `-dumpGoldenSim`.
+
 ## Deferred
 
-- "Made for Kids" category opt-in (Education + 4+ chosen instead, deliberately - Guideline 5.1.4 makes the Kids Category a burden, not a benefit, here)
+- "Made for Kids" category opt-in (Education + 4+ chosen instead, deliberately)
 - A one-star-per-day cap on grinding (left open on purpose, helps catch-up days before Sept 8)
 - iPhone Parent Area screenshot (cramped on 6.9" - polish before using it in the listing)
 - Developer address change (see Waiting on Me - deliberately parked until after release)
 
 ## App Store Readiness
 
-- 2026-08-10 (later): **1.0 (build 6) SUBMITTED, state WAITING_FOR_REVIEW, auto-release on approval.** Build 5 was pulled the same day, before Apple looked at it, because testing turned up a confirmed defect in it (see the answer-controls bug below). Build 6 = build 5 + that fix. The iPhone map screenshot in the listing was also replaced: the old one predated `7085ab7` and showed the cramped layout with "1 STAR TO THE BOSS" clipped mid-word. New capture is 2868x1320 from the fixed build.
-- 2026-08-10: **1.0 (build 5) resubmitted, then WITHDRAWN by us the same day** (never reviewed).
-- 2026-08-08: **1.0 (build 4) REJECTED by Apple, Guideline 1.5 (Safety - Developer Information).** The Support URL in ASC returned a 404. Cause: `docs/support.html` was committed only to the `boss-idle-videos` branch, but GitHub Pages serves from `main//docs`, so the page was never published. The privacy policy was fine (it had been on `main` since July). Fixed by publishing the page to `main` (eefc27c) and verifying a live 200 before resubmitting. This also repaired the in-app Support link, which pointed at the same dead URL.
-- Build 5 = build 4's source plus the iPhone map fix (7085ab7), which build 4 predated. Swapping builds was free because the rejection had already cost the queue position.
-- Submission mechanics learned this round: after a rejection you must click **Update Review** on the version page first (item goes Rejected -> Ready for Review) before **Resubmit to App Review** becomes available. The API path `PATCH reviewSubmissions {submitted:true}` returns 409 "Version is not ready to be submitted yet" until that happens, and the version cannot be moved into a new submission (409 ITEM_PART_OF_ANOTHER_SUBMISSION) nor its item deleted (409 "Item was already submitted").
-- Done: privacy policy AND support page both live and verified on GitHub Pages, both linked in-app from the Parent Area.
-- Done: dev tools excluded from Release via `#if DEBUG` (Guideline 2.3.1(a)); verified absent with `strings -a` on the shipped binary.
-- Done: parent gate is a two-digit multiplication problem (adult-level, regenerated per attempt).
-- Done: metadata scrubbed for Guideline 5.1.4 (no "made for kids" phrasing, no `kids` keyword).
-- Done: categories Education + Games (Family/Trivia), age rating 4+ with `socialMediaAgeRestricted` answered, price Free, 175 territories, App Privacy "Data Not Collected" published.
-- Done: 9 screenshots (5 iPad 13" true-landscape 2752x2064, 4 iPhone 6.9").
-- Account-level: Free and Paid Apps Agreements Active, bank account Active, W-9 Active, DSA/EU trader status Active for 27 countries. All verified 2026-08-07, nothing blocking.
-- Devices: **Chase's iPad is on 1.0 (6)** as of 2026-08-10 (Ad Hoc, installed over USB-C, install + launch both verified) - the same binary that is in App Store review, so he has the answer-controls fix. Wireless `devicectl` kept dropping the iPad to "unavailable"; the cable was the fix. Launch it with NO arguments on real devices: `-demo*` flags rewrite profile data.
+- 2026-08-10 (later): **1.0 (build 6) SUBMITTED, state WAITING_FOR_REVIEW, auto-release on approval.** Build 5 was pulled the same day, before Apple looked at it, because testing turned up a confirmed defect in it (see the answer-controls bug below). Build 6 = build 5 + that fix. The iPhone map screenshot in the listing was also replaced.
+- 2026-08-08: **1.0 (build 4) REJECTED, Guideline 1.5** (Support URL 404 - page was only on the feature branch while GitHub Pages serves `main//docs`). Fixed on `main` (eefc27c), verified live 200 before resubmitting.
+- Submission mechanics learned: after a rejection click **Update Review** on the version page first, then **Resubmit to App Review**; the API PATCH path 409s until then.
+- Done: privacy policy AND support page live and verified; dev tools excluded from Release builds (verified with `strings`); parent gate; metadata scrubbed for 5.1.4; categories Education + Games, 4+, Free, 175 territories, "Data Not Collected"; 9 screenshots; agreements/bank/W-9/DSA all Active.
+- Devices: **Chase's iPad is on 1.0 (6)** (Ad Hoc over USB-C). Launch with NO arguments on real devices: `-demo*` flags rewrite profile data.
 
 ## The "no way to answer" bug (root-caused 2026-08-10, commit 7400557)
 
-The long-running intermittent bug where a question appeared with no keypad, no
-entry field and no buttons is fixed, and this time the cause is proven rather
-than inferred. It was never a keyboard or safe-area problem: both earlier
-attempts (`fdad010` ignoresSafeArea, `27de971` fullScreenCover → overlay) fixed
-look-alike symptoms and left it intact.
+Fixed and measured (5/6 failing before, 0/8 after, 0/8 on iPad). `assembleQuest`'s warm-up rebuilt review questions field-by-field, dropping `trueFalse`, so True/False questions fell through to MultipleChoiceView with nil options and rendered no controls. A safety net in QuestionContainer now degrades any option-less recognition question to the number pad.
 
-`assembleQuest`'s WARM-UP block rebuilt each review question field-by-field to
-relabel its `movement`, copying prompt/format/options/timed but silently
-dropping `trueFalse` and `shownValue`. True/False questions are built with
-`format == .recognition, options == nil` and rely on that flag to reach
-TrueFalseView; stripped of it they fell through to MultipleChoiceView, whose
-`ForEach(options ?? [])` renders the prompt and nothing else. Warm-up is the
-first three questions of a quest, hence "it breaks the moment a session opens",
-and reopening (a fresh plan with a new seed) appeared to fix it.
+## Session Notes (2026-08-11, overnight)
 
-Measured on iPhone 16 Pro Max by sampling screenshots for answer controls:
-before, 2/10 normal launches and 5/6 with `-forceTrueFalse` failed; after, 0/8
-normal, 0/8 forced, and 0/8 on iPad. Answering was also confirmed to work
-end-to-end (streak increments), not merely to render. A safety net in
-QuestionContainer now degrades any option-less recognition question to the
-number pad, so a planner slip can never strand a child again.
-
-## Session Notes (2026-08-10)
-
-- Diagnosed the rejection end to end via the ASC REST API rather than the web UI, which is far faster and more reliable than driving App Store Connect in a browser. Resolution Center messages are the one thing the API does NOT expose - those need the browser.
-- Corrected an earlier wrong call: the multi-day wait before the rejection was NOT queue position. Apple reviewed on schedule; the app was sitting on a broken link that a single `curl` would have caught before submitting.
-
-## Session Notes (2026-07-31)
-
-- Screenshots cannot be edited while a version is "Waiting for Review" - fixing them costs the queue position.
+- Golden Guardians built end to end by a lead session orchestrating five reviewed work packages; every package landed with its own measured verification before the next started (details in the Golden Guardians section above).
+- One latent demo-state bug found and fixed along the way: `-demoMapDone`/`-demoGoldenEra` did not reset flags a previous demo launch had set on the same install, which could render the golden map behind the "YOU BEAT THE MAP!" takeover (an acceptance-2 violation that would also have confused real testing).
+- The WP5 digit sweep found one pre-existing child-facing fact fraction outside the spec's list: the trophy room's "N of 77 / facts I know" tile. Replaced with a guardians-defeated tile.
 
 ---
 
 ## Lessons
 
-- **Verify every externally-hosted URL is actually live before submitting to App Review.** A Support or Privacy URL that 404s is an automatic Guideline 1.5 rejection and costs a full review cycle. `curl -s -o /dev/null -w "%{http_code}" -L <url>` on each URL in the store listing takes seconds. Do it as the last step before submitting, every time.
-- **GitHub Pages publishes from one specific branch.** A doc committed to a feature branch is not published, no matter how correct the file is. When a repo does feature-branch development but Pages serves `main//docs`, any page referenced by an external system (an app store listing, an email, a QR code) must be landed on the serving branch separately. `git ls-tree --name-only origin/<pages-branch> docs/` confirms what is actually published.
-- **A `git worktree` on local disk is the clean way to commit to another branch** without disturbing a dirty working tree - and it sidesteps Dropbox entirely, which matters in this environment where Dropbox syncing build artifacts has repeatedly wedged git.
-- **For an intermittent UI bug, build a pixel detector and loop the launch - do not "fix" it from a plausible-looking code read.** This bug survived two confident fixes because both were reasoned from symptoms that resembled a known cause. What actually cracked it: a launch-arg repro (`-autostartSession`), a one-line image metric that separates good from broken by 100x (fraction of saturated key-coloured pixels in the control region), and a shell loop of ~10 launches producing a failure RATE. A rate turns "seems fixed" into 5/6 → 0/8, and it also lets you *disprove* a hypothesis cheaply - forcing the suspected condition produced a visibly different failure, which killed the leading theory in one build.
-- **When a debug flag exists that forces the rare branch, use it to make the flake deterministic** (`-forceTrueFalse` took the failure rate from ~20% to ~83%). Proving the rate moves when you force the suspected input is what separates a real diagnosis from a guess.
-- **Beware field-by-field struct copies.** Rebuilding a value type to change one field silently drops every field added later - the compiler cannot help, because the omitted fields have defaults. Prefer mutating a copy, and when a copy must strip behaviour, normalise every field that depended on it.
+- **Verify every externally-hosted URL is actually live before submitting to App Review.** `curl -s -o /dev/null -w "%{http_code}" -L <url>` on each listing URL takes seconds. Do it every time.
+- **GitHub Pages publishes from one specific branch.** A doc on a feature branch is not published. `git ls-tree --name-only origin/<pages-branch> docs/` confirms what is actually live.
+- **A `git worktree` on local disk is the clean way to commit to another branch** without disturbing a dirty tree, and it sidesteps Dropbox.
+- **For an intermittent UI bug, build a pixel detector and loop the launch - do not "fix" it from a plausible-looking code read.** A failure RATE (5/6 -> 0/8) turns "seems fixed" into evidence, and forcing the suspected condition with a debug flag makes the flake deterministic.
+- **Beware field-by-field struct copies.** Rebuilding a value type to change one field silently drops every field added later.
+- **An in-memory, launch-arg-gated sim harness that drives the real view model is the cheapest app-layer regression rig.** (2026-08-11) Pattern: `QuestPlanDump`/`GoldenSimDump` - in-memory SwiftData store, injectable clock, drive `vm.answer(...)` in a loop, print PASS/FAIL counts, `exit(0/1)`. It verifies the full service -> builder -> view-model pipeline headlessly, loops for a rate, and doubles as the fixture for later features. Costs one file; catches wiring bugs no engine test can see.
+- **When an unseeded simulation must prove "nothing changed", diff its stable summary lines, not its full output.** (2026-08-11) Run the baseline twice FIRST to learn which lines are run-invariant (here: per-session summary lines), then compare only those against the post-change run. A full-text diff of unseeded output proves nothing; a summary-line diff is byte-exact evidence.
+- **MCP simulator tap-driving needs a per-device user permission grant; plan overnight verification around it.** (2026-08-11) `simctl io screenshot`/`launch` work without it, but tap injection does not, and a declined/pending prompt in a non-interactive session permanently blocks that device for the night. Front-load tap-driven checks onto an already-granted device and verify the riskiest (compact) layout there.
