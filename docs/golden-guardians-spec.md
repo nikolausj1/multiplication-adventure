@@ -1,187 +1,188 @@
 ---
 title: "Golden Guardians - the post-map mastery mechanic"
 created: 2026-08-10
-modified: 2026-08-10
-version: 1.0
+modified: 2026-08-11
+version: 3.0
 author: Claude Opus 5 (claude-opus-5)
 tags:
 ---
 
 # Golden Guardians
 
-The single mechanic for everything after the map is beaten. Replaces the Master
-Quest progress bar and rules out the alternatives that were considered alongside
-it (trophy hall, mastery-tinted times table, any child-facing fact counter).
+The single mechanic that carries the game past the map. Replaces the Master Quest
+progress bar and rules out the alternatives considered alongside it (trophy hall,
+mastery-tinted times table, any child-facing fact counter).
 
-## Why this shape
+## The shape of the whole game
 
-Beating the Storm Titan is the emotional peak of the game. The risk with any
-post-map content is that it reads as "you thought you were done, you were not",
-which is a punch in the gut for a seven-year-old. Golden Guardians avoids that
-because nothing is ever presented as unfinished. There is no counter at zero, no
-checklist, no percentage. There is only a guardian that has started to stir, and
-a shinier version of a fight he already enjoyed.
+Four phases. Only phases 3 and 4 are new work.
 
-The mechanic is also close to free, because **the boss fight is already the exact
-instrument that produces mastery**. From `PromotionEngine`:
+### Phase 1: the unbeaten map (no changes)
 
-```swift
-case .fluency:
-    if FluencyThreshold.isFast(responseTime, threshold: fluencyThreshold) {
-        f.fluencyFastCount += 1
-        f.fluencyFastDays.insert(DayStamp.of(now))
-    }
-    if f.fluencyFastCount >= fluencyGoal && f.fluencyFastDays.count >= fluencyDaysGoal {
-        advance(&f, to: .mastered)
-    }
-```
+Nodes are worlds. A world's boss is unknown until that world is beaten. Beating
+a world reveals the next. Stars, quests, streaks and XP all behave exactly as
+they do today. Nothing in this phase changes, and nothing hints at what follows.
 
-Mastery requires FAST correct answers. Boss questions are already built
-`format: .fluency, timed: true`, drawn from the weakest facts first. A boss fight
-is a timed fluency test wearing a costume. Boss answers already run through the
-full promotion path: `service.record(...)` is called before the
-`bossWorldIndex == nil` branch, which only gates XP and streak flourishes.
+### Phase 2: the map is beaten. Celebrate hard, pay everything out.
 
-## The three engine facts that shape the design
+This is the moment he has been able to see since day one, and it gets the full
+reward with nothing held back:
 
-1. **Mastery is day-gated.** `fluencyGoal = 3`, `fluencyDaysGoal = 2`. Three fast
-   corrects across at least two distinct calendar days. No single session can
-   master anything. This is deliberate anti-cramming and the design leans into
-   it: the endgame is a short ritual across a few days, not one long grind.
-2. **The current boss pool cannot see low facts.** `buildBossSession` filters
-   `$0.introduced && $0.stage >= .recall`. A fact still at `.recognition` is
-   invisible to every boss fight, forever. Left unfixed, a child could stall at
-   74 of 77 with no reachable path. Fixing this is mandatory, not optional.
-3. **Worlds already own tables.** `WorldCatalog.slots` plus
-   `WorldCatalog.facts(inWorld:)` give a per-world fact set with no new
-   modelling:
+- The existing "YOU BEAT THE MAP!" takeover.
+- Confetti and the tier 4 celebration.
+- **The certificate is awarded here.** Not at 77 of 77.
 
-   | World | Tables | Facts | Guardian |
-   |---|---|---|---|
-   | Highland Trail | 0, 1, 2, 10 | 10 | Granite Giant |
-   | Shipwreck Cove | 5, 11 | 10 | Tidal Kraken |
-   | Jungle Temple | 3, 4 | 15 | Jade Jaguar |
-   | Desert Canyon | 9 | 9 | Sandstorm Scorpion |
-   | Frozen Summit | 6 | 10 | FrostFang Dragon |
-   | Volcano Depths | 7 | 11 | Magma Fist |
-   | Sky Citadel | 8 | 12 | Storm Titan |
+This is the single most important decision in the spec. Version 1 gated the
+certificate on full mastery, which meant beating the game left the trophy locked.
+That is a false summit and it is exactly the "really?! again?!" feeling to avoid.
+A reward that arrives late is a reward withheld.
 
-## Behaviour
+The certificate's wording changes accordingly: it certifies conquering the Seven
+Worlds, which is what he actually did. The honest fact count stays in the Parent
+Area.
 
-### Availability
+### Phase 3: after the celebration, the surprise
 
-Golden Guardians unlock when every world is cleared
-(`clearedSet.count == WorldCatalog.count`). Before that, nothing changes anywhere
-in the app.
+Once the celebration is dismissed, the map transforms. **The guardians return in
+golden form and replace the world images on the nodes.** The map he has looked at
+for weeks becomes a visibly different map, built entirely from art the app
+already owns.
 
-A world offers a golden rematch when it is cleared AND at least one of its own
-facts is not yet `.mastered`. When every fact a world owns is mastered, that
-world is **gilded**, permanently.
+This ordering is the whole trick. A surprise after the reward is a gift. The same
+surprise before the reward is a chore. Version 2 of this spec had the golden
+guardians visible from early on specifically to avoid a surprise, which would
+have quietly spent the biggest moment in the app for nothing.
 
-### The stirring hint
+What the transformed map shows:
 
-This replaces every counter. A world with unmastered facts shows its guardian
-stirring: a slow, low-amplitude pulse on the node plus a faint ember or aura in
-the world's palette colour. The world with the FEWEST unmastered facts stirs most
-strongly, so the nearest goal draws the eye without ever stating a number.
+- Each node is now its guardian, tinted gold, on the world's palette.
+- Each node is labelled with the tables it owns, for example "Sky Citadel - the
+  8s". **These labels appear only now.** Before this point quests draw from the
+  global fact ladder, so a table label on a world would be false. Post-transform
+  practice is world-scoped, so the label becomes true exactly when it appears,
+  and the relabelling reinforces that the map has changed.
 
-Gilded worlds stop stirring and gain a gold ring, distinct from the existing
-green "boss beaten" check. The two states are independent and both are true
-achievements: the check means the guardian fell, the ring means the tables are
-known.
+| World | Tables | Facts | Guardian |
+|---|---|---|---|
+| Highland Trail | 0, 1, 2, 10 | 10 | Granite Giant |
+| Shipwreck Cove | 5, 11 | 10 | Tidal Kraken |
+| Jungle Temple | 3, 4 | 15 | Jade Jaguar |
+| Desert Canyon | 9 | 9 | Sandstorm Scorpion |
+| Frozen Summit | 6 | 10 | FrostFang Dragon |
+| Volcano Depths | 7 | 11 | Magma Fist |
+| Sky Citadel | 8 | 12 | Storm Titan |
 
-No text, no fraction, no percentage is shown to the child at any point.
+### Phase 4: all seven golden guardians beaten
 
-### The golden fight
+Three beats, all reusing existing assets:
 
-Entered by tapping a stirring world's node. Differences from the normal boss:
+1. **The guardians assemble.** A takeover showing all seven, golden, defeated but
+   standing. They were guardians, not villains: they were testing him, and now
+   they salute him. One screen, no new art.
+2. **The certificate gains its gold seal.** He already owns it and it is probably
+   on the fridge. Upgrading something he possesses beats granting a new thing.
+3. **The map stays permanently gold.** He sees it at every launch.
 
-- **World-scoped.** Questions come from `WorldCatalog.facts(inWorld:)` for that
-  world only, unmastered facts first, topped up with that world's mastered facts
-  if the pool is short. This is what makes "I need to work on my eights, that is
-  Sky Citadel" true. The normal boss stays globally scoped and is unchanged.
-- **Format follows the fact, which closes the straggler hole.**
-  - `.stage >= .recall` serves as `.fluency`, timed. Counts toward mastery, can
-    land a critical hit.
-  - `.stage == .recognition` serves as `.recognition`, multiple choice, untimed.
-    Advances the ladder so the fact becomes fluency-eligible on the next
-    rematch. Lands a normal hit only, never a critical, and does not feed the
-    speed baseline. This mirrors how `trueFalse` is already handled as
-    `verifyOnly` in `PromotionEngine`.
-- **Appearance.** The guardian's idle video is tinted gold and carries a
-  particle layer. No new video renders are required.
-- **Soft fail.** The guardian escapes rather than defeating the player. Per
-  answer promotions are already recorded regardless of the outcome, so progress
-  is inherently kept. Only the presentation changes: no failure screen, no
-  "So close!", just the guardian retreating and an invitation to come back. The
-  85% pass bar still controls whether the world gilds, not whether the session
-  counted.
+**Then the app is finished, and it says so.** Nothing nags afterwards. Daily
+quests remain available for upkeep, silent and optional. No new tier, no streak
+ultimatum. "You are done, and here is the proof" is a legitimate ending, and the
+fact that this app can say it is part of why it will be trusted.
 
-### Gilding
+## Entry: fighting versus practising
 
-When the last of a world's facts reaches `.mastered`, mid-fight:
+Tapping a golden node goes **straight into the boss fight**. No menu, no
+long-press, no second icon. The exciting thing should not have a chooser in front
+of it.
 
-- The guardian's defeat plays in full gold.
-- A tier 3 milestone fires (`MilestoneEngine` already supports tiers), naming the
-  tables: "The eights are yours."
-- The node gains its permanent gold ring and stops stirring.
+Practice is surfaced by **losing**, not by the map. When the guardian escapes, the
+retreat screen offers "Train the 8s first": a normal, untimed, world-scoped quest
+on that world's tables. Practice therefore appears exactly when it is needed and
+never clutters the map, and the difficulty ramp teaches itself:
 
-When all seven are gilded, the existing tier 4 completion milestone fires and the
-certificate gains its gold seal (see the decision below).
+    fight -> struggle -> train -> fight again
 
-## Decisions required before implementation
+That loop is the mastery mechanic. It never has to be explained to him.
 
-1. **When is the certificate earned?** Today it is gated on 77 of 77, which means
-   beating the map leaves the trophy locked. That is the false summit this whole
-   design exists to avoid. **Recommendation: award the certificate at map
-   completion**, and have the gold seal added to it when all seven worlds gild.
-   One artifact, upgraded, rather than a reward withheld.
-2. **Does the Master Quest bar survive?** **Recommendation: remove it.** It is the
-   child-facing counter this mechanic is designed to replace, and leaving both
-   means the stirring hint competes with a number.
-3. **Is the normal per-world rematch (non-golden) still wanted?** Not required by
-   this spec. Gilded worlds could still offer a plain rematch for fun.
+## What "conquered" means
+
+**Beating the fight**, not reaching an invisible mastery flag. A guardian that
+stays un-gold after he beat it is its own small betrayal.
+
+This is legitimate rather than a cop-out because of a lucky fit in the numbers:
+the worlds hold 9 to 15 facts each, and a boss fight is already 10 to 16
+questions. **A golden fight serves that world's entire fact set, once.** Passing
+means answering essentially every fact in the table, fast, in one sitting, under
+pressure. That is a stronger proof of fluency than the ladder's cross-day
+bookkeeping.
+
+Mastery becomes the side effect rather than the goal. Seven gold guardians is the
+visible completion: countable at a glance, no numbers anywhere.
+
+## The three engine facts that constrain this
+
+1. **Boss fights already promote facts.** `service.record(...)` runs before the
+   `bossWorldIndex == nil` branch, which only gates XP and streak flourishes.
+2. **Boss fights are already the mastery instrument.** Mastery needs FAST
+   corrects (`fluencyGoal = 3`, `fluencyDaysGoal = 2`); boss questions are
+   already `format: .fluency, timed: true`, weakest-first. Nothing new is being
+   invented, only scoped and re-skinned.
+3. **The current boss pool cannot see low facts.** `buildBossSession` filters
+   `$0.introduced && $0.stage >= .recall`. A fact at `.recognition` is invisible
+   to every boss fight, forever. **Fixing this is mandatory**, or a world can
+   never be conquered. Golden fights serve such facts in their correct format
+   (multiple choice, untimed, normal hit only, never a critical, excluded from
+   the speed baseline, mirroring how `trueFalse` is treated as `verifyOnly`).
+   They advance up the ladder and become fluency-eligible next time.
+
+## Soft fail
+
+The guardian escapes; he is never defeated. Per-answer promotions are recorded
+regardless of outcome, so progress is inherently kept and only the presentation
+changes. No failure screen, no "So close!". The 85% bar governs whether the world
+turns gold, never whether the session counted.
 
 ## Explicitly not built
 
-- Trophy hall / guardian museum
+- Trophy hall or browsable guardian museum
 - Mastery colouring on the times table chart
-- Any child-facing "X of 77"
+- Any child-facing "X of 77" (the Master Quest bar is removed)
 - Per-world fact counts shown to the child
 - A second certificate
 
 ## Acceptance criteria
 
-1. From a profile with all seven worlds cleared and any distribution of
-   unmastered facts, playing only golden rematches on two or more distinct days
-   reaches 77 of 77. No normal quests required.
-2. No fact can be permanently unreachable. Specifically, a fact at
-   `.recognition` must be servable by a golden fight and must advance.
-3. No screen visible to the child displays a fraction, percentage or fact count
-   at any point in the post-map phase.
+1. Beating the map awards the certificate immediately, with no mastery
+   precondition.
+2. The golden map is revealed only after the completion celebration is dismissed,
+   never before or during.
+3. A golden fight serves every fact its world owns, and no fact can be
+   permanently unreachable. Specifically, a fact at `.recognition` must be
+   servable and must advance.
 4. Losing a golden fight never reduces progress and never shows a failure state.
-5. Nothing in the pre-map experience changes in any way.
-6. Golden fights write to the scheduler through the existing `record(...)` path.
+5. No screen visible to the child displays a fraction, percentage or fact count
+   at any point.
+6. Nothing in phase 1 changes in any way.
+7. Golden fights write to the scheduler through the existing `record(...)` path.
    No new promotion rules are introduced.
 
 ## Verification plan
 
-The engine harness can prove criterion 1 headlessly, which matters because the
-day gate makes manual testing slow:
+The day gate makes this impossible to validate by hand in one sitting, so the
+engine harness carries the load:
 
-- Extend `Tests/EngineSmokeTest.swift` with a simulation that seeds a profile at
-  "map beaten, N facts unmastered", then runs simulated golden rematches with a
-  synthetic clock advancing one day per round, asserting convergence to 77 of 77
-  within a small number of days and asserting no fact is ever unreachable.
-- Run the existing 10 day pacing simulation (`-dumpQuestPlan -dumpSlow`) to
-  confirm pre-map behaviour is untouched.
-- On device, confirm the stirring hint, the gold tint and the soft fail read
-  correctly on both iPhone landscape and iPad, since every recent presentation
-  bug in this app has been compact-height specific.
+- Extend `Tests/EngineSmokeTest.swift` with a simulation that seeds "map beaten,
+  N facts unmastered", runs simulated golden fights against a synthetic clock
+  advancing one day per round, and asserts every world becomes conquerable and no
+  fact is ever unreachable.
+- Re-run the 10 day pacing simulation (`-dumpQuestPlan -dumpSlow`) to prove
+  phase 1 is untouched.
+- On device, check the transformation, the gold tint and the soft fail on **both**
+  iPhone landscape and iPad. Every recent presentation bug in this app has been
+  compact-height specific, and the iPhone map is the tightest layout in the
+  product.
 
 ## Estimated cost
 
-Roughly two to three days. The bulk is the world-scoped, mixed-format session
-builder. The tint, the stirring hint and the gilded node state are small. The
-engine test is worth the extra half day because the day gate makes the mechanic
-impossible to validate by hand in one sitting.
+Two to three days. The bulk is the world-scoped, mixed-format session builder and
+its engine test. The gold tint, the node transformation, the table labels and the
+three final beats are comparatively small because they reuse existing art.

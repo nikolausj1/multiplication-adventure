@@ -34,6 +34,7 @@ MODEL = "gpt-image-1"
 CANVAS = 1536          # generated canvas is CANVAS x 1024
 GEN = 1024             # the square region the model fills, per side
 CONTEXT = CANVAS - GEN # source context handed to the model on the inner side
+OVERLAP = 190          # canvas px of the repainted context kept for cross-fading
 
 PROMPT = (
     "Extend this painted fantasy game banner further to the {side}. Continue the "
@@ -86,6 +87,11 @@ def build_request_images(src: Image.Image, side: str):
 
 
 def outpaint(src: Image.Image, side: str, key: str) -> Image.Image:
+    # Cache the raw model output so compositing can be iterated on for free.
+    cache = OUT.parent / f"wing_{side}_raw.png"
+    if cache.exists() and "--regen" not in sys.argv:
+        print(f"  reusing cached {side} wing ({cache.name})")
+        return Image.open(cache).convert("RGB")
     canvas, mask = build_request_images(src, side)
     desc = LEFT_DESC if side == "left" else RIGHT_DESC
     print(f"  requesting {side} wing ({CANVAS}x{GEN})…", flush=True)
@@ -105,8 +111,9 @@ def outpaint(src: Image.Image, side: str, key: str) -> Image.Image:
     out = Image.open(io.BytesIO(base64.b64decode(r.json()["data"][0]["b64_json"]))).convert("RGB")
     if out.size != (CANVAS, GEN):
         out = out.resize((CANVAS, GEN), Image.LANCZOS)
-    wing = out.crop((0, 0, GEN, GEN)) if side == "left" else out.crop((CANVAS - GEN, 0, CANVAS, GEN))
-    return wing
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    out.save(cache)
+    return out
 
 
 def main() -> None:
@@ -115,21 +122,56 @@ def main() -> None:
     W, H = src.size
     print(f"source {W}x{H} ({W/H:.2f}:1)")
 
-    wings = {s: outpaint(src, s, key) for s in ("left", "right")}
+    raw = {s: outpaint(src, s, key) for s in ("left", "right")}
 
-    wing_w = H                                   # 1024x1024 scaled to HxH
+    import numpy as np
+    scale = H / GEN                       # canvas px -> final px
+    wing_w = H                            # the pure extension each side adds
+    over = int(round(OVERLAP * scale))    # blended band, sits ON TOP of the original
     new_w = W + 2 * wing_w
-    out = Image.new("RGBA", (new_w, H), (0, 0, 0, 0))
 
-    # The banner fades out at the bottom via alpha; carry that ramp into the
-    # wings so they melt into the map fog exactly like the original does.
-    alpha_profile = src.split()[3].resize((1, H), Image.LANCZOS).resize((wing_w, H), Image.LANCZOS)
-    for side, wing in wings.items():
-        w = wing.resize((wing_w, H), Image.LANCZOS).convert("RGBA")
-        w.putalpha(alpha_profile)
-        out.paste(w, (0 if side == "left" else W + wing_w, 0))
-    out.paste(src, (wing_w, 0), src)
+    base = np.zeros((H, new_w, 4), dtype=float)
+    s_arr = np.asarray(src, dtype=float)
+    base[:, wing_w:wing_w + W] = s_arr    # original in the middle
 
+    # The banner fades out at the bottom via alpha; carry that same ramp into
+    # the wings so they melt into the map fog exactly like the original does.
+    bottom = np.asarray(src.split()[3].resize((1, H), Image.LANCZOS), dtype=float).reshape(H, 1) / 255.0
+
+    for side in ("left", "right"):
+        # Crop past the seam into the context zone the model also repainted, so
+        # there is material to cross-fade with. A hard butt-join showed a clear
+        # vertical step in both tone and detail.
+        c = raw[side]
+        box = (0, 0, GEN + OVERLAP, GEN) if side == "left" else (CANVAS - GEN - OVERLAP, 0, CANVAS, GEN)
+        w_img = c.crop(box).resize((wing_w + over, H), Image.LANCZOS)
+        w_arr = np.asarray(w_img, dtype=float)
+
+        # Gentle tone match: line the wing's seam band up with the original's
+        # edge band so the cross-fade is not fading between two exposures.
+        if side == "left":
+            wing_band, src_band = w_arr[:, wing_w:wing_w + over], s_arr[:, :over, :3]
+        else:
+            wing_band, src_band = w_arr[:, :over], s_arr[:, W - over:, :3]
+        gain = np.clip(src_band.mean(axis=(0, 1)) / np.maximum(wing_band.mean(axis=(0, 1)), 1e-6), 0.75, 1.33)
+        w_arr = np.clip(w_arr * gain, 0, 255)
+
+        # Horizontal alpha: solid across the extension, ramping to zero across
+        # the overlap so the original wins at the seam.
+        ramp = np.ones(wing_w + over)
+        fade = np.linspace(1.0, 0.0, over)
+        if side == "left":
+            ramp[wing_w:] = fade
+            x0 = 0
+        else:
+            ramp[:over] = fade[::-1]
+            x0 = W + wing_w - over
+        a = (ramp.reshape(1, -1) * bottom)[..., None]
+        dst = base[:, x0:x0 + wing_w + over]
+        dst[..., :3] = w_arr * a + dst[..., :3] * (1 - a)
+        dst[..., 3:4] = np.maximum(dst[..., 3:4], a * 255)
+
+    out = Image.fromarray(np.clip(base, 0, 255).astype("uint8"), "RGBA")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     out.save(OUT)
     print(f"wrote {OUT}  ->  {new_w}x{H} ({new_w/H:.2f}:1)")

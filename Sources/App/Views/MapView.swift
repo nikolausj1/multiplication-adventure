@@ -79,10 +79,11 @@ struct MapView: View {
             // the scrim and collided with the overlay's "Tap to continue".
             if clearedSet.count == WorldCatalog.count, !isComplete, !showMapComplete {
                 if compact {
-                    // iPhone landscape: the bottom strip belongs to the node
-                    // labels (it was covering "Jungle Temple" / "Frozen Summit").
-                    // Park it in the clear fog just under the capped banner.
-                    VStack { Spacer().frame(height: 136); masterQuestBar; Spacer() }
+                    // iPhone landscape has no clear band left: the wide banner
+                    // owns the top 175pt and the node labels own the bottom.
+                    // Use the ~35pt strip below the labels with a single-row
+                    // variant rather than the two-row plate.
+                    VStack { Spacer(); masterQuestBarSlim }
                 } else {
                     VStack { Spacer(); masterQuestBar }
                 }
@@ -90,14 +91,21 @@ struct MapView: View {
             // Full-bleed title banner: painted sky fades into the map's fog.
             if Art.exists("map_banner") {
                 VStack(spacing: 0) {
-                    // Full-bleed, top-pinned on iPad (natural fitted height). On the
-                    // short iPhone landscape the full-width banner would scale to
-                    // ~70% of the height and bury the top row of nodes, so cap it
-                    // there. NOTE: never use `.frame(maxHeight: .infinity)` on a
-                    // scaledToFit image — it expands the frame and centers the art
-                    // vertically, floating the banner into the middle of the screen.
+                    // Full-bleed, top-pinned on iPad (natural fitted height, 3.57:1).
+                    // NOTE: never use `.frame(maxHeight: .infinity)` on a scaledToFit
+                    // image — it expands the frame and centers the art vertically,
+                    // floating the banner into the middle of the screen.
+                    //
+                    // iPhone landscape uses a SEPARATE, horizontally outpainted
+                    // 5.57:1 asset. At the ~150pt cap the short screen needs (the
+                    // full-width 3.57:1 art buries the top row of nodes), the
+                    // original only spanned ~535pt of a 956pt screen and left bare
+                    // map either side. Scaling it up to fill instead blew up the
+                    // wordmark, so the art was widened rather than enlarged. 956/5.57
+                    // ≈ 172, so width is the binding constraint and it reaches both
+                    // edges. See scripts/outpaint-banner.py.
                     if compact {
-                        Image("map_banner").resizable().scaledToFit().frame(maxHeight: 150)
+                        Image("map_banner_wide").resizable().scaledToFit().frame(maxHeight: 175)
                     } else {
                         Image("map_banner").resizable().scaledToFit()
                     }
@@ -434,6 +442,38 @@ struct MapView: View {
         .frame(maxWidth: compact ? 380 : 500)
         .darkPlate()
         .padding(.bottom, compact ? 0 : 16)
+        .accessibilityLabel("Master Quest: \(mastered) of \(total) facts mastered")
+    }
+
+    /// iPhone-landscape Master Quest readout: one row, short enough to live in
+    /// the strip under the node labels. (Slated for removal with the Golden
+    /// Guardians work, which replaces this counter with the map itself.)
+    private var masterQuestBarSlim: some View {
+        let mastered = profile?.masteredCount ?? 0
+        let total = FactUniverse.count
+        return HStack(spacing: 9) {
+            Image(systemName: "trophy.fill").font(.system(size: 13))
+                .foregroundStyle(Theme.Color.accent)
+            Text("MASTER QUEST").font(Theme.Font.label(10)).tracking(1.5)
+                .foregroundStyle(.white.opacity(0.9))
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.black.opacity(0.45))
+                    Capsule()
+                        .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.35),
+                                                      Color(red: 0.95, green: 0.6, blue: 0.1)],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(width: geo.size.width * CGFloat(mastered) / CGFloat(total))
+                }
+            }
+            .frame(width: 110, height: 7)
+            Text("\(mastered)/\(total)").font(Theme.Font.number(12))
+                .foregroundStyle(Theme.Color.accent)
+                .contentTransition(.numericText(value: Double(mastered)))
+        }
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .darkPlate(corner: 16)
+        .padding(.bottom, 3)
         .accessibilityLabel("Master Quest: \(mastered) of \(total) facts mastered")
     }
 
