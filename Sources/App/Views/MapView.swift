@@ -38,6 +38,13 @@ struct MapView: View {
     /// as the Speed Round (see ParentAreaView's Settings toggle).
     private var canLightning: Bool { profile?.lightningRoundUnlocked ?? false }
     private var isComplete: Bool { (profile?.masteredCount ?? 0) == FactUniverse.count }
+    /// Golden Guardians phase 3: the map is beaten and the completion
+    /// celebration has played. From here every node routes straight into
+    /// that world's golden fight — no menu, no chooser (spec: "the exciting
+    /// thing should not have a chooser in front of it").
+    private var isGoldenEra: Bool {
+        clearedSet.count == WorldCatalog.count && (profile?.mapCompleteCelebrated ?? false)
+    }
 
     /// Fractional positions of each world node, forming a left→right winding trail,
     /// vertically centered in the space between the title banner and screen bottom.
@@ -124,7 +131,16 @@ struct MapView: View {
         .overlay {
             if let sel = sessionWorld {
                 SessionView(worldIndex: sel.id, speedRound: sel.speed, lightningRound: sel.lightning,
-                            boss: sel.boss,
+                            boss: sel.boss, golden: sel.golden, training: sel.training,
+                            onTrain: { w in
+                    // Close the current (golden) overlay, then reopen a
+                    // training session on the same world once it's out of
+                    // the way — "after the current overlay closes" (spec).
+                    withAnimation(.easeOut(duration: 0.25)) { sessionWorld = nil }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        sessionWorld = WorldSelection(id: w, training: true)
+                    }
+                },
                             onClose: {
                     withAnimation(.easeOut(duration: 0.25)) { sessionWorld = nil }
                     checkUnlockReveal()
@@ -196,6 +212,13 @@ struct MapView: View {
                 sessionWorld = WorldSelection(id: currentIndex, lightning: true)
             }
             if args.contains("-autostartBoss") { sessionWorld = WorldSelection(id: currentIndex, boss: true) }
+            if args.contains("-autostartGolden") {
+                var w = currentIndex
+                if let i = args.firstIndex(of: "-goldenWorld"), i + 1 < args.count, let n = Int(args[i + 1]) {
+                    w = n
+                }
+                sessionWorld = WorldSelection(id: w, golden: true)
+            }
             // Demo: play the fog-lift reveal on the current node (pair with -demoProgress).
             if args.contains("-demoReveal") { revealWorld = currentIndex }
         }
@@ -336,7 +359,8 @@ struct MapView: View {
         let badgeD: CGFloat = compact ? 82 : 104
         VStack(spacing: 5) {
             Button {
-                if bossReady { sessionWorld = WorldSelection(id: world.index, boss: true) }
+                if isGoldenEra { sessionWorld = WorldSelection(id: world.index, golden: true) }
+                else if bossReady { sessionWorld = WorldSelection(id: world.index, boss: true) }
                 else if unlocked { sessionWorld = WorldSelection(id: world.index) }
                 else { nudgeLocked(world.index) }
             } label: {
@@ -613,5 +637,10 @@ struct WorldSelection: Identifiable {
     var speed: Bool = false
     var lightning: Bool = false
     var boss: Bool = false
+    /// A Golden Guardian fight (Golden Guardians, phase 3) — entered directly,
+    /// no menu, once the profile is in the golden era.
+    var golden: Bool = false
+    /// "Train the Ns first" — offered when a golden fight is lost.
+    var training: Bool = false
     var testFormat: MasteryStage? = nil
 }

@@ -8,7 +8,13 @@ struct SessionView: View {
     var speedRound: Bool = false
     var lightningRound: Bool = false
     var boss: Bool = false
+    var golden: Bool = false
+    var training: Bool = false
     var testFormat: MasteryStage? = nil
+    /// "Train the Ns" tapped on a lost golden fight — forwarded to WrapView;
+    /// the owner (MapView) is responsible for closing this session and
+    /// opening a training session on the given world.
+    var onTrain: (Int) -> Void = { _ in }
     /// Presented as an in-hierarchy overlay (NOT a fullScreenCover — a cover's
     /// hosting layer applies a lingering keyboard inset that ignoresSafeArea
     /// can't override, clipping the number pad; see PlayerProfileView). The
@@ -47,7 +53,7 @@ struct SessionView: View {
                         // Paused for the day — straight back to the map, no wrap.
                         Color.clear.onAppear { onClose() }
                     } else {
-                        WrapView(vm: vm) { onClose() }.transition(.opacity)
+                        WrapView(vm: vm, onTrain: onTrain) { onClose() }.transition(.opacity)
                     }
                 } else {
                     active(vm)
@@ -92,7 +98,7 @@ struct SessionView: View {
         .onAppear {
             guard vm == nil, !showWorldIntro else { return }
             let args = ProcessInfo.processInfo.arguments
-            let isQuest = !speedRound && !boss && testFormat == nil
+            let isQuest = !speedRound && !boss && !golden && !training && testFormat == nil
             let verifyLaunch = args.contains("-autostartSession")   // debug autoplay skips the reveal
                 || args.contains("-demoKeyboardSession")
             if isQuest, args.contains("-forceWorldIntro")
@@ -109,8 +115,8 @@ struct SessionView: View {
         let mode: SessionViewModel.AutoMode = args.contains("-demoWrap") ? .wrap
             : (args.contains("-demoFeedback") ? .feedback : .off)
         vm = SessionViewModel(service: LearningService(context: context),
-                              speedRound: speedRound, boss: boss, auto: mode,
-                              worldIndex: worldIndex, testFormat: testFormat)
+                              speedRound: speedRound, boss: boss, golden: golden, training: training,
+                              auto: mode, worldIndex: worldIndex, testFormat: testFormat)
         if args.contains("-demoStar") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { vm?.debugShowStar(2) }
         }

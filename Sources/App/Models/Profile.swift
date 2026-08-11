@@ -57,6 +57,13 @@ final class Profile {
     /// Bitmask of worlds whose dramatic title reveal has played (first entry).
     var seenWorldIntrosMask: Int = 0
 
+    /// Bitmask of worlds whose golden guardian fight has been beaten (Golden
+    /// Guardians, phase 3): a world "conquers" by passing a single golden
+    /// fight, not by reaching an invisible mastery flag (see docs/golden-
+    /// guardians-spec.md). Independent of `clearedWorldsMask` — gilding never
+    /// touches the boss-clear state.
+    var gildedWorldsMask: Int = 0
+
     /// The one-time "YOU BEAT THE MAP!" takeover has played (after boss 7 falls).
     var mapCompleteCelebrated: Bool = false
 
@@ -114,6 +121,13 @@ final class Profile {
 
     func hasSeenWorldIntro(_ index: Int) -> Bool { seenWorldIntrosMask & (1 << index) != 0 }
     func markWorldIntroSeen(_ index: Int) { seenWorldIntrosMask |= (1 << index) }
+
+    var gildedWorlds: Set<Int> {
+        Set((0..<WorldCatalog.count).filter { gildedWorldsMask & (1 << $0) != 0 })
+    }
+
+    func isGilded(_ index: Int) -> Bool { gildedWorldsMask & (1 << index) != 0 }
+    func markWorldGilded(_ index: Int) { gildedWorldsMask |= (1 << index) }
 
     /// The adventure's current world: one past the last beaten boss.
     var currentWorldIndex: Int { min(clearedWorlds.count, WorldCatalog.count - 1) }

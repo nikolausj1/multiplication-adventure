@@ -95,6 +95,7 @@ struct LearningService {
         profile.currentWorldStars = 0   // the goal setting itself survives resets
         profile.seenWorldIntrosMask = 0
         profile.mapCompleteCelebrated = false
+        profile.gildedWorldsMask = 0
         profile.bestStreak = 0
         profile.speedBonusCount = 0
         profile.pausedQuestDate = nil
@@ -174,6 +175,59 @@ struct LearningService {
             }
             f.totalAttempts = 6; f.totalCorrect = 6
             f.recentTimes = [1.2, 1.1]; f.averageTime = 1.15
+        }
+        try? context.save()
+    }
+
+    /// Debug only: the golden era (all 7 worlds cleared, map-complete
+    /// celebrated, no guardian gilded yet) with deliberately mixed fact
+    /// stages — several facts per world left at `.recognition` and a few
+    /// never introduced, so a golden fight has real multiple-choice work to
+    /// do, plus a spread across recall/fluency/mastered.
+    func applyDemoGoldenEra() {
+        let p = activeProfile()
+        let now = Date()
+        p.onboarded = true
+        p.seenWorldIntrosMask = (1 << WorldCatalog.count) - 1
+        for w in 0..<WorldCatalog.count { p.markWorldCleared(w) }
+        p.questStars = p.starsPerWorldGoal * WorldCatalog.count
+        p.currentWorldStars = p.starsPerWorldGoal
+        p.mapCompleteCelebrated = true
+        // gildedWorldsMask stays 0 — the point of this demo state is entering
+        // the golden era with nothing gilded yet.
+        for (i, f) in p.facts.enumerated() {
+            switch i % 5 {
+            case 0:
+                // Never introduced: a golden fight must still reach these, as
+                // fresh multiple choice (§3 of the spec: "no fact can be
+                // permanently unreachable").
+                f.introduced = false
+                f.stageRaw = MasteryStage.recognition.rawValue
+                f.box = 0
+            case 1:
+                f.introduced = true
+                f.stageRaw = MasteryStage.recognition.rawValue
+                f.box = 1
+                f.totalAttempts = 1; f.totalCorrect = 1
+            case 2:
+                f.introduced = true
+                f.stageRaw = MasteryStage.recall.rawValue
+                f.box = 2
+                f.totalAttempts = 3; f.totalCorrect = 3
+            case 3:
+                f.introduced = true
+                f.stageRaw = MasteryStage.fluency.rawValue
+                f.box = 4
+                f.totalAttempts = 5; f.totalCorrect = 5
+                f.recentTimes = [1.3, 1.2]; f.averageTime = 1.25
+            default:
+                f.introduced = true
+                f.stageRaw = MasteryStage.mastered.rawValue
+                f.box = 5; f.masteredDate = now
+                f.totalAttempts = 6; f.totalCorrect = 6
+                f.recentTimes = [1.1, 1.0]; f.averageTime = 1.05
+                f.fluencyFastCount = 3; f.fluencyFastDays = [20240101, 20240102]
+            }
         }
         try? context.save()
     }
@@ -676,6 +730,54 @@ struct LearningService {
         }
     }
 
+    /// A Golden Guardian fight (Golden Guardians, phase 3): every fact the
+    /// world owns, exactly once, in a format its current stage can actually
+    /// answer — see `GoldenFightBuilder`. Unlike `buildBossSession`, nothing
+    /// is filtered on `stage >= .recall`, so a fact still at `.recognition`
+    /// is reachable (served as multiple choice) rather than permanently
+    /// unconquerable.
+    func buildGoldenSession(worldIndex: Int, now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
+        let snaps = facts().map(\.snapshot)
+        let s = seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970))
+        return GoldenFightBuilder.build(worldIndex: worldIndex, snapshots: snaps, seed: s)
+    }
+
+    /// "Train the Ns first": the untimed, world-scoped practice offered when
+    /// a golden fight is lost. Every fact the world owns, shuffled, in the
+    /// same stage-answerable formats a golden fight would use — but always
+    /// untimed review, never a fight. Small worlds (fewer than 12 facts) pad
+    /// out to 12 questions by repeating facts in fresh orientations, so a
+    /// training round always feels like a real practice session.
+    func buildTrainingSession(worldIndex: Int, now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
+        let owned = WorldCatalog.facts(inWorld: worldIndex)
+        guard !owned.isEmpty else { return [] }
+        let snaps = facts().map(\.snapshot)
+        let s = seed ?? UInt64(bitPattern: Int64(now.timeIntervalSince1970))
+        var rng = SplitMix64(seed: s)
+        let built = GoldenFightBuilder.build(worldIndex: worldIndex, snapshots: snaps, seed: s)
+        var qs = built.map {
+            PlannedQuestion(prompt: $0.prompt, format: $0.format, movement: .review,
+                            options: $0.options, timed: false)
+        }
+        if qs.count < 12 {
+            let byID = Dictionary(uniqueKeysWithValues: snaps.map { ($0.id, $0) })
+            var i = 0
+            while qs.count < 12 {
+                let id = owned[i % owned.count]
+                let stage: MasteryStage
+                if let snap = byID[id], snap.introduced { stage = snap.stage } else { stage = .recognition }
+                let fmt = GoldenFightBuilder.format(for: stage)
+                let prompt = OrientedPrompt(fact: id, swapped: (rng.next() & 1) == 1)
+                let options = fmt == .recognition
+                    ? DistractorGenerator.options(for: prompt, seed: rng.next()) : nil
+                qs.append(PlannedQuestion(prompt: prompt, format: fmt, movement: .review,
+                                          options: options, timed: false))
+                i += 1
+            }
+        }
+        return qs
+    }
+
     /// A timed round drawn only from already-fluent facts, all open-response.
     func buildSpeedSession(now: Date = .now, seed: UInt64? = nil) -> [PlannedQuestion] {
         let pool = facts().filter { $0.stage >= .fluency }.map(\.id)
@@ -752,7 +854,7 @@ struct LearningService {
                        responseTimes: [Double], factsTouched: Int,
                        speed: Bool = false, bossWorld: Int? = nil,
                        practiced: Bool = true, starEarned: Bool = false,
-                       fluentGained: Int = 0, now: Date = .now) -> Celebration? {
+                       fluentGained: Int = 0, now: Date = .now, golden: Bool = false) -> Celebration? {
         let p = activeProfile()
         let beforeStreak = p.streakDays
         // The flame is strict: only real completed work lights it (quest star landed,
@@ -771,6 +873,24 @@ struct LearningService {
             let world = WorldCatalog.worlds[safe: bossWorld]
             let name = world?.name ?? "World \(bossWorld + 1)"
             let boss = world?.bossName ?? "Guardian"
+            // Golden Guardian fight: pass ⇒ the guardian gilds (T3 moment, but
+            // never touches `clearedWorlds` — that stays boss-clear only).
+            // Fail is a soft fail: the guardian escapes, nothing is lost, and
+            // per-answer promotions were already recorded via record(...).
+            if golden {
+                if accuracy >= Self.bossPassAccuracy, !p.isGilded(bossWorld) {
+                    p.markWorldGilded(bossWorld)
+                    let milestone = MilestoneRecord(kindLabel: "Gilded \(name)",
+                                                    detail: "The \(boss) shines gold", tier: .t3, earnedDate: now)
+                    milestone.profile = p
+                    context.insert(milestone)
+                    try? context.save()
+                    return Celebration(tier: .t3, headline: "\(name) turned GOLD!",
+                                       lines: ["The \(boss) shines gold!"])
+                }
+                try? context.save()
+                return nil   // the guardian escapes — no failure state
+            }
             if accuracy >= Self.bossPassAccuracy, !p.clearedWorlds.contains(bossWorld) {
                 p.markWorldCleared(bossWorld)
                 let milestone = MilestoneRecord(kindLabel: "Cleared \(name)",

@@ -69,6 +69,15 @@ public enum WorldCatalog {
         FactUniverse.allFacts.filter { worldIndex(ofFact: $0) == index }
     }
 
+    /// The table numbers a world owns, in curriculum order — e.g. Highland
+    /// Trail (slots 0-3) owns tables [0, 1, 2, 10]. Golden Guardians (phase 3)
+    /// labels each node with these once the map turns gold, and the retreat
+    /// screen's "Train the Ns" button reads them off here too.
+    public static func tables(inWorld index: Int) -> [Int] {
+        guard let w = worlds[safe: index] else { return [] }
+        return w.slots.map { Curriculum.tableOrder[$0] }
+    }
+
     /// The highest curriculum slot owned by a world (for gating new-fact introduction).
     public static func maxSlot(forWorld index: Int) -> Int {
         worlds[safe: index]?.slots.max() ?? Curriculum.tableOrder.count - 1

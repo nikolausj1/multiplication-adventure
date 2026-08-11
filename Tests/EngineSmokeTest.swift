@@ -309,5 +309,14 @@ check(pool.allSatisfy { $0.stage == .mastered },
 check(rounds >= 2, "the fluencyDaysGoal day gate still forces at least 2 days")
 check(masteredByRound.first ?? 77 < 77, "mastery does not all land on day one")
 
+print("World tables")
+check(Set(WorldCatalog.tables(inWorld: 0)) == [0, 1, 2, 10], "world 1 (Highland Trail) owns tables 0,1,2,10")
+check(Set(WorldCatalog.tables(inWorld: 1)) == [5, 11], "world 2 (Shipwreck Cove) owns tables 5,11")
+check(Set(WorldCatalog.tables(inWorld: 2)) == [3, 4], "world 3 (Jungle Temple) owns tables 3,4")
+check(Set(WorldCatalog.tables(inWorld: 3)) == [9], "world 4 (Desert Canyon) owns table 9")
+check(Set(WorldCatalog.tables(inWorld: 4)) == [6], "world 5 (Frozen Summit) owns table 6")
+check(Set(WorldCatalog.tables(inWorld: 5)) == [7], "world 6 (Volcano Depths) owns table 7")
+check(Set(WorldCatalog.tables(inWorld: 6)) == [8], "world 7 (Sky Citadel) owns table 8")
+
 print(failures == 0 ? "\nALL ENGINE TESTS PASSED" : "\n\(failures) FAILURE(S)")
 exit(failures == 0 ? 0 : 1)

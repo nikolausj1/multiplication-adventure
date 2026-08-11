@@ -18,6 +18,7 @@ struct LevelUpMathApp: App {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-demoComplete") { service.applyDemoProgress(complete: true) }
         else if args.contains("-demoMapDone") { service.applyDemoMapDone() }
+        else if args.contains("-demoGoldenEra") { service.applyDemoGoldenEra() }
         else if args.contains("-demoProgress") { service.applyDemoProgress(complete: false) }
         if args.contains("-forceTrueFalse") { LearningService.trueFalseDenominator = 1 }
         if let i = args.firstIndex(of: "-starsGoal"), i + 1 < args.count, let n = Int(args[i + 1]) {
@@ -27,7 +28,10 @@ struct LevelUpMathApp: App {
             service.activeProfile().lightningRoundUnlocked = true   // simulator verification only
             try? container.mainContext.save()
         }
-        MainActor.assumeIsolated { QuestPlanDump.runIfRequested() }
+        MainActor.assumeIsolated {
+            QuestPlanDump.runIfRequested()
+            GoldenSimDump.runIfRequested()
+        }
     }
 
     var body: some Scene {

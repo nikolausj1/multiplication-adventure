@@ -78,16 +78,33 @@ final class SessionViewModel {
     /// are long full, and the day's star goes to the current world).
     let isPracticeReplay: Bool
 
-    /// Set for a world-boss challenge run; the wrap uses `bossPassed` for its verdict.
+    /// Set for a world-boss challenge run (regular boss OR a Golden Guardian
+    /// fight — golden fights reuse every boss gate: one-shot answers, boss
+    /// soundscape, no hot-streak block); the wrap uses `bossPassed` for its
+    /// verdict.
     let bossWorldIndex: Int?
     private(set) var bossPassed = false
+    /// This is a Golden Guardian fight (Golden Guardians, phase 3): served by
+    /// `buildGoldenSession` — every fact the world owns, mixed MC/recall/
+    /// fluency formats, never gates `clearedWorlds`. Only `.fluency`-format
+    /// questions land criticals, and a recognition-format answer is excluded
+    /// from the speed baseline (see `answer(_:)`).
+    let golden: Bool
+    /// This is a "Train the Ns" practice round (offered on a lost golden
+    /// fight): untimed, world-scoped, not a quest, not a boss.
+    let training: Bool
     /// Faster-than-threshold boss answers land CRITICAL hits (bigger flinch + callout).
     private(set) var critCount = 0
     private(set) var lastHitCritical = false
     private let critThreshold: Double
     /// Correct answers needed to visually defeat the guardian (the pass bar).
+    /// A GOLDEN fight's HP spans the whole gauntlet: the fight must serve every
+    /// fact the world owns, so the boss can never die early and cut questions —
+    /// full-HP depletion (a flawless run) lands the killing blow exactly on the
+    /// final question, and a pass-with-misses is announced at the wrap instead.
     var bossHPTotal: Int {
-        max(1, Int(ceil(Double(originalCount) * LearningService.bossPassAccuracy)))
+        golden ? max(1, originalCount)
+               : max(1, Int(ceil(Double(originalCount) * LearningService.bossPassAccuracy)))
     }
 
     /// Daily Quest state: the facts being drilled this session (frontier batches
@@ -203,15 +220,22 @@ final class SessionViewModel {
     private(set) var starsPerWorldGoal = WorldCatalog.starsPerWorld
 
     init(service: LearningService, speedRound: Bool = false, boss: Bool = false,
+         golden: Bool = false, training: Bool = false,
          auto: AutoMode = .off, worldIndex: Int = 0, testFormat: MasteryStage? = nil) {
         self.service = service
-        // Speed Round, boss challenges, and dev fluency always show the timer;
-        // regular practice only when the profile opts into "speed" timing.
-        self.timed = speedRound || boss || testFormat == .fluency
+        // Speed Round, boss challenges (incl. golden fights), and dev fluency
+        // always show the timer; regular practice only when the profile opts
+        // into "speed" timing. A golden fight's per-question `timed` flag
+        // still governs each question individually (see QuestionContainer:
+        // `vm.showTimer && question.timed`), so MC/recall land untimed and
+        // only the fluency-format questions show a clock.
+        self.timed = speedRound || boss || golden || testFormat == .fluency
             || service.activeProfile().timingMode == .speed
         self.isSpeed = speedRound
         self.isTest = testFormat != nil
-        self.bossWorldIndex = boss ? worldIndex : nil
+        self.bossWorldIndex = (boss || golden) ? worldIndex : nil
+        self.golden = golden
+        self.training = training
         self.critThreshold = service.fluencyThresholdNow()
         self.auto = auto
         self.worldStatBefore = service.currentWorldStat()
@@ -219,7 +243,7 @@ final class SessionViewModel {
         self.starsPerWorldGoal = service.starsPerWorldGoal()
         let floorArg = Self.launchCount("-questFloorAnswers", fallback: 0)
         self.floorAnswers = floorArg > 0 ? floorArg : service.adaptiveFloorAnswers()
-        self.isQuest = !speedRound && !boss && testFormat == nil
+        self.isQuest = !speedRound && !boss && !golden && !training && testFormat == nil
         // Tapping an already-cleared world replays it as practice. Quests draw
         // from the global fact ladder, not the world, so the star still belongs
         // to the CURRENT world — but showing that world's socket count over an
@@ -230,6 +254,10 @@ final class SessionViewModel {
         let built: [PlannedQuestion]
         if boss {
             built = service.buildBossSession(worldIndex: worldIndex)
+        } else if golden {
+            built = service.buildGoldenSession(worldIndex: worldIndex)
+        } else if training {
+            built = service.buildTrainingSession(worldIndex: worldIndex)
         } else if let testFormat {
             built = service.buildTestSession(worldIndex: worldIndex, format: testFormat)
         } else if speedRound {
@@ -305,9 +333,14 @@ final class SessionViewModel {
         let correct = value == q.expectedAnswer
 
         // Inverse-form answers are naturally slower; keep them out of the speed baseline.
+        // A golden fight's recognition-format questions are the same story:
+        // a fact never seen before is served as multiple choice so it stays
+        // reachable, but that MC response time shouldn't pollute the fact's
+        // speed baseline (mirrors how trueFalse is verifyOnly).
         let result = service.record(prompt: q.prompt, format: q.format,
                                     correct: correct, responseTime: rt,
-                                    countsTime: !q.missingFactor && !q.trueFalse,
+                                    countsTime: !q.missingFactor && !q.trueFalse
+                                        && !(golden && q.format == .recognition),
                                     verifyOnly: q.trueFalse)
         touched.insert(q.fact)
         totalAnswered += 1
@@ -344,7 +377,12 @@ final class SessionViewModel {
         if bossWorldIndex != nil {
             // Boss fights have their own soundscape: hits instead of coins.
             if correct {
-                lastHitCritical = FluencyThreshold.isFast(rt, threshold: critThreshold)
+                // Golden fights mix formats: only the fluency-format questions
+                // (already-fast facts under pressure) are eligible for a
+                // critical — an MC or untimed-recall hit is a normal hit,
+                // never a crit.
+                lastHitCritical = (!golden || q.format == .fluency)
+                    && FluencyThreshold.isFast(rt, threshold: critThreshold)
                 if lastHitCritical { critCount += 1 }
                 Feedback.fire(.bossHit)
                 if lastHitCritical { Feedback.fire(.correct, combo: 8) }  // bright zing on top
@@ -637,16 +675,27 @@ final class SessionViewModel {
         stage = .finished
         if auto == .wrap { pendingStarEarned = nil }   // demo autoplay: don't trap the wrap
         // Strict flame: dev jumps never count; quests count when the day's star
-        // landed or real work was put in; boss and speed runs always count.
+        // landed or real work was put in; boss, golden, training, and speed
+        // runs always count.
         let practiced = !isTest && (starEarnedThisSession || bossWorldIndex != nil
-                                    || isSpeed || totalAnswered >= 20)
+                                    || isSpeed || training || totalAnswered >= 20)
         endCelebration = service.finishSession(
             questionCount: totalAnswered, correctCount: correctCount, xpEarned: xpEarned,
             responseTimes: responseTimes, factsTouched: touched.count,
             speed: isSpeed, bossWorld: bossWorldIndex, practiced: practiced,
-            starEarned: starEarnedThisSession, fluentGained: fluentGained)
+            starEarned: starEarnedThisSession, fluentGained: fluentGained, golden: golden)
         if let bossWorldIndex {
-            bossPassed = service.activeProfile().clearedWorlds.contains(bossWorldIndex)
+            // Golden fights never touch `clearedWorlds` (LearningService.swift
+            // marks `gildedWorldsMask` instead), so the regular boss's
+            // `clearedWorlds.contains(...)` readback would misread a lost
+            // golden fight as passed (a cleared world is always in that set,
+            // gilded or not). Compute the verdict locally instead.
+            if golden {
+                bossPassed = totalAnswered > 0
+                    && Double(correctCount) / Double(totalAnswered) >= LearningService.bossPassAccuracy
+            } else {
+                bossPassed = service.activeProfile().clearedWorlds.contains(bossWorldIndex)
+            }
             Feedback.fire(bossPassed ? .levelUp : .wrong)
         }
     }
