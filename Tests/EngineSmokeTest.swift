@@ -173,5 +173,141 @@ let planW = SessionPlanner.plan(snapshots: freshW, now: now, seed: 3)
 let newWorlds = Set(planW.filter { $0.format == .recognition }.map { WorldCatalog.worldIndex(ofFact: $0.fact) })
 check(newWorlds.isSubset(of: [0]), "fresh start only introduces world-0 facts (got \(newWorlds))")
 
+print("Golden fights: world ownership matches the spec table")
+let specCounts = [10, 10, 15, 9, 10, 11, 12]   // Highland…Sky Citadel, sums to 77
+for (w, expected) in specCounts.enumerated() {
+    check(WorldCatalog.facts(inWorld: w).count == expected,
+          "world \(w + 1) owns \(expected) facts")
+}
+check(specCounts.reduce(0, +) == FactUniverse.count, "spec table covers all 77 facts")
+
+print("Golden fights: format per stage")
+check(GoldenFightBuilder.format(for: .recognition) == .recognition, "recognition → MC")
+check(GoldenFightBuilder.format(for: .recall) == .recall, "recall → open untimed")
+check(GoldenFightBuilder.format(for: .fluency) == .fluency, "fluency → open timed")
+check(GoldenFightBuilder.format(for: .mastered) == .fluency, "mastered → open timed")
+
+// One golden fight must serve every owned fact exactly once, in a format its
+// stage can answer, from ANY distribution of stages — including facts the
+// scheduler has never introduced. This is the `stage >= .recall` hazard: the
+// regular boss pool can never see a recognition-stage fact, so an unguarded
+// golden builder would leave a world permanently unconquerable.
+func auditGoldenFight(worldIndex: Int, snapshots: [FactSnapshot], seed: UInt64) -> [String] {
+    var problems: [String] = []
+    let owned = Set(WorldCatalog.facts(inWorld: worldIndex))
+    let byID = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.id, $0) })
+    let qs = GoldenFightBuilder.build(worldIndex: worldIndex, snapshots: snapshots, seed: seed)
+    let served = qs.map { $0.fact }
+    if Set(served) != owned { problems.append("w\(worldIndex) seed \(seed): served set ≠ owned set") }
+    if served.count != owned.count { problems.append("w\(worldIndex) seed \(seed): fact served more or less than once") }
+    for q in qs {
+        let snap = byID[q.fact]
+        let stage: MasteryStage = (snap?.introduced ?? false) ? (snap?.stage ?? .recognition) : .recognition
+        if q.format != GoldenFightBuilder.format(for: stage) {
+            problems.append("w\(worldIndex) seed \(seed): \(q.fact) at \(stage) served as \(q.format)")
+        }
+        switch q.format {
+        case .recognition:
+            if q.timed { problems.append("w\(worldIndex): MC question is timed") }
+            if (q.options?.count ?? 0) != 4 || !(q.options?.contains(q.prompt.answer) ?? false)
+                || Set(q.options ?? []).count != 4 {
+                problems.append("w\(worldIndex): MC options invalid for \(q.fact)")
+            }
+        case .recall:
+            if q.timed || q.options != nil { problems.append("w\(worldIndex): recall question timed or has options") }
+        case .fluency:
+            if !q.timed || q.options != nil { problems.append("w\(worldIndex): fluency question untimed or has options") }
+        case .mastered:
+            problems.append("w\(worldIndex): question served with .mastered format")
+        }
+        if q.trueFalse || q.missingFactor { problems.append("w\(worldIndex): special form leaked into golden fight") }
+    }
+    return problems
+}
+
+print("Golden fights: uniform stage distributions (all worlds × 6 profiles)")
+var uniformProblems: [String] = []
+var uniformBuilds = 0
+for w in 0..<WorldCatalog.count {
+    let uniform: [(String, [FactSnapshot])] = [
+        ("empty scheduler", []),
+        ("nothing introduced", FactUniverse.allFacts.map { FactSnapshot(id: $0) }),
+        ("all recognition", FactUniverse.allFacts.map { FactSnapshot(id: $0, introduced: true, stage: .recognition) }),
+        ("all recall", FactUniverse.allFacts.map { FactSnapshot(id: $0, introduced: true, stage: .recall) }),
+        ("all fluency", FactUniverse.allFacts.map { FactSnapshot(id: $0, introduced: true, stage: .fluency) }),
+        ("all mastered", FactUniverse.allFacts.map { FactSnapshot(id: $0, introduced: true, stage: .mastered) }),
+    ]
+    for (label, snaps) in uniform {
+        for seed: UInt64 in [1, 99] {
+            uniformBuilds += 1
+            let p = auditGoldenFight(worldIndex: w, snapshots: snaps, seed: seed)
+            if !p.isEmpty { uniformProblems.append("[\(label)] " + p.joined(separator: "; ")) }
+        }
+    }
+}
+check(uniformProblems.isEmpty,
+      "\(uniformBuilds) uniform-profile builds all serve every owned fact answerably"
+      + (uniformProblems.isEmpty ? "" : " — " + uniformProblems.prefix(3).joined(separator: " | ")))
+
+print("Golden fights: randomized stage distributions")
+var rndProblems: [String] = []
+var rndBuilds = 0, rndQuestions = 0
+var rndRng = SplitMix64(seed: 0xC0FFEE)
+for w in 0..<WorldCatalog.count {
+    for round in 0..<300 {
+        let snaps = FactUniverse.allFacts.map { id -> FactSnapshot in
+            let introduced = rndRng.next() % 5 != 0     // 20% never introduced
+            let stage = MasteryStage(rawValue: Int(rndRng.next() % 4))!
+            return FactSnapshot(id: id, introduced: introduced, stage: stage)
+        }
+        rndBuilds += 1
+        rndQuestions += WorldCatalog.facts(inWorld: w).count
+        let p = auditGoldenFight(worldIndex: w, snapshots: snaps, seed: UInt64(round))
+        if !p.isEmpty { rndProblems.append(p.joined(separator: "; ")) }
+    }
+}
+check(rndProblems.isEmpty,
+      "\(rndBuilds) randomized builds (\(rndQuestions) questions) all serve every owned fact answerably"
+      + (rndProblems.isEmpty ? "" : " — " + rndProblems.prefix(3).joined(separator: " | ")))
+
+print("Golden fights: a recognition fact advances (countsTime:false — no speed baseline)")
+var gRec = FactSnapshot(id: FactID(7, 8), introduced: true, stage: .recognition)
+let gHit1 = PromotionEngine.apply(to: gRec, correct: true, responseTime: 4, fluencyThreshold: 3,
+                                  now: now, countsTime: false)
+check(gHit1.snapshot.recognitionStreak == 1 && gHit1.snapshot.box > gRec.box,
+      "one correct MC advances streak and box")
+check(gHit1.snapshot.recentTimes.isEmpty, "MC response time stays out of the speed baseline")
+let gHit2 = PromotionEngine.apply(to: gHit1.snapshot, correct: true, responseTime: 4,
+                                  fluencyThreshold: 3, now: now, countsTime: false)
+check(gHit2.snapshot.stage == .recall, "a second correct MC promotes to recall")
+
+print("Golden fights: repeated fights converge to 77 mastered (Parent Area honesty)")
+var pool = FactUniverse.allFacts.map { FactSnapshot(id: $0, introduced: true, stage: .recognition) }
+var rounds = 0
+var masteredByRound: [Int] = []
+while pool.contains(where: { $0.stage != .mastered }) && rounds < 30 {
+    let clock = now + Double(rounds) * day     // one day per round of 7 fights
+    var byID = Dictionary(uniqueKeysWithValues: pool.map { ($0.id, $0) })
+    for w in 0..<WorldCatalog.count {
+        let qs = GoldenFightBuilder.build(worldIndex: w, snapshots: Array(byID.values),
+                                          seed: UInt64(rounds * 7 + w))
+        for q in qs {
+            guard let s = byID[q.fact] else { continue }
+            let counts = q.format != .recognition    // MC hits stay out of the baseline
+            let out = PromotionEngine.apply(to: s, correct: true, responseTime: 1.5,
+                                            fluencyThreshold: 3, now: clock,
+                                            countsTime: counts)
+            byID[q.fact] = out.snapshot
+        }
+    }
+    pool = Array(byID.values)
+    rounds += 1
+    masteredByRound.append(pool.filter { $0.stage == .mastered }.count)
+}
+check(pool.allSatisfy { $0.stage == .mastered },
+      "all 77 facts mastered after \(rounds) daily rounds (per-round: \(masteredByRound))")
+check(rounds >= 2, "the fluencyDaysGoal day gate still forces at least 2 days")
+check(masteredByRound.first ?? 77 < 77, "mastery does not all land on day one")
+
 print(failures == 0 ? "\nALL ENGINE TESTS PASSED" : "\n\(failures) FAILURE(S)")
 exit(failures == 0 ? 0 : 1)
