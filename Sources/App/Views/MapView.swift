@@ -19,6 +19,8 @@ struct MapView: View {
     @State private var showTimesTable = false
     @State private var showCertificate = false
     @State private var showMapComplete = false
+    // Golden Guardians phase 4, beat 1: all seven guardians gilded.
+    @State private var showGuardiansAssemble = false
 
     // Golden Guardians phase 3: the map transformation. `revealGoldenMap`
     // gates the golden visuals independently of the persisted
@@ -56,6 +58,12 @@ struct MapView: View {
     /// thing should not have a chooser in front of it").
     private var isGoldenEra: Bool {
         clearedSet.count == WorldCatalog.count && (profile?.mapCompleteCelebrated ?? false)
+    }
+    /// Golden Guardians phase 4: every world's guardian has been gilded — the
+    /// three final beats (assemble takeover, certificate seal, map caption)
+    /// all key off this.
+    private var allGilded: Bool {
+        (profile?.gildedWorlds.count ?? 0) == WorldCatalog.count
     }
 
     /// Fractional positions of each world node, forming a left→right winding trail,
@@ -118,6 +126,21 @@ struct MapView: View {
                     VStack { Spacer(); masterQuestBarSlim }
                 } else {
                     VStack { Spacer(); masterQuestBar }
+                }
+            }
+            // Golden Guardians phase 4, beat 3: the quiet completion
+            // statement, permanent from the moment every guardian is gilded.
+            // Sits in the exact real estate the Master Quest bar just
+            // vacated above (mutually exclusive with it: that bar hides the
+            // instant isGoldenEra begins, this caption only appears once
+            // allGilded — the golden era's own endpoint), so it never
+            // collides with the bar, the nodes, or their labels on either
+            // form factor. No digits, no CTA — it simply exists.
+            if isGoldenEra, allGilded, revealGoldenMap, !showMapComplete, !showGuardiansAssemble {
+                if compact {
+                    VStack { Spacer(); goldenCompletionCaptionSlim }
+                } else {
+                    VStack { Spacer(); goldenCompletionCaption }
                 }
             }
             // Full-bleed title banner: painted sky fades into the map's fog.
@@ -210,6 +233,19 @@ struct MapView: View {
                 .transition(.opacity)
             }
         }
+        .overlay {
+            if showGuardiansAssemble {
+                GuardiansAssembleOverlay {
+                    withAnimation(.easeOut(duration: 0.4)) { showGuardiansAssemble = false }
+                    // Golden Guardians phase 4, beat 2: the certificate gains
+                    // its gold seal. Same fullScreenCover the trophy button
+                    // uses — CertificateView derives goldSeal from the
+                    // profile itself, so presenting it here just works.
+                    showCertificate = true
+                }
+                .transition(.opacity)
+            }
+        }
         .animation(.easeOut(duration: 0.25), value: sessionWorld != nil)
         .ignoresSafeArea(.keyboard)
         .fullScreenCover(isPresented: $showStreak) { StreakView() }
@@ -219,7 +255,13 @@ struct MapView: View {
         // input here, so the keyboard-inset caveat that rules out covers for
         // sessions does not apply.
         .fullScreenCover(isPresented: $showCertificate) {
-            CertificateView(name: profile?.name ?? "Champion")
+            // Golden Guardians phase 4, beat 2: once every world is gilded,
+            // the certificate the child already owns gains a gold seal —
+            // upgrading something he possesses rather than granting a new
+            // thing. Derived from profile state so every path that opens the
+            // certificate (trophy button, the assemble overlay dismissing,
+            // -autostartCertificate) reflects it automatically.
+            CertificateView(name: profile?.name ?? "Champion", goldSeal: allGilded)
         }
         .onAppear {
             baselineCurrent = currentIndex
@@ -228,6 +270,11 @@ struct MapView: View {
             // the transform only ever plays once, right after the map-
             // complete overlay is freshly dismissed (see that overlay below).
             if isGoldenEra { revealGoldenMap = true }
+            // Recovery path (see checkGuardiansAssemble's doc comment): covers
+            // both a relaunch between the seventh gild and the celebration,
+            // and `-demoGoldenEra -gildWorlds 127` showing the takeover
+            // straight from launch.
+            checkGuardiansAssemble()
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-autostartSession") { sessionWorld = WorldSelection(id: currentIndex) }
             // Repro for the clipped-pad bug: open the profile name editor
@@ -598,6 +645,41 @@ struct MapView: View {
         .accessibilityLabel("Master Quest: \(mastered) of \(total) facts mastered")
     }
 
+    /// Golden Guardians phase 4, beat 3: iPad/landscape-regular reading of the
+    /// quiet completion caption. Occupies the plate the Master Quest bar used
+    /// to sit in — that bar is unconditionally hidden by the time this can
+    /// show (see the `isGoldenEra` guard above).
+    private var goldenCompletionCaption: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "sparkles").font(.system(size: 16))
+                .foregroundStyle(Color(red: 1, green: 0.86, blue: 0.55))
+            Text("Seven Worlds conquered · Adventure complete")
+                .font(Theme.Font.label(14)).tracking(1)
+                .foregroundStyle(Color(red: 1, green: 0.86, blue: 0.55))
+        }
+        .padding(.horizontal, 18).padding(.vertical, 10)
+        .darkPlate()
+        .padding(.bottom, 16)
+        .accessibilityLabel("Seven Worlds conquered. Adventure complete.")
+    }
+
+    /// iPhone-landscape reading: the same ~35pt strip below the node labels
+    /// that `masterQuestBarSlim` used, single-row and compact to match.
+    private var goldenCompletionCaptionSlim: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles").font(.system(size: 12))
+                .foregroundStyle(Color(red: 1, green: 0.86, blue: 0.55))
+            Text("Seven Worlds conquered · Adventure complete")
+                .font(Theme.Font.label(10)).tracking(0.5)
+                .foregroundStyle(Color(red: 1, green: 0.86, blue: 0.55))
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .darkPlate(corner: 16)
+        .padding(.bottom, 3)
+        .accessibilityLabel("Seven Worlds conquered. Adventure complete.")
+    }
+
     /// A tap on a fogged node shouldn't feel broken: wiggle it and say what unlocks it.
     private func nudgeLocked(_ index: Int) {
         Feedback.fire(.keyTap)
@@ -626,6 +708,28 @@ struct MapView: View {
             revealWorld = now
         }
         baselineCurrent = now
+        // Golden Guardians phase 4, beat 1: the seventh gild can only happen
+        // inside a golden fight, so this is the real trigger path — the fight
+        // just ended, the session overlay is already closing (sessionWorld is
+        // nil by the time onClose calls this), and clearedSet/mapComplete are
+        // already settled from the branch above.
+        checkGuardiansAssemble()
+    }
+
+    /// Fires the one-time "guardians assemble" takeover the moment every
+    /// world is gilded. Called from the real gameplay path
+    /// (`checkUnlockReveal`, right after a golden fight closes) and from
+    /// `.onAppear` as a recovery path — the app can be relaunched between the
+    /// seventh gild and the celebration (or launched straight into it via
+    /// `-demoGoldenEra -gildWorlds 127`, since `-gildWorlds` only sets the
+    /// mask and never the celebrated flag). Guarded so it can never fire
+    /// while the map-complete takeover is up or a session is open.
+    private func checkGuardiansAssemble() {
+        guard let p = profile, isGoldenEra, allGilded, !p.guardiansAssembleCelebrated,
+              !showMapComplete, sessionWorld == nil else { return }
+        p.guardiansAssembleCelebrated = true
+        try? context.save()
+        withAnimation(.easeOut(duration: 0.3)) { showGuardiansAssemble = true }
     }
 }
 

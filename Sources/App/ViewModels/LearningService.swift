@@ -96,6 +96,7 @@ struct LearningService {
         profile.seenWorldIntrosMask = 0
         profile.mapCompleteCelebrated = false
         profile.gildedWorldsMask = 0
+        profile.guardiansAssembleCelebrated = false
         profile.bestStreak = 0
         profile.speedBonusCount = 0
         profile.pausedQuestDate = nil
@@ -206,7 +207,12 @@ struct LearningService {
         // state is entering the golden era with nothing gilded yet, and a
         // relaunch on top of a profile a previous debug session gilded (via
         // -gildWorlds) must still land here at zero, not carry that over.
+        // guardiansAssembleCelebrated is reset alongside it for the same
+        // reason: a relaunch that re-applies -gildWorlds 127 on top of a
+        // profile that already saw the phase-4 beat-1 takeover must show it
+        // again, not silently skip it because a stale flag survived.
         p.gildedWorldsMask = 0
+        p.guardiansAssembleCelebrated = false
         for (i, f) in p.facts.enumerated() {
             switch i % 5 {
             case 0:

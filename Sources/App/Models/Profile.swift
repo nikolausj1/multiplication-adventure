@@ -67,6 +67,10 @@ final class Profile {
     /// The one-time "YOU BEAT THE MAP!" takeover has played (after boss 7 falls).
     var mapCompleteCelebrated: Bool = false
 
+    /// The one-time "guardians assemble" takeover has played (Golden Guardians
+    /// phase 4, beat 1: after the seventh guardian is gilded).
+    var guardiansAssembleCelebrated: Bool = false
+
     /// Longest in-session correct streak ever reached (a chase-able trophy stat).
     var bestStreak: Int = 0
     /// Lifetime count of speed bonuses earned (fast correct answers).

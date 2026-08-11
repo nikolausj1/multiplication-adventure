@@ -9,6 +9,11 @@ struct CertificateView: View {
     @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
     @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
     let name: String
+    /// Golden Guardians phase 4, beat 2: true once every world is gilded.
+    /// Renders a gold seal on the card — the certificate he already owns
+    /// gaining a mark of the deeper accomplishment, not a second certificate.
+    /// Callers derive this from the profile (`gildedWorlds.count == WorldCatalog.count`).
+    var goldSeal: Bool = false
 
     @State private var rendered: Image?
 
@@ -164,7 +169,60 @@ struct CertificateView: View {
             .padding(.horizontal, 90)
             .padding(.top, Art.exists("certificate_bg") ? 132 : 40)
             .padding(.bottom, 30)
+
+            // Golden Guardians phase 4, beat 2: the gold seal. Lower corner,
+            // mirroring where `certificate_bg`'s own baked-in wax seal sits
+            // in the OPPOSITE (bottom-right) corner — that placement is
+            // already proven clear of the centered text column above, so its
+            // mirror image on the left is too. Lives inside this `certificate`
+            // view (not layered on top by a caller) so the ImageRenderer
+            // share path picks it up automatically.
+            if goldSeal {
+                goldSealBadge
+                    .position(x: 116, y: 404)
+            }
         }
+    }
+
+    /// Layered gold circles + star + a tiny ribbon caption — the whole
+    /// element is drawn (no new art), matching the certificate's engraved-
+    /// gold language rather than pasting on a generic badge.
+    private var goldSealBadge: some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(colors: [Color(hex: "#F7E3A6"), Self.gold, Self.goldDeep],
+                                     center: .center, startRadius: 2, endRadius: 48))
+            Circle().strokeBorder(Color(hex: "#FFF6DC"), lineWidth: 2).padding(3)
+            Circle().strokeBorder(Self.goldDeep.opacity(0.65), lineWidth: 1).padding(8)
+            VStack(spacing: 2) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 20)).foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.25), radius: 1, y: 1)
+                Text("SEVEN WORLDS")
+                    .font(Theme.Font.label(7)).tracking(0.8)
+                    .foregroundStyle(.white.opacity(0.95))
+                Text("GOLDEN GUARDIAN")
+                    .font(Theme.Font.label(6)).tracking(0.4)
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+        }
+        .frame(width: 92, height: 92)
+        .rotationEffect(.degrees(-9))
+        .shadow(color: .black.opacity(0.4), radius: 6, y: 3)
+        .overlay(
+            // Two small ribbon tails beneath the medallion, echoing the art's
+            // own wax-seal-and-ribbon motif on the opposite corner.
+            HStack(spacing: 26) {
+                RoundedRectangle(cornerRadius: 2).fill(Self.goldDeep)
+                    .frame(width: 11, height: 24)
+                    .rotationEffect(.degrees(14))
+                RoundedRectangle(cornerRadius: 2).fill(Self.goldDeep)
+                    .frame(width: 11, height: 24)
+                    .rotationEffect(.degrees(-14))
+            }
+            .offset(y: 42),
+            alignment: .center
+        )
     }
 
     private func statBadge(_ icon: String, _ text: String) -> some View {
