@@ -75,8 +75,17 @@ struct MapView: View {
             DriftingMist().ignoresSafeArea()
             // The endgame reveals itself only after the Storm Titan falls: master
             // every fact to claim the trophy certificate.
-            if clearedSet.count == WorldCatalog.count, !isComplete {
-                VStack { Spacer(); masterQuestBar }
+            // Hidden while the map-complete takeover is up: the bar sat behind
+            // the scrim and collided with the overlay's "Tap to continue".
+            if clearedSet.count == WorldCatalog.count, !isComplete, !showMapComplete {
+                if compact {
+                    // iPhone landscape: the bottom strip belongs to the node
+                    // labels (it was covering "Jungle Temple" / "Frozen Summit").
+                    // Park it in the clear fog just under the capped banner.
+                    VStack { Spacer().frame(height: 136); masterQuestBar; Spacer() }
+                } else {
+                    VStack { Spacer(); masterQuestBar }
+                }
             }
             // Full-bleed title banner: painted sky fades into the map's fog.
             if Art.exists("map_banner") {
@@ -416,9 +425,9 @@ struct MapView: View {
             }
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
-        .frame(maxWidth: 500)
+        .frame(maxWidth: compact ? 380 : 500)
         .darkPlate()
-        .padding(.bottom, 16)
+        .padding(.bottom, compact ? 0 : 16)
         .accessibilityLabel("Master Quest: \(mastered) of \(total) facts mastered")
     }
 

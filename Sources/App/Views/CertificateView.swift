@@ -24,9 +24,18 @@ struct CertificateView: View {
             // render() is unchanged.)
             Group {
                 if compact {
-                    certificate
-                        .aspectRatio(680.0 / 470.0, contentMode: .fit)
-                        .frame(maxWidth: 680, maxHeight: .infinity)
+                    // iPhone landscape: SCALE the finished 680x470 card down to
+                    // fit. Shrinking the frame instead left the type at fixed
+                    // point sizes, which overflowed the smaller box and
+                    // truncated the citation mid-word ("…from 0 to 11 — an…").
+                    GeometryReader { geo in
+                        let s = min(geo.size.width / 680, geo.size.height / 470)
+                        certificate
+                            .frame(width: 680, height: 470)
+                            .scaleEffect(s, anchor: .center)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                    }
+                    .aspectRatio(680.0 / 470.0, contentMode: .fit)
                 } else {
                     certificate
                         .frame(width: 680, height: 470)
@@ -123,7 +132,12 @@ struct CertificateView: View {
                 }
                 .padding(.top, 8)
             }
-            .padding(.horizontal, 90).padding(.vertical, 40)
+            // `certificate_bg` has a trophy painted into the top of the card, so
+            // the text block starts below it instead of on top of it. The drawn
+            // parchment fallback renders its own trophy inline and needs no gap.
+            .padding(.horizontal, 90)
+            .padding(.top, Art.exists("certificate_bg") ? 104 : 40)
+            .padding(.bottom, 34)
         }
     }
 

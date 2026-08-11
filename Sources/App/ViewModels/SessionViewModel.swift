@@ -74,6 +74,9 @@ final class SessionViewModel {
     private(set) var shownStars = 0
     /// The star chip only makes sense in a regular quest session.
     let showsWorldRing: Bool
+    /// Replaying a world that is already cleared (pure practice — its sockets
+    /// are long full, and the day's star goes to the current world).
+    let isPracticeReplay: Bool
 
     /// Set for a world-boss challenge run; the wrap uses `bossPassed` for its verdict.
     let bossWorldIndex: Int?
@@ -217,7 +220,13 @@ final class SessionViewModel {
         let floorArg = Self.launchCount("-questFloorAnswers", fallback: 0)
         self.floorAnswers = floorArg > 0 ? floorArg : service.adaptiveFloorAnswers()
         self.isQuest = !speedRound && !boss && testFormat == nil
-        self.showsWorldRing = isQuest
+        // Tapping an already-cleared world replays it as practice. Quests draw
+        // from the global fact ladder, not the world, so the star still belongs
+        // to the CURRENT world — but showing that world's socket count over an
+        // old world's backdrop reads as "my 3 stars reset". Show a PRACTICE chip
+        // there instead; the star overlay already names the world it landed in.
+        self.isPracticeReplay = isQuest && worldIndex != worldStatBefore.index
+        self.showsWorldRing = isQuest && !isPracticeReplay
         let built: [PlannedQuestion]
         if boss {
             built = service.buildBossSession(worldIndex: worldIndex)

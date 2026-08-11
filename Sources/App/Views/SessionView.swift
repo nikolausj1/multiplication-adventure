@@ -173,6 +173,13 @@ struct SessionView: View {
             }
             if vm.showsWorldRing {
                 StarChip(filled: vm.shownStars, total: vm.starsPerWorldGoal)
+            } else if vm.isPracticeReplay {
+                Label("PRACTICE", systemImage: "arrow.clockwise")
+                    .font(Theme.Font.label(compact ? 10 : 12)).tracking(1.5)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 10).padding(.vertical, compact ? 4 : 6)
+                    .background(Capsule().fill(.black.opacity(0.45)))
+                    .accessibilityLabel("Practice round")
             }
             // Always present so the header never reflows — dim until it ignites at 3.
             ComboChip(combo: vm.streakDisplay)
