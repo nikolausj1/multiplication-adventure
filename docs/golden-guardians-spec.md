@@ -2,7 +2,7 @@
 title: "Golden Guardians - the post-map mastery mechanic"
 created: 2026-08-10
 modified: 2026-08-11
-version: 3.0
+version: 3.1
 author: Claude Opus 5 (claude-opus-5)
 tags:
 ---
@@ -118,6 +118,28 @@ bookkeeping.
 Mastery becomes the side effect rather than the goal. Seven gold guardians is the
 visible completion: countable at a glance, no numbers anywhere.
 
+### What this does to the day gate
+
+The day gate (`fluencyDaysGoal = 2`) is **not removed and not changed**. It still
+governs the internal `.mastered` flag. It simply stops governing anything the
+child can see, because conquering is now a property of a single fight.
+
+Two consequences follow, and both are acceptable:
+
+- **Seven gold guardians will arrive before 77 of 77 mastered.** Nothing in the
+  product claims otherwise: the certificate is worded around conquering the
+  worlds, and the only honest fact count lives in the Parent Area for Justin.
+- **The endgame is no longer paced by the calendar.** In principle all seven
+  could fall in one sitting. In practice that means answering roughly 80
+  questions at 85% fast across every table, which is a genuine fluency
+  demonstration; and realistically he will lose several fights first, and the
+  fight-train-fight loop supplies the spacing that the day gate used to force.
+
+If play-testing shows he is gilding worlds he cannot actually retain, the lever
+is to require a guardian to be beaten on two separate days before it gilds
+("the guardian returns once more"). Do not reach for that pre-emptively: it
+reintroduces a wait, which is the thing this design exists to avoid.
+
 ## The three engine facts that constrain this
 
 1. **Boss fights already promote facts.** `service.record(...)` runs before the
@@ -167,13 +189,21 @@ turns gold, never whether the session counted.
 
 ## Verification plan
 
-The day gate makes this impossible to validate by hand in one sitting, so the
-engine harness carries the load:
+Conquering is a single-session property, so most of this IS testable by hand.
+The engine harness is still worth building, but for a different reason than an
+earlier draft of this spec claimed: the hazard is not the calendar, it is the
+mixed-format builder quietly serving the wrong thing.
 
-- Extend `Tests/EngineSmokeTest.swift` with a simulation that seeds "map beaten,
-  N facts unmastered", runs simulated golden fights against a synthetic clock
-  advancing one day per round, and asserts every world becomes conquerable and no
-  fact is ever unreachable.
+- Extend `Tests/EngineSmokeTest.swift` with a check that, for every world and
+  every reachable distribution of fact stages, a golden fight (a) serves every
+  fact that world owns, (b) serves each one in a format its stage can actually
+  answer, and (c) leaves no fact that can never be served. This is the
+  `stage >= .recall` hazard, and it is a pure function of the builder: no clock
+  needed.
+- Separately, and only to keep the Parent Area count honest, simulate repeated
+  golden fights against a synthetic clock advancing one day per round and assert
+  that `.mastered` does converge on 77. This is bookkeeping verification, not a
+  gate on the player experience.
 - Re-run the 10 day pacing simulation (`-dumpQuestPlan -dumpSlow`) to prove
   phase 1 is untouched.
 - On device, check the transformation, the gold tint and the soft fail on **both**
