@@ -1,9 +1,11 @@
 import SwiftUI
 import SwiftData
 
-/// The completion certificate (§10): shown when every fact is mastered. Renders to
-/// an image that can be shared or printed via the system share sheet. Personalized
-/// with the child's avatar, real stats, and the seven conquered worlds.
+/// The completion certificate (§10): shown when the map is beaten — all Seven
+/// Worlds conquered (Golden Guardians WP5: awarded at map completion, no
+/// mastery precondition). Renders to an image that can be shared or printed
+/// via the system share sheet. Personalized with the child's avatar, real
+/// stats, and the seven conquered worlds.
 struct CertificateView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
@@ -67,7 +69,7 @@ struct CertificateView: View {
         return HStack(spacing: 14) {
             if let rendered {
                 ShareLink(item: rendered,
-                          preview: SharePreview("Certificate of Mastery", image: rendered)) {
+                          preview: SharePreview("Certificate of Victory", image: rendered)) {
                     Label("Share / Print", systemImage: "square.and.arrow.up")
                         .font(font)
                         .foregroundStyle(Color(hex: "#3A2708"))
@@ -132,7 +134,7 @@ struct CertificateView: View {
                         .shadow(color: Self.gold.opacity(0.5), radius: 8, y: 3)
                         .padding(.bottom, 2)
                 }
-                Text("CERTIFICATE OF MASTERY")
+                Text("CERTIFICATE OF VICTORY")
                     .font(Theme.Font.label(22)).tracking(5)
                     .foregroundStyle(Self.paperInk)
                 Text("This certifies that")
@@ -150,7 +152,7 @@ struct CertificateView: View {
                     .shadow(color: Self.gold.opacity(0.5), radius: 6, y: 2)
                     .lineLimit(1).minimumScaleFactor(0.6)
 
-                Text("has mastered all \(FactUniverse.count) multiplication facts —\nthe times tables from 0 to \(FactUniverse.maxFactor) — and conquered the Seven Worlds.")
+                Text("has conquered all Seven Worlds of the\nMultiplication Adventure — the times tables from 0 to \(FactUniverse.maxFactor) — and defeated every Guardian.")
                     .multilineTextAlignment(.center)
                     .font(Theme.Font.body(16))
                     .foregroundStyle(Self.paperInk)

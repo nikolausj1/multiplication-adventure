@@ -244,7 +244,6 @@ struct PlayerProfileView: View {
     // MARK: Stat tiles
 
     private var statTiles: some View {
-        let fluentCount = (profile?.facts ?? []).filter { $0.stage >= .fluency }.count
         return HStack(spacing: 12) {
             statTile {
                 StarGlyph(filled: true, size: 32)
@@ -277,20 +276,20 @@ struct PlayerProfileView: View {
             } label: {
                 "XP"
             }
-            // The learning number, kid-framed.
-            VStack(spacing: 5) {
-                Text("\(fluentCount) of \(FactUniverse.count)")
-                    .font(Theme.Font.number(30)).foregroundStyle(.white)
-                ProgressView(value: Double(fluentCount), total: Double(FactUniverse.count))
-                    .tint(Theme.Color.accent)
-                    .padding(.horizontal, 18)
-                Text("facts I know")
-                    .font(Theme.Font.label(16)).foregroundStyle(.white.opacity(0.6))
+            // Golden Guardians WP5: this tile used to show a fact fraction
+            // ("N of 77") with a progress bar — a child-facing fact count,
+            // which the spec forbids outright (acceptance 5; the honest
+            // count lives in the Parent Area only). Replaced with a plain
+            // count of guardians defeated, matching the other stat tiles'
+            // shape (icon + single number + label, no ratio).
+            statTile {
+                Image(systemName: "shield.fill").font(.system(size: 28))
+                    .foregroundStyle(Theme.Color.accent)
+            } value: {
+                "\(profile?.clearedWorlds.count ?? 0)"
+            } label: {
+                "guardians defeated"
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: compact ? 72 : 118)
-            .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.07)))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.08)))
         }
     }
 

@@ -33,6 +33,15 @@ struct MapView: View {
     // just renders golden statically, per spec.
     @State private var revealGoldenMap = false
     @State private var playTransformAnimation = false
+    // Golden Guardians WP5: award sequencing. The map-complete takeover's
+    // dismissal used to trigger the phase-3 transform directly; now the
+    // certificate sits between them (spec acceptance 1: awarded at map
+    // completion, no mastery precondition). This flag is set only on that
+    // first-award path and consumed by the certificate cover's `onDismiss`,
+    // so the transform plays exactly once, right after the FIRST certificate
+    // viewing — never on the trophy-button re-open path (which never sets
+    // this flag) and never before/during the certificate itself (acceptance 2).
+    @State private var pendingFirstTransform = false
 
     // Locked-node tap response + the fog-lift reveal when a new world opens.
     @State private var shakeTarget: Int?
@@ -51,7 +60,6 @@ struct MapView: View {
     /// The True/False Lightning Round: a parent-enabled extra, gated the same way
     /// as the Speed Round (see ParentAreaView's Settings toggle).
     private var canLightning: Bool { profile?.lightningRoundUnlocked ?? false }
-    private var isComplete: Bool { (profile?.masteredCount ?? 0) == FactUniverse.count }
     /// Golden Guardians phase 3: the map is beaten and the completion
     /// celebration has played. From here every node routes straight into
     /// that world's golden fight — no menu, no chooser (spec: "the exciting
@@ -109,32 +117,11 @@ struct MapView: View {
                 }
             }
             DriftingMist().ignoresSafeArea()
-            // The endgame reveals itself only after the Storm Titan falls: master
-            // every fact to claim the trophy certificate.
-            // Hidden while the map-complete takeover is up: the bar sat behind
-            // the scrim and collided with the overlay's "Tap to continue".
-            // Also hidden once the golden era begins: this bar shows a raw
-            // "X/Y" fact count, which the golden map is explicitly forbidden
-            // from ever displaying (spec: "no child-facing X of 77"; the
-            // guardians replace this bar as the map's progress signal).
-            if clearedSet.count == WorldCatalog.count, !isComplete, !showMapComplete, !isGoldenEra {
-                if compact {
-                    // iPhone landscape has no clear band left: the wide banner
-                    // owns the top 175pt and the node labels own the bottom.
-                    // Use the ~35pt strip below the labels with a single-row
-                    // variant rather than the two-row plate.
-                    VStack { Spacer(); masterQuestBarSlim }
-                } else {
-                    VStack { Spacer(); masterQuestBar }
-                }
-            }
             // Golden Guardians phase 4, beat 3: the quiet completion
             // statement, permanent from the moment every guardian is gilded.
-            // Sits in the exact real estate the Master Quest bar just
-            // vacated above (mutually exclusive with it: that bar hides the
-            // instant isGoldenEra begins, this caption only appears once
-            // allGilded — the golden era's own endpoint), so it never
-            // collides with the bar, the nodes, or their labels on either
+            // Sits in the strip below the node labels/trail (the Master
+            // Quest bar that used to live here is removed entirely — WP5),
+            // so it never collides with the nodes or their labels on either
             // form factor. No digits, no CTA — it simply exists.
             if isGoldenEra, allGilded, revealGoldenMap, !showMapComplete, !showGuardiansAssemble {
                 if compact {
@@ -214,21 +201,27 @@ struct MapView: View {
             if showMapComplete {
                 MapCompleteOverlay {
                     withAnimation(.easeOut(duration: 0.4)) { showMapComplete = false }
-                    // Golden Guardians phase 3: the map transforms only once
-                    // THIS dismissal fires, never before or during the
-                    // takeover (spec acceptance 2). `-demoMapComplete` can
-                    // show this overlay directly (skipping checkUnlockReveal),
-                    // so mapCompleteCelebrated is set here too, guarded so
-                    // the real gameplay path (already set before the overlay
+                    // Golden Guardians WP5 (spec acceptance 1): the map-
+                    // complete takeover awards the certificate immediately —
+                    // no mastery precondition. `-demoMapComplete` can show
+                    // this overlay directly (skipping checkUnlockReveal), so
+                    // mapCompleteCelebrated is set here too, guarded so the
+                    // real gameplay path (already set before the overlay
                     // appeared) is a no-op.
                     if let p = profile, clearedSet.count == WorldCatalog.count, !p.mapCompleteCelebrated {
                         p.mapCompleteCelebrated = true
                         try? context.save()
                     }
+                    // The phase-3 transform no longer runs here. It moves
+                    // behind the certificate (spec acceptance 2: the golden
+                    // map is revealed only after the completion celebration
+                    // — which now includes the certificate — is dismissed).
+                    // This flag is consumed by the certificate cover's
+                    // onDismiss below, once, the first time this path fires.
                     if isGoldenEra, !revealGoldenMap {
-                        playTransformAnimation = true
-                        withAnimation(.easeIn(duration: 1.3)) { revealGoldenMap = true }
+                        pendingFirstTransform = true
                     }
+                    showCertificate = true
                 }
                 .transition(.opacity)
             }
@@ -254,7 +247,20 @@ struct MapView: View {
         // card and pinned it to the system form-sheet size on iPad. No text
         // input here, so the keyboard-inset caveat that rules out covers for
         // sessions does not apply.
-        .fullScreenCover(isPresented: $showCertificate) {
+        .fullScreenCover(isPresented: $showCertificate, onDismiss: {
+            // Golden Guardians WP5: the phase-3 map transform runs here, once
+            // the certificate that was awarded on map completion is
+            // dismissed — never before or during it (spec acceptance 2).
+            // `pendingFirstTransform` is only ever set on that first award
+            // path (see the map-complete overlay above), so the trophy-
+            // button reopen and the phase-4 gold-seal reopen never replay it.
+            guard pendingFirstTransform else { return }
+            pendingFirstTransform = false
+            if isGoldenEra, !revealGoldenMap {
+                playTransformAnimation = true
+                withAnimation(.easeIn(duration: 1.3)) { revealGoldenMap = true }
+            }
+        }) {
             // Golden Guardians phase 4, beat 2: once every world is gilded,
             // the certificate the child already owns gains a gold seal —
             // upgrading something he possesses rather than granting a new
@@ -375,7 +381,10 @@ struct MapView: View {
                 }
                 Spacer()
             }
-            if isComplete {
+            // Golden Guardians WP5 (spec acceptance 1): the trophy button
+            // gates on MAP CONQUEST, not mastery — beating the map awards
+            // the certificate immediately, with no fact-mastery precondition.
+            if clearedSet.count == WorldCatalog.count {
                 Button { showCertificate = true } label: {
                     Image(systemName: "trophy.fill").font(.system(size: 19))
                         .foregroundStyle(Theme.Color.accent)
@@ -577,78 +586,8 @@ struct MapView: View {
         }
     }
 
-    private var masterQuestBar: some View {
-        let mastered = profile?.masteredCount ?? 0
-        let total = FactUniverse.count
-        return HStack(spacing: 12) {
-            Image(systemName: "trophy.fill").font(.system(size: 22))
-                .foregroundStyle(Theme.Color.accent)
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text("MASTER QUEST").font(Theme.Font.label(13)).tracking(2)
-                        .foregroundStyle(.white)
-                    Spacer()
-                    Text("\(mastered)/\(total)").font(Theme.Font.number(15))
-                        .foregroundStyle(Theme.Color.accent)
-                        .contentTransition(.numericText(value: Double(mastered)))
-                }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(.black.opacity(0.4))
-                        Capsule()
-                            .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.35),
-                                                          Color(red: 0.95, green: 0.6, blue: 0.1)],
-                                                 startPoint: .top, endPoint: .bottom))
-                            .frame(width: geo.size.width * CGFloat(mastered) / CGFloat(total))
-                        Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1)
-                    }
-                }
-                .frame(height: 10)
-            }
-        }
-        .padding(.horizontal, 18).padding(.vertical, 12)
-        .frame(maxWidth: compact ? 380 : 500)
-        .darkPlate()
-        .padding(.bottom, compact ? 0 : 16)
-        .accessibilityLabel("Master Quest: \(mastered) of \(total) facts mastered")
-    }
-
-    /// iPhone-landscape Master Quest readout: one row, short enough to live in
-    /// the strip under the node labels. (Slated for removal with the Golden
-    /// Guardians work, which replaces this counter with the map itself.)
-    private var masterQuestBarSlim: some View {
-        let mastered = profile?.masteredCount ?? 0
-        let total = FactUniverse.count
-        return HStack(spacing: 9) {
-            Image(systemName: "trophy.fill").font(.system(size: 13))
-                .foregroundStyle(Theme.Color.accent)
-            Text("MASTER QUEST").font(Theme.Font.label(10)).tracking(1.5)
-                .foregroundStyle(.white.opacity(0.9))
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.black.opacity(0.45))
-                    Capsule()
-                        .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.35),
-                                                      Color(red: 0.95, green: 0.6, blue: 0.1)],
-                                             startPoint: .top, endPoint: .bottom))
-                        .frame(width: geo.size.width * CGFloat(mastered) / CGFloat(total))
-                }
-            }
-            .frame(width: 110, height: 7)
-            Text("\(mastered)/\(total)").font(Theme.Font.number(12))
-                .foregroundStyle(Theme.Color.accent)
-                .contentTransition(.numericText(value: Double(mastered)))
-        }
-        .padding(.horizontal, 12).padding(.vertical, 6)
-        .darkPlate(corner: 16)
-        .padding(.bottom, 3)
-        .accessibilityLabel("Master Quest: \(mastered) of \(total) facts mastered")
-    }
-
     /// Golden Guardians phase 4, beat 3: iPad/landscape-regular reading of the
-    /// quiet completion caption. Occupies the plate the Master Quest bar used
-    /// to sit in — that bar is unconditionally hidden by the time this can
-    /// show (see the `isGoldenEra` guard above).
+    /// quiet completion caption (see the `isGoldenEra`/`allGilded` guard above).
     private var goldenCompletionCaption: some View {
         HStack(spacing: 10) {
             Image(systemName: "sparkles").font(.system(size: 16))
@@ -663,8 +602,8 @@ struct MapView: View {
         .accessibilityLabel("Seven Worlds conquered. Adventure complete.")
     }
 
-    /// iPhone-landscape reading: the same ~35pt strip below the node labels
-    /// that `masterQuestBarSlim` used, single-row and compact to match.
+    /// iPhone-landscape reading: the ~35pt strip below the node labels,
+    /// single-row and compact to match the map's other iPhone chrome.
     private var goldenCompletionCaptionSlim: some View {
         HStack(spacing: 8) {
             Image(systemName: "sparkles").font(.system(size: 12))

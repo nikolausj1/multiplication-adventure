@@ -1,9 +1,11 @@
 import SwiftUI
 
 /// One-time takeover when boss 7 falls and the whole map is cleared:
-/// "YOU BEAT THE MAP!" over the seven conquered world badges, then a pointer
-/// at what's next (the Master Quest → the certificate). Uses `trophy_gold`
-/// art when it exists; a golden SF trophy stands in until then.
+/// "YOU BEAT THE MAP!" over the seven conquered world badges, then the
+/// award itself — dismissing this takeover leads straight into the
+/// certificate (spec acceptance 1: awarded at map completion, no mastery
+/// precondition). Uses `trophy_gold` art when it exists; a golden SF trophy
+/// stands in until then.
 struct MapCompleteOverlay: View {
     let onDone: () -> Void
 
@@ -62,7 +64,7 @@ struct MapCompleteOverlay: View {
                 }
                 .opacity(landed ? 1 : 0)
 
-                Text("The MASTER QUEST begins — master every fact to claim your certificate!")
+                Text("You've earned the Certificate of Victory!")
                     .font(Theme.Font.label(17)).foregroundStyle(Theme.Color.accent)
                     .multilineTextAlignment(.center)
                     .opacity(landed ? 1 : 0)

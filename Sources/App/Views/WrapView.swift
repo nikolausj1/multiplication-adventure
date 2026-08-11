@@ -199,27 +199,20 @@ struct WrapView: View {
                         .multilineTextAlignment(.center)
                 }
             } else if allCleared {
-                let mastered = snapshots.filter { $0.stage == .mastered }.count
-                if mastered >= FactUniverse.count {
-                    Text("Every fact mastered — you're a Multiplication Master!")
+                // Golden Guardians WP5: the map is beaten, so this branch is
+                // always in the golden era now (the certificate is already
+                // awarded at map completion). No fact counts, fractions, or
+                // percentages here (spec acceptance 5) — the guardians'
+                // gilded state is the only signal, read off the profile
+                // query this view already holds.
+                let allGilded = (profile?.gildedWorlds.count ?? 0) == WorldCatalog.count
+                if allGilded {
+                    Text("Seven Worlds conquered — the adventure is complete!")
                         .font(Theme.Font.body()).foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                 } else {
-                    let gainedMastery = max(0, mastered - vm.masteredBefore)
-                    HStack {
-                        Label("MASTER QUEST", systemImage: "trophy.fill")
-                            .font(Theme.Font.label(14)).tracking(1.5)
-                            .foregroundStyle(Theme.Color.accent)
-                        Spacer()
-                        Text("\(mastered)/\(FactUniverse.count) mastered")
-                            .font(Theme.Font.label(14)).foregroundStyle(.white.opacity(0.8))
-                    }
-                    if gainedMastery > 0 {
-                        Text("+\(gainedMastery) mastered today!")
-                            .font(Theme.Font.label(14)).foregroundStyle(Theme.Color.correct)
-                    }
-                    Text("Master every fact — fast answers on different days — to claim the trophy certificate!")
-                        .font(Theme.Font.label(13)).foregroundStyle(.white.opacity(0.65))
+                    Text("The Golden Guardians await on the map!")
+                        .font(Theme.Font.body()).foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                 }
             } else {
