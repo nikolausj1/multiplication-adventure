@@ -370,6 +370,22 @@ struct ParentAreaView: View {
             }
             devBtn("Master everything (100%)", "checkmark.seal.fill") { service.applyDemoProgress(complete: true) }
 
+            Divider().padding(.vertical, 2)
+            // On-device preview of the whole golden-era experience — no
+            // launch args required. Each button reseeds the active profile's
+            // flags fully (mirroring -demoGoldenEra / -gildWorlds) and the
+            // map syncs to match on this modal's dismissal (see
+            // syncGoldenPreviewState in MapView), so the result is visible
+            // immediately after closing the Parent Area, no relaunch needed.
+            sectionHeader("Golden Guardians Preview", "sparkles")
+            Text("Each button rewrites this profile's progress.")
+                .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft)
+            devBtn("Award ceremony (beat the map)", "trophy.fill") { service.applyDemoMapDone() }
+            devBtn("Golden era — nothing conquered", "moon.stars.fill") { service.applyDemoGoldenEra() }
+            devBtn("Conquer three guardians", "shield.lefthalf.filled") { service.setGildedWorldsMask(7) }
+            devBtn("Conquer all seven (finale)", "crown.fill") { service.setGildedWorldsMaskReplayingFinale(127) }
+            devBtn("Reset to mid-game", "arrow.counterclockwise") { service.applyDemoProgress(complete: false) }
+
             Text("Tip: make a separate \"Test\" profile (Profiles → Add) so testing doesn't change your child's real progress.")
                 .font(Theme.Font.label(12)).foregroundStyle(Theme.Color.inkSoft).padding(.top, 2)
         }

@@ -215,7 +215,18 @@ struct MapView: View {
                 .transition(.opacity)
             }
         }
-        .fullScreenCover(isPresented: $showParent, onDismiss: { baselineCurrent = currentIndex }) { ParentAreaView() }
+        .fullScreenCover(isPresented: $showParent, onDismiss: {
+            baselineCurrent = currentIndex
+            #if DEBUG
+            // The Golden Guardians Preview buttons in ParentAreaView's dev
+            // pane mutate the profile while this map is live behind the
+            // modal — resync here so the map lands correctly without a
+            // relaunch. Release builds never compile this call: the dev
+            // pane itself is #if DEBUG-gated, so nothing but this hook would
+            // ever flip these flags outside of real gameplay anyway.
+            syncGoldenPreviewState()
+            #endif
+        }) { ParentAreaView() }
         // In-hierarchy overlay, NOT a cover: the cover's hosting layer fights
         // the keyboard (see PlayerProfileView) — here the GUI stays frozen.
         // The map subtree has no text input of its own, so it ignores the
@@ -771,6 +782,48 @@ struct MapView: View {
         try? context.save()
         withAnimation(.easeOut(duration: 0.3)) { showGuardiansAssemble = true }
     }
+
+    // MARK: Dev-only: Golden Guardians Preview sync
+    //
+    // Debug builds only. ParentAreaView's dev pane can rewrite the active
+    // profile's golden-era flags (award/gild/finale/reset) while this map is
+    // still on screen behind the Parent Area modal — none of that flows
+    // through the normal gameplay triggers (a session closing, boss falling,
+    // etc.), so without this the map would sit stale until relaunch. This
+    // is purely a RESYNC: it follows whatever the profile now says, using
+    // the exact same one-time-flag-guarded paths real gameplay uses
+    // (`checkUnlockReveal`/`checkGuardiansAssemble`) so a takeover can only
+    // fire once, and settles `revealGoldenMap`/`sceneColorRestored`
+    // statically (no reveal animation) exactly like `.onAppear` already does
+    // for "already in the golden era at launch" — never a new transform
+    // replay. Safe to call after any of the five preview buttons, in any
+    // order, since each of them already reseeds its own flags fully.
+    #if DEBUG
+    private func syncGoldenPreviewState() {
+        if isGoldenEra {
+            // Static settle, matching `.onAppear`'s "already golden at
+            // launch" branch — not the animated reveal sequence, which only
+            // ever plays from the certificate's onDismiss right after a
+            // fresh map-complete award.
+            revealGoldenMap = true
+            sceneColorRestored = profile?.guardiansColorFloodPlayed ?? false
+        } else {
+            // Reset to mid-game (or any non-golden state): no golden
+            // leftovers on the live map.
+            revealGoldenMap = false
+            sceneColorRestored = false
+            playTransformAnimation = false
+        }
+        // Real-gameplay paths: fire the map-complete takeover if the profile
+        // now reads "map beaten, not yet celebrated" (the award-ceremony
+        // button), and the assemble takeover if it reads "all seven gilded,
+        // not yet celebrated" (the finale button). Both are no-ops when
+        // their guard flag is already true, so calling them after every
+        // button press is harmless.
+        checkUnlockReveal()
+        checkGuardiansAssemble()
+    }
+    #endif
 }
 
 /// The standard unlocked world badge on the map.
