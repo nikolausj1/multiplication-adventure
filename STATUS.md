@@ -2,7 +2,7 @@
 title: "STATUS - Math Tutor"
 created: 2026-07-24
 modified: 2026-08-11
-version: 5.1
+version: 5.2
 author: Claude Fable 5 (claude-fable-5)
 tags:
 ---
@@ -91,6 +91,11 @@ Implements `docs/golden-guardians-spec.md` v3.1 in full. What shipped, in build 
 ## The "no way to answer" bug (root-caused 2026-08-10, commit 7400557)
 
 Fixed and measured (5/6 failing before, 0/8 after, 0/8 on iPad). `assembleQuest`'s warm-up rebuilt review questions field-by-field, dropping `trueFalse`, so True/False questions fell through to MultipleChoiceView with nil options and rendered no controls. A safety net in QuestionContainer now degrades any option-less recognition question to the number pad.
+
+## Session Notes (2026-08-11, evening iteration)
+
+- Four on-device feedback changes landed (commits 624913d, 306818d): boss videos grade GOLD per-frame during golden fights (AVVideoComposition + Core Image, alpha preserved - unpremultiply before grading, premultiply after; regular fights untouched), the reveal is now a 4-strike lightning storm with screen shake, the DEBUG dev card opens without the math gate, and conquered nodes have three selectable treatments (-conqueredStyle 1|2|3: crown / sash / laurel; crown default pending your pick).
+- Debug build with everything deployed to your iPad Pro and iPhone via devicectl. Chase's iPad untouched.
 
 ## Session Notes (2026-08-11, overnight)
 
