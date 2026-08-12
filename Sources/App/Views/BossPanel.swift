@@ -11,6 +11,11 @@ struct BossPanel: View {
     let hits: Int
     let hpTotal: Int
     var lastHitCritical: Bool = false
+    /// True during a GOLDEN Guardian fight (`SessionViewModel.golden`). Grades
+    /// the boss video/still gold and adds a pulsing gold glow behind it —
+    /// entirely additive, so a regular (phase-1) fight with `golden == false`
+    /// renders exactly as before.
+    var golden: Bool = false
 
     private var bossName: String { theme.world.bossName }
 
@@ -19,6 +24,7 @@ struct BossPanel: View {
     @State private var shakePhase: CGFloat = 0
     @State private var burst = 0
     @State private var showCrit = false
+    @State private var glowBloom = false
 
     private var hpFraction: Double { max(0, 1 - Double(hits) / Double(hpTotal)) }
     private var defeated: Bool { hits >= hpTotal }
@@ -57,7 +63,7 @@ struct BossPanel: View {
             // (which is the only time the video shows), so the still branch
             // carries them instead. Don't "tidy" them back onto the outer
             // chain.
-            LoopingVideoView(url: url, isPaused: defeated)
+            LoopingVideoView(url: url, isPaused: defeated, golden: golden)
                 .aspectRatio(ratio, contentMode: .fit)
                 .transition(.opacity)
         } else {
@@ -71,9 +77,33 @@ struct BossPanel: View {
         }
     }
 
+    /// A slow, breathing radial bloom BEHIND the boss visual — pure SwiftUI,
+    /// composited underneath in the view hierarchy rather than as a filter ON
+    /// the video, so it never touches the AVPlayerLayer that would lose its
+    /// alpha (see the note in `bossVisual`). Static (no pulse) under Reduce
+    /// Motion instead of animating.
+    @ViewBuilder
+    private var goldGlow: some View {
+        if golden && !defeated {
+            GeometryReader { geo in
+                RadialGradient(colors: [Theme.Color.accent.opacity(0.85),
+                                        Theme.Color.accent.opacity(0.3),
+                                        .clear],
+                              center: .center, startRadius: 4,
+                              endRadius: min(geo.size.width, geo.size.height) * 0.72)
+                    .frame(width: geo.size.width * 1.5, height: geo.size.height * 1.5)
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    .blur(radius: 24)
+                    .opacity(reduceMotion ? 0.65 : (glowBloom ? 0.95 : 0.5))
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 14) {
             bossVisual
+                .background(goldGlow)
                 .frame(maxHeight: vSize == .compact ? 190 : 470)
                 .modifier(Shake(travel: 10, shakesPerUnit: 3,
                                 animatableData: reduceMotion ? 0 : shakePhase))
@@ -123,6 +153,12 @@ struct BossPanel: View {
             .padding(.horizontal, 26)
         }
         .animation(Theme.Motion.celebrate, value: defeated)
+        .onAppear {
+            guard golden, !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                glowBloom = true
+            }
+        }
         .onChange(of: hits) { _, _ in
             burst += 1
             if lastHitCritical {

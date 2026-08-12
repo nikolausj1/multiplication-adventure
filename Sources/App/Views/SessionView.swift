@@ -133,7 +133,7 @@ struct SessionView: View {
                 if vm.bossWorldIndex != nil && Art.exists(theme.bossImage) {
                     HStack(alignment: .center, spacing: 4) {
                         BossPanel(theme: theme, hits: vm.correctCount, hpTotal: vm.bossHPTotal,
-                                  lastHitCritical: vm.lastHitCritical)
+                                  lastHitCritical: vm.lastHitCritical, golden: vm.golden)
                             .frame(maxWidth: compact ? 250 : 470)
                         QuestionContainer(vm: vm, question: q)
                             .id(vm.index)

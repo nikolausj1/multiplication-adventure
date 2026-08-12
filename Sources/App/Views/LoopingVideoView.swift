@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import CoreImage
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -13,10 +14,17 @@ import UIKit
 struct LoopingVideoView: UIViewRepresentable {
     let url: URL
     var isPaused: Bool = false
+    /// GOLDEN Guardian fights grade every frame gold in place, per-pixel, via
+    /// Core Image — no second video asset. See `goldenComposition` below for
+    /// why this is the one place a "filter" is safe to apply to this view.
+    var golden: Bool = false
 
     func makeUIView(context: Context) -> PlayerContainerView {
         let view = PlayerContainerView()
         let item = AVPlayerItem(url: url)
+        if golden {
+            item.videoComposition = Self.goldenComposition(for: item.asset)
+        }
         let queuePlayer = AVQueuePlayer()
         let looper = AVPlayerLooper(player: queuePlayer, templateItem: item)
 
@@ -40,6 +48,46 @@ struct LoopingVideoView: UIViewRepresentable {
 
         queuePlayer.play()
         return view
+    }
+
+    /// Grades every frame of an alpha-channel boss video gold, per-pixel, via
+    /// `AVMutableVideoComposition`'s Core Image hook — the one filtering route
+    /// that does NOT touch the AVPlayerLayer-backed view itself (that's what
+    /// destroys alpha; see BossPanel's note). The composition runs inside
+    /// AVFoundation's own compositor, upstream of the layer, so the layer still
+    /// receives a normal alpha-carrying frame to display.
+    ///
+    /// The one trap inside the filter chain itself: Core Image's color filters
+    /// (CIColorControls, CIColorMatrix) assume PREMULTIPLIED alpha by default.
+    /// Run a color matrix on a premultiplied frame and the silhouette edge —
+    /// where alpha fades from 1 to 0 — fringes, because the matrix scales the
+    /// already-alpha-weighted color rather than the true color. Unpremultiply
+    /// before grading, regrade, then premultiply again before handing the
+    /// frame back.
+    private static func goldenComposition(for asset: AVAsset) -> AVMutableVideoComposition {
+        AVMutableVideoComposition(asset: asset) { request in
+            let straight = request.sourceImage.unpremultiplyingAlpha()
+            let graded = straight
+                // Pull toward neutral so the warm tint below reads as a true
+                // color grade rather than a tint over the original hues.
+                .applyingFilter("CIColorControls", parameters: [
+                    kCIInputSaturationKey: 0.35,
+                    kCIInputBrightnessKey: 0.02,
+                    kCIInputContrastKey: 1.08,
+                ])
+                // Push everything toward warm gold: boost red, hold green,
+                // pull blue down and back it off with a small negative bias
+                // so shadows don't go muddy-blue.
+                .applyingFilter("CIColorMatrix", parameters: [
+                    "inputRVector": CIVector(x: 1.25, y: 0.08, z: 0.00, w: 0),
+                    "inputGVector": CIVector(x: 0.12, y: 1.02, z: 0.00, w: 0),
+                    "inputBVector": CIVector(x: -0.05, y: 0.00, z: 0.55, w: 0),
+                    "inputBiasVector": CIVector(x: 0.035, y: 0.02, z: -0.04, w: 0),
+                ])
+                .premultiplyingAlpha()
+                .cropped(to: request.sourceImage.extent)
+            request.finish(with: graded, context: nil)
+        }
     }
 
     func updateUIView(_ uiView: PlayerContainerView, context: Context) {
