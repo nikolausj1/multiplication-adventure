@@ -30,6 +30,18 @@ struct LevelUpMathApp: App {
         if let i = args.firstIndex(of: "-gildWorlds"), i + 1 < args.count, let n = Int(args[i + 1]) {
             service.setGildedWorldsMask(n)
         }
+        // Visual redesign v2: pick which conquered-node treatment
+        // (`ConqueredStyle`) to render for on-device comparison — 1 Crown,
+        // 2 Sash, 3 Laurel. Defaults to Crown when absent, which is also
+        // what every Release build renders (nothing outside this #if DEBUG
+        // block ever touches `ConqueredStyle.current`). Simulator
+        // verification only.
+        #if DEBUG
+        if let i = args.firstIndex(of: "-conqueredStyle"), i + 1 < args.count,
+           let n = Int(args[i + 1]), let style = ConqueredStyle(rawValue: n) {
+            ConqueredStyle.current = style
+        }
+        #endif
         if args.contains("-unlockLightning") {
             service.activeProfile().lightningRoundUnlocked = true   // simulator verification only
             try? container.mainContext.save()

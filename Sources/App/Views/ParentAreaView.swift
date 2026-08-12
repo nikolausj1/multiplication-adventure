@@ -315,9 +315,13 @@ struct ParentAreaView: View {
     }
 
     /// Collapsed state: the section exists but its contents (world names, session
-    /// jumps) stay behind the gate so the child can't spoil or skip progression.
+    /// jumps) stay collapsed by default so a glance at the Parent Area doesn't
+    /// spoil world names — but this whole card is DEBUG-only already (see the
+    /// `#if DEBUG` wrapping this file's developer surfaces), so there's no
+    /// child-facing risk left to gate with a second math prompt on top of the
+    /// Parent Area's own entry gate. Tapping unlocks directly.
     private var devCardLocked: some View {
-        Button { gated { devUnlocked = true } } label: {
+        Button { devUnlocked = true } label: {
             HStack {
                 sectionHeader("Developer / Testing", "lock.fill")
                 Spacer()

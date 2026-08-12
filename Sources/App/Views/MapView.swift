@@ -38,6 +38,15 @@ struct MapView: View {
     // flips. A plain @State opacity driven by a short withAnimation chain —
     // see `runRevealFlashes()`.
     @State private var flashOpacity: Double = 0
+    // Visual redesign v2 ("amp the storm"): a second, independent white layer
+    // for the brief per-guardian slam flicker (see `flickerSlam()`), kept
+    // separate from `flashOpacity` so a slam landing mid-strike doesn't
+    // retarget the main strike's animation curve.
+    @State private var slamFlashOpacity: Double = 0
+    // Visual redesign v2: a cheap low-amplitude screen shake riding the
+    // double-strike beat, reusing the existing `Shake` GeometryEffect (see
+    // `nudgeLocked`) at a smaller travel than the locked-node nudge.
+    @State private var stormShakePhase: CGFloat = 0
     // Visual redesign: true once the finale color flood has played (or, on a
     // later launch, once `Profile.guardiansColorFloodPlayed` says it already
     // has). Gates the B&W scene (`sceneIsBW`) and the return of
@@ -188,7 +197,20 @@ struct MapView: View {
             Color.white.opacity(flashOpacity)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
+            // Visual redesign v2: the per-guardian slam flicker, layered above
+            // the main strike so the two never fight over one animation curve.
+            Color.white.opacity(slamFlashOpacity)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
         }
+        // Visual redesign v2: low-amplitude screen shake riding the reveal
+        // sequence's double-strike beat (see `runRevealFlashes`). Applied to
+        // the whole scene ZStack above rather than any single node — reuses
+        // the existing `Shake` GeometryEffect (locked-node nudges use it at
+        // travel: 7); this is a much smaller travel so it reads as a jolt,
+        // not a wobble, and settles at animatableData == an integer so the
+        // scene always lands back at zero offset.
+        .modifier(Shake(travel: 4, animatableData: stormShakePhase))
         // In-hierarchy overlay, NOT a fullScreenCover: a cover's hosting layer
         // applies a lingering keyboard inset (keyboard still animating away
         // when a world is tapped right after name editing) that clips the
@@ -544,7 +566,8 @@ struct MapView: View {
                     if golden {
                         GuardianBadge(index: world.index,
                                       gilded: profile?.isGilded(world.index) ?? false,
-                                      diameter: badgeD, animate: playTransformAnimation)
+                                      diameter: badgeD, animate: playTransformAnimation,
+                                      onLand: playTransformAnimation ? flickerSlam : nil)
                     } else if unlocked {
                         if world.index == revealWorld {
                             UnlockRevealNode(index: world.index, diameter: badgeD) { revealWorld = nil }
@@ -709,26 +732,62 @@ struct MapView: View {
         .accessibilityLabel("Seven Worlds conquered. Adventure complete.")
     }
 
-    /// Visual redesign: the reveal sequence's opening beat — two quick white
-    /// full-screen pulses (~0.12s each, a short gap between), each paired
-    /// with the `phaseJolt` haptic/SFX (an existing "electric zap" effect —
-    /// no new audio asset needed). Calls `completion` once both have
-    /// finished, so the caller can chain the B&W desaturation + guardian
-    /// slam-in that follow. Only ever called on the live, non-Reduced-Motion
-    /// path (see the certificate's `onDismiss`).
+    /// Visual redesign v2 ("amp the storm"): the reveal sequence's opening
+    /// beats — an opening strike, a beat, a fast double-strike (brighter on
+    /// the second hit, with a low-amplitude screen shake riding it), the B&W
+    /// drain starting right after, and one more big strike partway through
+    /// that drain. Every strike pairs a full-screen white pulse with the
+    /// `phaseJolt` haptic/SFX ("electric zap"). `phaseJolt` fires `.rigid`
+    /// impact rather than `.starSlam`'s `.heavy` (the single strongest
+    /// haptic in `Feedback.Event`) because `.starSlam`'s paired sound is
+    /// "sfx_star_slam.wav" — a real asset, thematically a star hitting its
+    /// socket, not a lightning strike; reusing it here would sound wrong.
+    /// `phaseJolt`'s own sound ("sfx_phase_zap.wav") already exists and was
+    /// the original choice for this exact beat, so it stays. Calls
+    /// `completion` once the double-strike lands, so the caller can chain
+    /// the B&W desaturation + guardian slam-in that follow, then keeps
+    /// running to fire the fourth strike mid-drain. Only ever called on the
+    /// live, non-Reduced-Motion path (see the certificate's `onDismiss`).
     private func runRevealFlashes(completion: @escaping () -> Void) {
-        func pulse(at delay: Double) {
+        func strike(at delay: Double, peak: Double, up: Double = 0.06, down: Double = 0.08) {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 Feedback.fire(.phaseJolt)
-                withAnimation(.easeOut(duration: 0.06)) { flashOpacity = 0.9 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-                    withAnimation(.easeIn(duration: 0.06)) { flashOpacity = 0 }
+                withAnimation(.easeOut(duration: up)) { flashOpacity = peak }
+                DispatchQueue.main.asyncAfter(deadline: .now() + up) {
+                    withAnimation(.easeIn(duration: down)) { flashOpacity = 0 }
                 }
             }
         }
-        pulse(at: 0)
-        pulse(at: 0.2)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { completion() }
+        // Strike 1: the opening bolt.
+        strike(at: 0, peak: 0.9)
+        // Beat, then the fast double-strike — two ~0.12s flashes ~0.15s
+        // apart, the second brighter — with a quick low-amplitude screen
+        // shake spanning both hits.
+        strike(at: 0.35, peak: 0.85, up: 0.04, down: 0.08)
+        strike(at: 0.5, peak: 0.95, up: 0.04, down: 0.08)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            withAnimation(.easeInOut(duration: 0.27)) { stormShakePhase += 1 }
+        }
+        // The B&W drain starts immediately after the double strike lands
+        // (0.5 + 0.12 = 0.62s in); the drain itself is the caller's 0.8s
+        // `withAnimation` on `revealGoldenMap`.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.62) { completion() }
+        // Strike 4: one more big flash roughly halfway through the drain.
+        strike(at: 1.02, peak: 0.9)
+    }
+
+    /// Visual redesign v2: a brief 0.25-opacity global flicker fired as each
+    /// guardian slams into place (see `GuardianBadge.onLand`). Chosen over a
+    /// per-node radial bloom: at the 82pt iPhone-landscape badge size the
+    /// trail nodes sit close enough together that a bloom sized to read
+    /// clearly (roughly 1.5-1.8x the badge) risked clipping into the
+    /// neighboring node or its label capsule. A global flicker gets the same
+    /// "something just landed" beat without that risk.
+    private func flickerSlam() {
+        withAnimation(.easeOut(duration: 0.08)) { slamFlashOpacity = 0.25 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            withAnimation(.easeIn(duration: 0.2)) { slamFlashOpacity = 0 }
+        }
     }
 
     /// A tap on a fogged node shouldn't feel broken: wiggle it and say what unlocks it.
@@ -852,6 +911,10 @@ private struct GuardianBadge: View {
     let gilded: Bool
     var diameter: CGFloat = 104
     var animate: Bool = false
+    /// Visual redesign v2: fired the instant this guardian's slam-in begins
+    /// (only ever set on the animated reveal path) so the caller can flash a
+    /// brief global accent per landing — see MapView's `flickerSlam()`.
+    var onLand: (() -> Void)? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var revealed = false
@@ -863,6 +926,7 @@ private struct GuardianBadge: View {
             .onAppear {
                 guard animate, !reduceMotion else { revealed = true; return }
                 let stagger = Double(index) * 0.12
+                DispatchQueue.main.asyncAfter(deadline: .now() + stagger) { onLand?() }
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.62).delay(stagger)) {
                     revealed = true
                 }
