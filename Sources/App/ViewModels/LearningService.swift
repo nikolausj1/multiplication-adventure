@@ -97,6 +97,7 @@ struct LearningService {
         profile.mapCompleteCelebrated = false
         profile.gildedWorldsMask = 0
         profile.guardiansAssembleCelebrated = false
+        profile.guardiansColorFloodPlayed = false
         profile.bestStreak = 0
         profile.speedBonusCount = 0
         profile.pausedQuestDate = nil
@@ -176,6 +177,8 @@ struct LearningService {
         // takeover ever shows, which is exactly what the spec forbids.
         p.mapCompleteCelebrated = false
         p.gildedWorldsMask = 0
+        p.guardiansAssembleCelebrated = false
+        p.guardiansColorFloodPlayed = false
         for (i, f) in p.facts.enumerated() {
             f.introduced = true
             if i % 4 == 0 {
@@ -213,6 +216,7 @@ struct LearningService {
         // again, not silently skip it because a stale flag survived.
         p.gildedWorldsMask = 0
         p.guardiansAssembleCelebrated = false
+        p.guardiansColorFloodPlayed = false
         for (i, f) in p.facts.enumerated() {
             switch i % 5 {
             case 0:

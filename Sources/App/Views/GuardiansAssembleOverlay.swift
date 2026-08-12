@@ -52,7 +52,7 @@ struct GuardiansAssembleOverlay: View {
                 VStack(spacing: compact ? 3 : 6) {
                     Text("They were never your enemies.")
                         .font(Theme.Font.body(compact ? 14 : 19)).foregroundStyle(.white.opacity(0.9))
-                    Text("Seven worlds. Seven guardians. All gold.")
+                    Text("Seven guardians defeated. The color returns to the Seven Worlds.")
                         .font(Theme.Font.label(compact ? 14 : 19)).foregroundStyle(Theme.Color.accent)
                 }
                 .multilineTextAlignment(.center)
@@ -68,7 +68,7 @@ struct GuardiansAssembleOverlay: View {
         .contentShape(Rectangle())
         .onTapGesture { if landed || reduceMotion { onDone() } }
         .onAppear { run() }
-        .accessibilityLabel("The guardians salute you. They were never your enemies. Seven worlds, seven guardians, all gold.")
+        .accessibilityLabel("The guardians salute you. They were never your enemies. Seven guardians defeated, the color returns to the Seven Worlds.")
     }
 
     private func run() {

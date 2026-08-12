@@ -246,17 +246,25 @@ struct WorldNodeBadge: View {
     }
 }
 
-/// Golden Guardians phase 3 map node: once the map transforms, each node
-/// shows its GUARDIAN (the still `bossImage`, never the boss video — see
-/// BossPanel's note on why compositing filters break the video's alpha)
-/// instead of the world image, in one of two readable states:
-///  - not yet gilded: a dark "challenger" silhouette on the world's own
-///    palette with a dim gold rim — "a guardian holds this world."
-///  - gilded: full warm-gold treatment (desaturate + gold colorMultiply +
-///    brightness lift) with a bright rim and a warm glow — unmistakably
-///    different from the un-gilded state at a glance.
-/// Self-contained (frame/clip/border/shadow) so callers just drop it in,
-/// mirroring how `UnlockedBadge` wraps `WorldNodeBadge` on the map.
+/// Golden Guardians map node (visual redesign, superseding the "dark
+/// challenger turns gold" model): the guardian itself — the still
+/// `bossImage`, never the boss video, see BossPanel's note on why
+/// compositing filters break the video's alpha — is GOLD from the moment
+/// the map transforms, in EVERY state. The conquest signal moved to the
+/// NODE CIRCLE BACKGROUND instead:
+///  - not yet gilded (challenge): a desaturated/grayscale version of the
+///    world's own palette gradient behind the gold guardian, dim gold rim —
+///    "the guardian has drained this world's color."
+///  - gilded (conquered): the world-palette gradient returns at full
+///    saturation, a small gold seal badges the bottom edge as a secondary
+///    cue, and the rim/glow brighten — "beating the guardian restores it."
+/// The circle-background saturation change (and the rim/glow brightening)
+/// animate implicitly when `gilded` flips true with the caller inside
+/// `withAnimation` (a fight just won, the map returns) and render correctly
+/// at rest with no animation when `gilded` is already the view's initial
+/// value (a later launch). Self-contained (frame/clip/border/shadow) so
+/// callers just drop it in, mirroring how `UnlockedBadge` wraps
+/// `WorldNodeBadge` on the map.
 struct GuardianNodeBadge: View {
     let theme: WorldTheme
     let gilded: Bool
@@ -266,18 +274,22 @@ struct GuardianNodeBadge: View {
 
     var body: some View {
         ZStack {
+            // The conquest signal: the world's own palette, grayscale while
+            // challenged, vivid once conquered.
             Circle().fill(LinearGradient(colors: [theme.primary, theme.deep],
                                          startPoint: .top, endPoint: .bottom))
+                .saturation(gilded ? 1 : 0)
+            // The guardian is gold from the transform onward, in both states.
             if Art.exists(theme.bossImage) {
                 Image(theme.bossImage)
                     .resizable().scaledToFill()
-                    .saturation(gilded ? 0.25 : 0.12)
-                    .brightness(gilded ? 0.18 : -0.34)
-                    .colorMultiply(gilded ? gold : Color(white: 0.32))
+                    .saturation(0.25)
+                    .brightness(0.18)
+                    .colorMultiply(gold)
             } else {
                 Image(systemName: "shield.lefthalf.filled")
                     .font(.system(size: diameter * 0.32))
-                    .foregroundStyle(gilded ? gold : .white.opacity(0.4))
+                    .foregroundStyle(gold)
             }
         }
         .frame(width: diameter, height: diameter)
@@ -290,6 +302,21 @@ struct GuardianNodeBadge: View {
                     startPoint: .topLeading, endPoint: .bottomTrailing),
                 lineWidth: gilded ? (diameter > 95 ? 5 : 4) : (diameter > 95 ? 3.5 : 2.5))
         )
+        // Conquered seal: a compact secondary cue riding the badge's bottom
+        // edge, outside the circle clip (mirroring how the old map's cleared
+        // checkmark badges the corner) so it's legible even at a glance that
+        // misses the color return.
+        .overlay(alignment: .bottom) {
+            if gilded {
+                Image(systemName: "star.circle.fill")
+                    .font(.system(size: diameter * 0.24))
+                    .foregroundStyle(gold)
+                    .background(Circle().fill(.white).frame(width: diameter * 0.21, height: diameter * 0.21))
+                    .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                    .offset(y: diameter * 0.12)
+            }
+        }
         .shadow(color: gold.opacity(gilded ? 0.7 : 0.12), radius: gilded ? 14 : 3, y: gilded ? 0 : 2)
+        .animation(.easeInOut(duration: 0.7), value: gilded)
     }
 }

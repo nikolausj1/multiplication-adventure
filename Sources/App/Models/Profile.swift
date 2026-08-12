@@ -71,6 +71,17 @@ final class Profile {
     /// phase 4, beat 1: after the seventh guardian is gilded).
     var guardiansAssembleCelebrated: Bool = false
 
+    /// The one-time finale color flood has played (Golden Guardians visual
+    /// redesign, phase 4 beat 4): the whole scene's saturation floods back
+    /// once the "guardians assemble" takeover is dismissed. Tracked
+    /// separately from `guardiansAssembleCelebrated` — that flag flips the
+    /// instant the takeover is triggered (before the player has dismissed it
+    /// and seen the flood), so it can't by itself tell MapView whether the
+    /// flood has actually played. This lets a later launch render the
+    /// settled full-color scene statically, and a relaunch caught between
+    /// the takeover and its dismissal still play the flood live.
+    var guardiansColorFloodPlayed: Bool = false
+
     /// Longest in-session correct streak ever reached (a chase-able trophy stat).
     var bestStreak: Int = 0
     /// Lifetime count of speed bonuses earned (fast correct answers).
