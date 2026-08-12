@@ -2,7 +2,7 @@
 title: "STATUS - Math Tutor"
 created: 2026-07-24
 modified: 2026-08-11
-version: 5.0
+version: 5.1
 author: Claude Fable 5 (claude-fable-5)
 tags:
 ---
@@ -63,7 +63,7 @@ Implements `docs/golden-guardians-spec.md` v3.1 in full. What shipped, in build 
 
 1. **Engine** (`Sources/Engine/GoldenFightBuilder.swift` + smoke-test coverage): a golden fight serves EVERY fact its world owns exactly once, each in a format its stage can answer (recognition -> MC untimed, recall -> open untimed, fluency/mastered -> open timed); never-introduced facts serve as MC. This closes the `stage >= .recall` hazard that would have made a world permanently unconquerable. Measured: 84 uniform + 2,100 randomized builds (23,100 questions), zero violations; recognition facts provably advance with `countsTime:false`; all 77 facts converge to mastered in 7 simulated daily rounds with the 2-day gate intact.
 2. **The fight** (WP2): golden-era node taps go straight in; full-gauntlet HP (no early victory cutting facts); MC hits are normal hits (never crits, excluded from the speed baseline); >=85% gilds via `Profile.gildedWorldsMask` without touching `clearedWorlds`; soft fail = "the guardian escaped" retreat with a world-scoped untimed "TRAIN THE Ns" round. Measured: `-dumpGoldenSim` harness, 58/58 PASS on 12 runs total.
-3. **Map transformation** (WP3): after the completion celebration, nodes flip (one-time staggered animation) to guardians - dark gold-rimmed challengers until beaten, full gold with glow once gilded; table labels ("Sky Citadel / the 8s") appear only now; golden-hour tint. Measured: pixel metric classifies 0/7 vs 3/7 vs 7/7 gilded correctly on both sims; 8/8 launch loop; pre-golden map byte-identical to pre-change build except an animation phase.
+3. **Map transformation** (WP3, visually redesigned 2026-08-11 evening per your notes, commit 804a69e): the reveal flashes lightning twice, drains the whole scene to black and white, and slams in all seven guardians in full gold. Conquest restores the world's color to that node's circle (plus a star seal); when all seven fall, the entire map's color floods back before the certificate. Node labels are boss name + explicit challenge ("Storm Titan / x8 Challenge", flipping to "Conquered!" when beaten). Measured: pixel metric classifies 0/7 vs 3/7 vs 7/7 gilded correctly on both sims; 8/8 launch loop; pre-golden map byte-identical to pre-change build except an animation phase.
 4. **Final beats** (WP4): seventh gild -> one-time "THE GUARDIANS SALUTE YOU!" takeover (8/8 launches) -> certificate gains a drawn gold seal (inside the ImageRenderer'd card) -> permanent quiet caption "Seven Worlds conquered · Adventure complete". Persistence verified across arg-less relaunch.
 5. **Certificate + bar removal** (WP5): certificate awarded at map completion (no mastery precondition), retitled "CERTIFICATE OF VICTORY", reworded around conquering the Seven Worlds; sequence is takeover -> certificate -> map transform; `masterQuestBar`/`masterQuestBarSlim` deleted; WrapView and the trophy room's child-facing fact counts removed (sweep table in session log). Honest counts live only in the Parent Area.
 
