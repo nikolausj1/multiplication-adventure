@@ -4,6 +4,10 @@ import SwiftData
 struct SessionView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.verticalSizeClass) private var vSize   // .compact = iPhone landscape
+    // Golden Guardians refinement: to know whether THIS world is already
+    // gilded (a re-fight, rendered in color) or still B&W, mirroring the
+    // map's own conquered treatment.
+    @Query(filter: #Predicate<Profile> { $0.isActive }) private var activeProfiles: [Profile]
     var worldIndex: Int = 0
     var speedRound: Bool = false
     var lightningRound: Bool = false
@@ -27,6 +31,15 @@ struct SessionView: View {
     @State private var showWorldIntro = false
     private var theme: WorldTheme { .forWorld(worldIndex) }
     private var compact: Bool { vSize == .compact }
+    /// B&W golden-fight backgrounds (refinement): the guardian has "drained
+    /// the color" from its background too, exactly like its map node — the
+    /// fight background stays desaturated during a GOLDEN fight until that
+    /// world is gilded. A re-fight of an already-conquered world (gilded
+    /// before this fight began) renders in color. Regular fights, quests,
+    /// and training never set `golden`, so this is a no-op for them.
+    private var goldenBackdropDesaturated: Bool {
+        golden && !(activeProfiles.first?.isGilded(worldIndex) ?? false)
+    }
 
     var body: some View {
         // The Lightning Round is its own small state machine, fully isolated from
@@ -46,6 +59,7 @@ struct SessionView: View {
         let starShowing = vm?.pendingStarEarned != nil
         ZStack {
             WorldBackdrop(theme: theme)
+                .saturation(goldenBackdropDesaturated ? 0 : 1)
                 .blur(radius: starShowing ? 12 : 0)
             if let vm {
                 if vm.stage == .finished {
