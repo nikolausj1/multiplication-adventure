@@ -1,9 +1,9 @@
 ---
 title: "STATUS - Math Tutor"
 created: 2026-07-24
-modified: 2026-08-11
-version: 5.2
-author: Claude Fable 5 (claude-fable-5)
+modified: 2026-08-13
+version: 6.0
+author: Claude Opus 5 (claude-opus-5)
 tags:
 ---
 
@@ -15,16 +15,18 @@ An iPad/iPhone SwiftUI app you built for your son Chase, called Multiplication A
 
 ## Stage
 
-Beta (1.0 build 6 submitted for App Store review 2026-08-10; the Golden Guardians endgame is complete and measured on branch `boss-idle-videos`, NOT in the build under review)
+Beta (1.0 build 6 REJECTED 2026-08-13 under Guideline 4.3(a) Design: Spam; reply sent to App Review the same day, awaiting response. The Golden Guardians endgame is complete and measured on branch `boss-idle-videos`, NOT in the rejected build.)
 
 ## Health
 
-🟢 On-track - build 6 is in review with nothing known-broken; the Golden Guardians feature (spec v3.1) was built overnight 2026-08-11 across five commits with every acceptance criterion verified by measurement (engine 86 checks, app-layer sim 58/58 x12 runs, pixel-metric screenshot loops 8/8, phase-1 quest-plan summary lines byte-identical to the pre-change baseline)
+🔴 Blocked - Apple rejected build 6 as spam under 4.3(a), saying it shares a similar binary, metadata and/or concept with apps already on the Store. This is a harder class than the previous two rejections: it questions the app's right to exist on the Store rather than naming a fixable defect, and it puts the two-app plan (Addition free as a funnel, Multiplication paid) in doubt, because Apple's preferred 4.3 resolution is merging similar apps into one. The software itself is in good shape: nothing known-broken in the build, and the Golden Guardians endgame is fully measured on branch.
 
 ## Waiting on Me
 
-- [ ] **Watch for Apple's verdict on 1.0 (6)** (~passive) - approval auto-releases. Apple DID review this app on 2026-08-08 (4 days after submit), so the queue does move; if this one stalls past ~5 days, contact App Review
-      - unblocks: the public App Store listing going live
+- [ ] **Watch for App Review's reply on the 4.3(a) rejection** (~passive, 1-3 days typical) - the reply asks which apps build 6 was matched against, asserts originality, and discloses Addition Adventure by bundle ID. Do NOT resubmit while this thread is open; resubmitting an unchanged binary against a spam flag reads as ignoring them
+      - unblocks: knowing whether the two apps can coexist, or whether they must merge into one app with selectable content
+- [ ] **Decide the two-app question once Apple answers** (~a real decision, not a task) - three paths: explain and keep both; merge into one "Math Adventure" with an operation per player profile (Apple's preferred resolution, halves maintenance, kills the need for cross-promo); or retire Addition from the Store and keep it sideloaded for Vinny
+      - unblocks: the pricing plan, which currently depends on two apps existing
 - [ ] **Play the Golden Guardians endgame yourself** (~20 min on a simulator: `-demoGoldenEra`, then win/lose fights) (updated 2026-08-11)
       - unblocks: deciding whether it ships as 1.1 right after 1.0 releases, and whether the fight length (9-15 questions, one per fact) feels right
 - [ ] **Grant the iPad simulator panel permission for MA-Verify-iPad, then rerun the retreat-screen tap-through** (~5 min) - the one Golden Guardians surface not verified on iPad (it IS verified on the tighter iPhone landscape layout; a permission prompt was declined/pending during the overnight run)
@@ -40,13 +42,13 @@ Beta (1.0 build 6 submitted for App Store review 2026-08-10; the Golden Guardian
 
 ## Next Up
 
-1. Respond to the App Store review outcome for build 6 (auto-release on approval; fix-and-resubmit if rejected).
+1. Wait for App Review's reply on 4.3(a). Do not resubmit, do not upload a new build, do not edit metadata while the thread is open.
 2. After 1.0 releases: decide the 1.1 plan for `boss-idle-videos` (Golden Guardians). The branch is 5 commits ahead, pushed, all measured; it needs your play-through and a version/build bump, nothing else known.
 3. Watch Chase play 2-3 real sessions under the current pacing; adjust the 8-minute constants if it feels off.
 
 ## Biggest Risk
 
-Five submissions, zero releases - each rejection costs the full queue position, and Sept 8 is four weeks out. Secondary: the Golden Guardians endgame is machine-verified but has never been played by a human; the per-fight length and the fight-train-fight difficulty loop may need feel-tuning once Chase actually reaches the golden era (weeks away, so low urgency).
+**The 4.3(a) spam flag is now the top risk, and it is different in kind from the previous ones.** The first two rejections named defects we could fix in an afternoon; this one questions whether the app belongs on the Store at all, and a second 4.3 flag on the same account (which submitting Addition Adventure would likely produce, since it is the same codebase) escalates toward Developer Program action. PARITY.md now carries a hold order for that app. Six submissions, zero releases. Secondary: the Golden Guardians endgame is machine-verified but has never been played by a human; the per-fight length and the fight-train-fight difficulty loop may need feel-tuning once Chase actually reaches the golden era (weeks away, so low urgency).
 
 ## Ideas Shelf
 
@@ -82,7 +84,8 @@ Implements `docs/golden-guardians-spec.md` v3.1 in full. What shipped, in build 
 
 ## App Store Readiness
 
-- 2026-08-10 (later): **1.0 (build 6) SUBMITTED, state WAITING_FOR_REVIEW, auto-release on approval.** Build 5 was pulled the same day, before Apple looked at it, because testing turned up a confirmed defect in it (see the answer-controls bug below). Build 6 = build 5 + that fix. The iPhone map screenshot in the listing was also replaced.
+- 2026-08-13: **1.0 (build 6) REJECTED, Guideline 4.3(a) Design: Spam.** Reviewed on iPad Air 11-inch (M3). Apple's wording: the app "shares a similar binary, metadata, and/or concept as apps submitted to the App Store by other developers, with only minor differences". The phrase "by other developers" may be literal (the times-tables category is crowded, and the art is AI-generated, which shares a house style with many 2026 indie apps) or may be boilerplate masking the real trigger, which would be Addition Adventure: same source, same engine, same asset pipeline, submitted from this account weeks earlier. Replied the same day asking Apple which apps it was matched against, asserting originality (no purchased template, no shared code or assets with another developer, art and audio made for this app), listing the anti-spam signals (free, no ads, no IAP, no third-party SDKs, no accounts, no data collection, fully offline), disclosing Addition Adventure by name and bundle ID, and offering to consolidate if that is what resolves it. **Lesson: a proactive 4.3 explanation had been written into PARITY item 20 weeks earlier as a recommendation, and was deliberately left OUT of the build 6 reviewer notes on the reasoning that raising it might invite scrutiny. That reasoning was wrong: 4.3 matching is largely automated, so the reviewer sees the similarity either way, and the only thing the omission controlled was whether our explanation was there when they did.**
+- 2026-08-10 (later): **1.0 (build 6) submitted, state WAITING_FOR_REVIEW, auto-release on approval.** Build 5 was pulled the same day, before Apple looked at it, because testing turned up a confirmed defect in it (see the answer-controls bug below). Build 6 = build 5 + that fix. The iPhone map screenshot in the listing was also replaced.
 - 2026-08-08: **1.0 (build 4) REJECTED, Guideline 1.5** (Support URL 404 - page was only on the feature branch while GitHub Pages serves `main//docs`). Fixed on `main` (eefc27c), verified live 200 before resubmitting.
 - Submission mechanics learned: after a rejection click **Update Review** on the version page first, then **Resubmit to App Review**; the API PATCH path 409s until then.
 - Done: privacy policy AND support page live and verified; dev tools excluded from Release builds (verified with `strings`); parent gate; metadata scrubbed for 5.1.4; categories Education + Games, 4+, Free, 175 territories, "Data Not Collected"; 9 screenshots; agreements/bank/W-9/DSA all Active.
@@ -107,11 +110,11 @@ Fixed and measured (5/6 failing before, 0/8 after, 0/8 on iPad). `assembleQuest`
 
 ## Lessons
 
-- **Verify every externally-hosted URL is actually live before submitting to App Review.** `curl -s -o /dev/null -w "%{http_code}" -L <url>` on each listing URL takes seconds. Do it every time.
-- **GitHub Pages publishes from one specific branch.** A doc on a feature branch is not published. `git ls-tree --name-only origin/<pages-branch> docs/` confirms what is actually live.
-- **A `git worktree` on local disk is the clean way to commit to another branch** without disturbing a dirty tree, and it sidesteps Dropbox.
-- **For an intermittent UI bug, build a pixel detector and loop the launch - do not "fix" it from a plausible-looking code read.** A failure RATE (5/6 -> 0/8) turns "seems fixed" into evidence, and forcing the suspected condition with a debug flag makes the flake deterministic.
-- **Beware field-by-field struct copies.** Rebuilding a value type to change one field silently drops every field added later.
-- **An in-memory, launch-arg-gated sim harness that drives the real view model is the cheapest app-layer regression rig.** (2026-08-11) Pattern: `QuestPlanDump`/`GoldenSimDump` - in-memory SwiftData store, injectable clock, drive `vm.answer(...)` in a loop, print PASS/FAIL counts, `exit(0/1)`. It verifies the full service -> builder -> view-model pipeline headlessly, loops for a rate, and doubles as the fixture for later features. Costs one file; catches wiring bugs no engine test can see.
-- **When an unseeded simulation must prove "nothing changed", diff its stable summary lines, not its full output.** (2026-08-11) Run the baseline twice FIRST to learn which lines are run-invariant (here: per-session summary lines), then compare only those against the post-change run. A full-text diff of unseeded output proves nothing; a summary-line diff is byte-exact evidence.
-- **MCP simulator tap-driving needs a per-device user permission grant; plan overnight verification around it.** (2026-08-11) `simctl io screenshot`/`launch` work without it, but tap injection does not, and a declined/pending prompt in a non-interactive session permanently blocks that device for the night. Front-load tap-driven checks onto an already-granted device and verify the riskiest (compact) layout there.
+- **Verify every externally-hosted URL is actually live before submitting to App Review.** `curl -s -o /dev/null -w "%{http_code}" -L <url>` on each listing URL takes seconds. Do it every time. (promoted to Build Guide v8.0, 2026-08-12)
+- **GitHub Pages publishes from one specific branch.** A doc on a feature branch is not published. `git ls-tree --name-only origin/<pages-branch> docs/` confirms what is actually live. (promoted to Build Guide v8.0, 2026-08-12)
+- **A `git worktree` on local disk is the clean way to commit to another branch** without disturbing a dirty tree, and it sidesteps Dropbox. (promoted to Build Guide v8.0, 2026-08-12)
+- **For an intermittent UI bug, build a pixel detector and loop the launch - do not "fix" it from a plausible-looking code read.** A failure RATE (5/6 -> 0/8) turns "seems fixed" into evidence, and forcing the suspected condition with a debug flag makes the flake deterministic. (promoted to Build Guide v8.0, 2026-08-12)
+- **Beware field-by-field struct copies.** Rebuilding a value type to change one field silently drops every field added later. (promoted to Build Guide v8.0, 2026-08-12)
+- **An in-memory, launch-arg-gated sim harness that drives the real view model is the cheapest app-layer regression rig.** (2026-08-11) Pattern: `QuestPlanDump`/`GoldenSimDump` - in-memory SwiftData store, injectable clock, drive `vm.answer(...)` in a loop, print PASS/FAIL counts, `exit(0/1)`. It verifies the full service -> builder -> view-model pipeline headlessly, loops for a rate, and doubles as the fixture for later features. Costs one file; catches wiring bugs no engine test can see. (promoted to Build Guide v8.0, 2026-08-12)
+- **When an unseeded simulation must prove "nothing changed", diff its stable summary lines, not its full output.** (2026-08-11) Run the baseline twice FIRST to learn which lines are run-invariant (here: per-session summary lines), then compare only those against the post-change run. A full-text diff of unseeded output proves nothing; a summary-line diff is byte-exact evidence. (promoted to Build Guide v8.0, 2026-08-12)
+- **MCP simulator tap-driving needs a per-device user permission grant; plan overnight verification around it.** (2026-08-11) `simctl io screenshot`/`launch` work without it, but tap injection does not, and a declined/pending prompt in a non-interactive session permanently blocks that device for the night. Front-load tap-driven checks onto an already-granted device and verify the riskiest (compact) layout there. (promoted to Build Guide v8.0, 2026-08-12)
