@@ -1,0 +1,13 @@
+Sound effects: original to this app.
+
+Every sfx_*.wav in this folder is synthesized from scratch by
+scripts/make-sfx.py in this repository. No samples, no asset packs, no
+third-party audio, no external service, and no licence to honour. Running that
+script reproduces these exact files.
+
+Replaced 2026-08-24. The previous set drew on third-party CC0 packs (Kenney.nl
+RPG Audio, artisticdude's RPG Sound Pack and WobbleBoxx's SoundPack01 via
+OpenGameArt). Those files are public domain and were used legitimately, but they
+are byte identical to the same packs in many other App Store apps, which made
+them a plausible cause of the Guideline 4.3(a) "similar binary" rejection of
+build 6 on 2026-08-13.
