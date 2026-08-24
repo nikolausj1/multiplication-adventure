@@ -1,0 +1,22 @@
+Sound sources:
+
+- sfx_correct (+ pitched variants sfx_correct2-4), sfx_key, sfx_wrong: supplied
+  by the app owner (replaced 2026-07-03; sourced/licensed by them).
+
+Remaining CC0 (public domain) sounds:
+
+- Kenney.nl "RPG Audio" pack (metalClick → sfx_key)  https://kenney.nl/assets/rpg-audio
+- artisticdude "RPG Sound Pack" on OpenGameArt (coin3 → sfx_correct + pitched combo
+  variants sfx_correct2-4; cloth → sfx_wrong; door → sfx_world_unlock layer;
+  magic1 → sfx_milestone)  https://opengameart.org/content/rpg-sound-pack
+- WobbleBoxx "Level up, power up, Coin get" SoundPack01 on OpenGameArt
+  (Rise03 → sfx_world_unlock layer; Upper01 → sfx_complete)
+  https://opengameart.org/content/level-up-power-up-coin-get-13-sounds
+
+No attribution required (CC0), credits kept here out of courtesy.
+
+sfx_phase_zap.wav — user-supplied Kling.ai render (sfx_electricZap.mp3 in
+_inbox), trimmed/leveled; the Quest Meter phase-transition jolt.
+
+sfx_star_slam.wav — user-supplied render (slam.aiff in _inbox), leveled with a
+tail fade; the STAR EARNED overlay's slam-into-socket impact.
