@@ -113,12 +113,9 @@ explanation existed only in a Resolution Center thread that was never read.
     monetization surface in the app at all, which I hope is relevant, since
     spam submissions are generally monetization plays.
 
-    The artwork was generated specifically for this app from my own prompts
-    and then edited and composited by me. It is not stock art, it was not
-    purchased, and it is not reused from another app. If the similarity
-    signal came from visual style, I believe that is why: the generated
-    fantasy style is common in recently released apps, but these particular
-    images exist only here.
+    The artwork, sound and copy were created specifically for this app.
+    Nothing in it is stock, purchased, or reused from another app, and none
+    of it appears anywhere else.
 
     DISCLOSURE OF MY OTHER APP
 
@@ -157,6 +154,29 @@ explanation existed only in a Resolution Center thread that was never read.
     teaches.
 
     Thank you for reading. I am happy to make any change that resolves this.
+
+## On disclosing how the artwork was made
+
+Deliberately NOT in the notes. There is no Apple rule requiring disclosure of
+generated assets: no guideline, no App Store Connect field, no policy. The
+AI-transparency regimes that exist target AI features users interact with, and
+this app has none at runtime.
+
+An earlier draft volunteered it, on the theory that if Apple matched on visual
+style then explaining the style would be exculpatory. That was a guess about an
+unknown trigger, and it opens a line of questioning that is not currently open.
+
+Guideline 4.3(a) is about duplication and repackaging. The claim that answers it
+is that the assets exist in no other app, which is true and is stated plainly
+without reference to tooling.
+
+Hold the fuller explanation in reserve. If Apple names visually similar apps or
+asks about the art directly, answer completely at that point: it becomes
+relevant, and a straight answer is then the strongest move.
+
+**What was never optional** was removing the "hand-painted" claim from the
+description and support page. Not disclosing a method is fine. Asserting a false
+one, in a submission whose entire defence is the developer's credibility, is not.
 
 ## The biggest lever is not on this page
 
