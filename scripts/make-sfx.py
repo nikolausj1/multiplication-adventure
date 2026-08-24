@@ -44,16 +44,21 @@ def env(x, a=0.005, d=0.25, s=0.0, r=0.1, hold=0.0):
     e[i:i+ri] = np.linspace(s, 0, min(ri, n-i))
     return e
 
-def bell(freq, dur, amp=1.0, decay=6.0, detune=0.0):
-    """Struck-bell tone: fundamental plus two quiet partials, exponential decay."""
+def bell(freq, dur, amp=1.0, decay=6.0, detune=0.0, air=0.0):
+    """Struck chime. Deliberately warm: harmonic partials only, steeply rolled
+    off, plus a low-pass. An earlier version used inharmonic partials at 2.01x /
+    3.02x / 4.7x, which beat against each other and put a bright spike near 5 kHz
+    on top of a cue that fires on every correct answer. It was harsh."""
     x = t(dur)
     y = (np.sin(2*np.pi*freq*x)
-         + 0.32*np.sin(2*np.pi*freq*2.01*x)
-         + 0.14*np.sin(2*np.pi*freq*3.02*x)
-         + 0.06*np.sin(2*np.pi*freq*4.7*x))
+         + 0.20*np.sin(2*np.pi*freq*2*x)
+         + 0.05*np.sin(2*np.pi*freq*3*x))
+    if air:
+        y += air*np.sin(2*np.pi*freq*4*x)
     if detune:
         y += 0.5*np.sin(2*np.pi*freq*(1+detune)*x)
-    return amp * y * np.exp(-decay * x) * env(x, a=0.003, d=dur*0.9, r=dur*0.1)
+    y = y * np.exp(-decay*x) * env(x, a=0.008, d=dur*0.9, r=dur*0.1)
+    return amp * lowpass(y, 3800)
 
 def tri(freq, dur, amp=1.0):
     x = t(dur)
@@ -71,6 +76,12 @@ def lowpass(x, cutoff):
     for i in range(len(x)):
         prev += a[i] * (x[i] - prev); y[i] = prev
     return y
+
+def lowpass2(x, cutoff):
+    """Two cascaded one-poles, -12 dB/oct. A single pole leaks far too much hiss
+    through for noise-based cues; the star slam measured 52% of its energy above
+    3 kHz even with a 3.2 kHz one-pole on it."""
+    return lowpass(lowpass(x, cutoff), cutoff)
 
 def sweep(f0, f1, dur, kind="sin", amp=1.0):
     x = t(dur)
@@ -121,15 +132,21 @@ def save(name, x):
 # ---------------------------------------------------------------- the cues
 
 def correct(offset=0, dur=0.46, sparkle=False):
-    """Ascending three-note chime. Streak variants shift up the C-major scale."""
-    notes = [12, 16, 19]                      # C E G above middle C
+    """Ascending three-note chime, streak variants stepping up the C-major scale.
+
+    Pitched at C5-E5-G5 rather than an octave higher. The first pass sat at C6
+    and the streak-8 variant at G6, which pushed most of the energy past 3 kHz:
+    thin, piercing, and unpleasant on a sound a child triggers hundreds of times.
+    """
+    notes = [0, 4, 7]                         # C E G, one octave lower than v1
     y = np.zeros(int(SR*dur))
     for i, n in enumerate(notes):
-        y = place(y, bell(n2f(n+offset+12), dur*0.85, amp=0.55-0.06*i, decay=7.5), at=0.055*i)
+        y = place(y, bell(n2f(n+offset+12), dur*0.85, amp=0.58-0.05*i, decay=6.5),
+                  at=0.055*i)
     if sparkle:
-        for i, n in enumerate([31, 35, 38]):
-            y = place(y, bell(n2f(n+offset), 0.20, amp=0.13, decay=16), at=0.13+0.045*i)
-    return tail(y, 0.16, 0.05, 3)
+        for i, n in enumerate([19, 23, 26]):  # was [31,35,38]: an octave down, quieter
+            y = place(y, bell(n2f(n+offset), 0.20, amp=0.07, decay=15), at=0.13+0.045*i)
+    return lowpass(tail(y, 0.16, 0.05, 3), 4200)
 
 def wrong(dur=0.42):
     """Two soft descending notes. Never harsh: a miss costs nothing in this app."""
@@ -140,16 +157,19 @@ def wrong(dur=0.42):
         y = place(y, tone*np.exp(-7*x)*env(x, a=0.012, d=0.2), at=0.13*i, gain=0.5)
     return lowpass(y, 1500)
 
-def key(dur=0.055):
+def key(dur=0.06):
+    """Number pad tap. The most repeated sound in the app by a wide margin, so it
+    is mostly a soft wooden thock rather than a click: a quiet filtered transient
+    for snap, and a low body tone carrying the weight."""
     x = t(dur)
-    click = noise(dur, 0.5, seed=7) * np.exp(-90*x)
-    body  = np.sin(2*np.pi*1180*x) * np.exp(-55*x) * 0.5
-    return lowpass(click, 4200) + body
+    click = lowpass2(noise(dur, 0.30, seed=7) * np.exp(-120*x), 2000)
+    body  = (np.sin(2*np.pi*620*x) + 0.3*np.sin(2*np.pi*930*x)) * np.exp(-48*x) * 0.75
+    return lowpass(click + body, 3000)
 
 def boss_hit(dur=0.5):
     x = t(dur)
     thump = np.sin(2*np.pi*np.clip(150*np.exp(-11*x), 35, None)*x) * np.exp(-13*x) * 0.95
-    crack = lowpass(noise(dur, 0.75, seed=3) * np.exp(-34*x), 2600)
+    crack = lowpass2(noise(dur, 0.75, seed=3) * np.exp(-34*x), 2200)
     ring  = bell(n2f(-5), dur*0.8, amp=0.22, decay=11)
     return mix(thump, crack, ring)
 
@@ -167,7 +187,7 @@ def world_unlock(dur=1.7):
     y = np.zeros(int(SR*dur))
     rise = sweep(220, 1500, 0.75, amp=0.28) * env(t(0.75), a=0.25, d=0.5)
     y = place(y, lowpass(rise, np.linspace(700, 6500, int(SR*0.75))), at=0.0)
-    shimmer = lowpass(noise(0.75, 0.30, seed=5), np.linspace(500, 9000, int(SR*0.75)))
+    shimmer = lowpass2(noise(0.75, 0.30, seed=5), np.linspace(450, 5200, int(SR*0.75)))
     y = place(y, shimmer*env(t(0.75), a=0.3, d=0.45), at=0.0, gain=0.5)
     for i, n in enumerate([12, 16, 19, 24]):
         y = place(y, bell(n2f(n), 0.95, amp=0.45-0.05*i, decay=4.2), at=0.70+0.06*i)
@@ -181,7 +201,7 @@ def milestone(dur=1.3):
     rng = np.random.default_rng(21)
     for k in range(14):
         at = 0.18 + 0.075*k + rng.uniform(-0.02, 0.02)
-        tw = place(tw, bell(n2f(int(rng.choice([31, 35, 38, 40, 43]))), 0.18, amp=0.1, decay=19), at=at)
+        tw = place(tw, bell(n2f(int(rng.choice([24, 28, 31, 33, 36]))), 0.18, amp=0.08, decay=19), at=at)
     return tail(y + tw, 0.2, 0.06, 3)
 
 def complete(dur=3.2):
@@ -195,7 +215,7 @@ def complete(dur=3.2):
                       at=at + 0.028*i)
     rng = np.random.default_rng(4)
     for k in range(20):
-        y = place(y, bell(n2f(int(rng.choice([31, 35, 38, 43, 47]))), 0.22, amp=0.085, decay=17),
+        y = place(y, bell(n2f(int(rng.choice([24, 28, 31, 36, 40]))), 0.22, amp=0.07, decay=17),
                   at=1.45 + 0.075*k + rng.uniform(-0.02, 0.02))
     return tail(y, 0.26, 0.085, 4)
 
@@ -203,17 +223,17 @@ def phase_zap(dur=0.55):
     x = t(dur)
     flutter = 1 + 0.5*np.sin(2*np.pi*38*x) + 0.25*np.sin(2*np.pi*133*x)
     body = np.sin(2*np.pi*np.cumsum(620*flutter)/SR) * np.exp(-7.5*x) * 0.55
-    fizz = lowpass(noise(dur, 0.6, seed=13) * np.exp(-11*x), np.linspace(6000, 1200, len(x)))
+    fizz = lowpass2(noise(dur, 0.6, seed=13) * np.exp(-11*x), np.linspace(4200, 900, len(x)))
     return body + fizz*0.55
 
 def star_slam(dur=0.95):
     y = np.zeros(int(SR*dur))
-    wh = lowpass(noise(0.3, 0.55, seed=9), np.linspace(400, 5200, int(SR*0.3)))
+    wh = lowpass2(noise(0.3, 0.55, seed=9), np.linspace(380, 3600, int(SR*0.3)))
     y = place(y, wh*env(t(0.3), a=0.2, d=0.1), at=0.0)
     xi = t(0.4)
     y = place(y, np.sin(2*np.pi*np.clip(190*np.exp(-9*xi), 45, None)*xi)*np.exp(-11*xi)*0.9, at=0.26)
-    y = place(y, lowpass(noise(0.25, 0.6, seed=17)*np.exp(-26*t(0.25)), 3200), at=0.26)
-    for i, n in enumerate([24, 28, 31]):
+    y = place(y, lowpass2(noise(0.25, 0.6, seed=17)*np.exp(-26*t(0.25)), 2500), at=0.26)
+    for i, n in enumerate([19, 23, 26]):
         y = place(y, bell(n2f(n), 0.55, amp=0.26-0.03*i, decay=9), at=0.30+0.045*i)
     return tail(y, 0.2, 0.06, 3)
 
