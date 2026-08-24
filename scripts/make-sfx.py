@@ -18,10 +18,18 @@ soft attacks and no harsh transients, because a seven-year-old hears these
 hundreds of times; the wrong-answer cue is deliberately gentle, since the app's
 whole stance is that a miss costs nothing.
 """
-import argparse, math, pathlib, struct, wave
+import argparse, datetime, hashlib, json, math, pathlib, shutil, struct, wave
 import numpy as np
 
 SR = 44100
+# Bump on every audible change. Stamped into MANIFEST.json, AUDIO-PROVENANCE.txt
+# and the review page, so there is never any doubt which set you are hearing.
+SFX_VERSION = 2
+VERSION_NOTES = {
+    1: "first synthesis pass",
+    2: "warmer: harmonic partials only, correct cues an octave lower, "
+       "two-pole filtering on noise cues, sfx_key rebuilt as a soft thock",
+}
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "build" / "sfx"
 DEST = ROOT / "Sources/App/Resources/Audio"
@@ -257,12 +265,35 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--install", action="store_true", help="copy into Resources/Audio")
     args = ap.parse_args()
+
+    print(f"sound set v{SFX_VERSION} - {VERSION_NOTES[SFX_VERSION]}\n")
+    manifest = {"version": SFX_VERSION,
+                "note": VERSION_NOTES[SFX_VERSION],
+                "generated": datetime.datetime.now().isoformat(timespec="seconds"),
+                "files": {}}
     for name, fn in CUES.items():
         p = save(name, fn())
+        digest = hashlib.sha256(p.read_bytes()).hexdigest()[:8]
         with wave.open(str(p)) as f:
-            print(f"  {name:<20} {f.getnframes()/f.getframerate():.2f}s  {p.stat().st_size/1024:6.1f} KB")
+            secs = f.getnframes() / f.getframerate()
+        manifest["files"][name] = {"sha256_8": digest, "seconds": round(secs, 3),
+                                   "bytes": p.stat().st_size}
+        print(f"  {name:<20} {secs:.2f}s  {p.stat().st_size/1024:6.1f} KB  #{digest}")
+    (OUT / "MANIFEST.json").write_text(json.dumps(manifest, indent=2))
+
+    # keep an immutable snapshot of each version so the review page can A/B
+    snap = ROOT / "build" / f"sfx-v{SFX_VERSION}"
+    snap.mkdir(parents=True, exist_ok=True)
+    for f in OUT.glob("*"):
+        if f.is_file():
+            shutil.copy(f, snap / f.name)
+
     if args.install:
-        import shutil
         for name in CUES:
             shutil.copy(OUT / f"{name}.wav", DEST / f"{name}.wav")
-        print(f"\ninstalled {len(CUES)} files into {DEST}")
+        prov = DEST / "AUDIO-PROVENANCE.txt"
+        text = prov.read_text() if prov.exists() else ""
+        stamp = f"Sound set version: v{SFX_VERSION} ({VERSION_NOTES[SFX_VERSION]})\n"
+        lines = [l for l in text.splitlines(True) if not l.startswith("Sound set version:")]
+        prov.write_text(stamp + "".join(lines))
+        print(f"\ninstalled v{SFX_VERSION}: {len(CUES)} files -> {DEST}")

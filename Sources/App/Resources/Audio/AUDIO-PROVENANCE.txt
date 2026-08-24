@@ -1,3 +1,4 @@
+Sound set version: v2 (warmer: harmonic partials only, correct cues an octave lower, two-pole filtering on noise cues, sfx_key rebuilt as a soft thock)
 Sound effects: original to this app.
 
 Every sfx_*.wav in this folder is synthesized from scratch by
