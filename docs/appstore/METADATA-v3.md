@@ -78,12 +78,59 @@ because it is already on hold.
 
 
 
-### Description, full text (2884 chars)
+## Accuracy audit, 2026-08-24
+
+Every factual claim in the listing and notes was checked against the code before
+resubmitting, because on a spam flag the whole defence is that the developer is
+straightforwardly accurate. Four claims were wrong and are fixed.
+
+**Kenney CC0 audio (the important one).** The app bundles 13 Kenney sound
+effects, with `LICENSE-Kenney-CC0.txt` shipping inside the app. Kenney packs are
+among the most widely used free game assets in existence. The notes claimed
+"nothing in it is stock... none of it appears anywhere else" and the description
+said "every world, guardian, and sound in it was made for this app". Both false.
+
+This may also be the actual cause of the rejection. Apple said the app "shares a
+similar BINARY... as apps submitted to the App Store by other developers". Those
+audio files are byte identical across every app that uses them, so an asset
+fingerprint match is close to guaranteed. That is a more plausible trigger than
+the artwork or the sibling app. The notes now disclose it, name it as the likely
+explanation, and offer to replace the audio with original recordings.
+
+**"the boss asks for exactly the facts that world taught"** (description). False.
+`buildBossSession` filters `$0.introduced && $0.stage >= .recall`, a global pool.
+The code's own comment says "worlds no longer own facts". Stale copy from an
+earlier design. Now reads "a timed gauntlet drawn from the facts that need the
+most work".
+
+**"I wrote every line of it myself"** (notes). Removed at Justin's direction. The
+code was written with AI assistance across many sessions.
+
+**"hand-painted"** (description and support.html). Removed earlier the same day.
+
+Verified TRUE and left standing: no third-party SDK (zero SPM packages; imports
+are AVFoundation, Charts, CoreImage, Foundation, SwiftData, SwiftUI, UIKit, all
+Apple); works fully offline and collects no data (no networking code anywhere in
+Sources); free with no IAP or subscription; 77 facts; three stars per world;
+certificate prints at full mastery; parent gate is a two-digit multiplication
+problem; Addition Adventure never released and not in review.
+
+### OPEN: Content Rights declaration
+
+App Information declares `DOES_NOT_USE_THIRD_PARTY_CONTENT` while the binary
+bundles Kenney audio. CC0 is a public-domain dedication so the rights are not in
+question, and many developers answer "no" for CC0 assets, but strictly the audio
+is third-party in origin. A reviewer noticing recognisable Kenney SFX next to a
+"no third-party content" declaration would see a discrepancy at the worst
+possible moment, so switching to `USES_THIRD_PARTY_CONTENT` is the safer and more
+accurate answer. Justin's call: it is a declaration in his name.
+
+### Description, full text (2880 chars)
 
 ```
 Multiplication Adventure turns the times tables into a real adventure.
 
-It was built by one parent, at home, for his own two children, and every world, guardian, and sound in it was made for this app.
+It was built by one parent, at home, for his own two children, and every world and guardian in it was made for this app.
 
 The journey crosses seven worlds, from Highland Trail to the Storm Titan's peak, mastering one multiplication fact at a time. Every world ends in a boss battle against its guardian, and every correct answer lands a hit.
 
@@ -99,7 +146,7 @@ WHAT'S INSIDE
 - Multiple player profiles, so everyone sharing a device keeps their own progress
 
 HOW THE PRACTICE WORKS
-Every session is a short daily quest, a handful of questions rather than an endless drill. New facts arrive a table at a time, in an order that front-loads the easy tables and gives the hard ones room of their own. Review is cumulative, so nothing that has been learned quietly slips away. Three quest stars unlock a world's boss fight, and the boss asks for exactly the facts that world taught.
+Every session is a short daily quest, a handful of questions rather than an endless drill. New facts arrive a table at a time, in an order that front-loads the easy tables and gives the hard ones room of their own. Review is cumulative, so nothing that has been learned quietly slips away. Three quest stars unlock a world's boss fight, a timed gauntlet drawn from the facts that need the most work.
 
 NO ADS, NO ACCOUNTS, NO TRACKING
 - No advertising and no in-app purchases, ever
@@ -115,10 +162,9 @@ There is no endless streak to protect and no reason to keep playing once the tab
 Multiplication Adventure suits anyone learning the times tables or coming back to them. The fact set is the standard 0 to 11 curriculum, the sessions are built for a few minutes a day rather than a marathon, and every world is unlocked by playing, not by paying.
 
 Questions, problems, or ideas? Everything you need to reach the developer is at https://nikolausj1.github.io/multiplication-adventure/support.html
-
 ```
 
-### App Review notes, full text (2903 chars)
+### App Review notes, full text (3217 chars)
 
 ```
 ABOUT THIS APP AND WHO MADE IT
@@ -127,12 +173,16 @@ I built this at home for my own two children, so that my older son would know
 his times tables before the school year starts. That is the entire reason it
 exists.
 
-I wrote every line of it myself. It is not built on a purchased or third-party
-template, it does not use a commercial app generator, and it shares no source
-code with any other developer's app. There is no third-party SDK of any kind in
-the binary. The artwork, sound and copy were created specifically for this app.
-Nothing in it is stock, purchased, or reused from another app, and none of it
-appears anywhere else.
+It is not built on a purchased or third-party template, it does not use a
+commercial app generator, and it shares no source code with any other
+developer's app. There is no third-party SDK of any kind in the binary. The
+artwork and copy were created specifically for this app and appear in no other
+app. The sound effects are the one exception: they come from Kenney's free CC0
+public-domain audio packs, which are very widely used in games, and the license
+file ships inside the app bundle. If the similarity signal came from bundled
+assets, I suspect that audio is the explanation, since those files are byte
+identical in every app that uses them. I am glad to replace them with original
+recordings if that is what resolves this.
 
 The app is free. There is no advertising, no in-app purchase, no subscription,
 no account or sign-in, no analytics, and no data collection of any kind. It
